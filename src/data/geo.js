@@ -1,0 +1,60 @@
+export const geofences = [
+  {
+    id: 'GEO-01',
+    name: 'South Africa Coverage',
+    scope: 'country',
+    region: 'South Africa',
+    radiusKm: null,
+    rule: 'Deliver everywhere',
+    exclusions: [],
+  },
+  {
+    id: 'GEO-02',
+    name: 'Gauteng Priority',
+    scope: 'province',
+    region: 'Gauteng',
+    radiusKm: null,
+    rule: 'Same-day eligible',
+    exclusions: ['Restricted mining zones'],
+  },
+  {
+    id: 'GEO-03',
+    name: 'Durban Yard Geofence',
+    scope: 'radius',
+    region: 'Durban Central Yard',
+    radiusKm: 3,
+    rule: 'Auto check-in on entry',
+    exclusions: [],
+  },
+  {
+    id: 'GEO-04',
+    name: 'Customer Site — AfriMetals',
+    scope: 'radius',
+    region: 'Lusaka Industrial',
+    radiusKm: 1.5,
+    rule: 'Arrival alert',
+    exclusions: [],
+  },
+  {
+    id: 'GEO-05',
+    name: 'Restricted Border Corridor',
+    scope: 'province',
+    region: 'Limpopo border strip',
+    radiusKm: null,
+    rule: 'Permit required',
+    exclusions: ['Night transit without escort'],
+  },
+]
+
+export const routeOptimization = [
+  { route: 'Durban → Lusaka', baselineHrs: 52, optimizedHrs: 46, fuelSavePct: 11 },
+  { route: 'Cape Town → Johannesburg', baselineHrs: 16, optimizedHrs: 14.5, fuelSavePct: 8 },
+  { route: 'JNB → LUN (air)', baselineHrs: 2.4, optimizedHrs: 2.2, fuelSavePct: 5 },
+]
+
+export const weatherAnalytics = [
+  { region: 'KZN Coast', condition: 'Heavy rain risk', impact: 'Road delays +12%', severity: 'high' },
+  { region: 'Gauteng', condition: 'Clear', impact: 'Normal ops', severity: 'low' },
+  { region: 'Cape Corridor', condition: 'Strong winds', impact: 'Air cargo holds', severity: 'medium' },
+  { region: 'Zambia North', condition: 'Thunderstorms', impact: 'Night haul pause', severity: 'medium' },
+]

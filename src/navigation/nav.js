@@ -1,0 +1,81 @@
+import {
+  LayoutDashboard,
+  Map,
+  Route,
+  Warehouse,
+  Users,
+  Package,
+  Wallet,
+  Building2,
+  Receipt,
+  MapPinned,
+  ChartSpline,
+  Bell,
+  Plane,
+  Ship,
+  TrainFront,
+  Truck,
+  Home,
+} from 'lucide-react'
+
+export const operatorNav = [
+  { label: 'Dashboard', path: '/app/dashboard', icon: LayoutDashboard },
+  { label: 'Map', path: '/app/map', icon: Map },
+  { label: 'Trips', path: '/app/trips', icon: Route },
+  {
+    label: 'Assets',
+    icon: Warehouse,
+    children: [
+      { label: 'Overview', path: '/app/assets' },
+      { label: 'Yards & Depots', path: '/app/assets/yards' },
+      { label: 'Vehicles', path: '/app/assets/vehicles' },
+      { label: 'Trailers', path: '/app/assets/trailers' },
+      { label: 'Equipment', path: '/app/assets/equipment' },
+      { label: 'Check In / Out', path: '/app/assets/check-in' },
+      { label: 'Rail', path: '/app/assets/rail' },
+      { label: 'Maritime', path: '/app/assets/maritime' },
+      { label: 'Airports', path: '/app/assets/air/airports' },
+      { label: 'Aeroplanes', path: '/app/assets/air/aeroplanes' },
+      { label: 'Air Equipment', path: '/app/assets/air/equipment' },
+      { label: 'Crew', path: '/app/assets/air/crew' },
+    ],
+  },
+  { label: 'Drivers', path: '/app/drivers', icon: Users },
+  {
+    label: 'Orders',
+    icon: Package,
+    children: [
+      { label: 'All Orders', path: '/app/orders' },
+      { label: 'Pending', path: '/app/orders/pending' },
+      { label: 'History', path: '/app/orders/history' },
+      { label: 'Invoices', path: '/app/orders/invoices' },
+    ],
+  },
+  { label: 'Wallet', path: '/app/wallet', icon: Wallet },
+  { label: 'Customers', path: '/app/customers', icon: Building2 },
+  {
+    label: 'Expenses',
+    icon: Receipt,
+    children: [
+      { label: 'Fuel Logs', path: '/app/expenses/fuel' },
+      { label: 'Yard Fees', path: '/app/expenses/yard-fees' },
+      { label: 'Airport Fees', path: '/app/expenses/airport-fees' },
+      { label: 'Salaries', path: '/app/expenses/salaries' },
+    ],
+  },
+  { label: 'Geomapping', path: '/app/geomapping', icon: MapPinned },
+  { label: 'Geo Analytics', path: '/app/geo-analytics', icon: ChartSpline },
+  { label: 'Notifications', path: '/app/notifications', icon: Bell },
+]
+
+export const modeChips = [
+  { label: 'Road', icon: Truck },
+  { label: 'Rail', icon: TrainFront },
+  { label: 'Maritime', icon: Ship },
+  { label: 'Air', icon: Plane },
+]
+
+export const publicLinks = [
+  { label: 'Home', path: '/', icon: Home },
+  { label: 'Login', path: '/login' },
+]

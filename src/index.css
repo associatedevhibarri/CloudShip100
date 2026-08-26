@@ -1,0 +1,66 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-brand: #007bff;
+  --color-brand-dark: #0056b3;
+  --color-brand-light: #e8f3ff;
+  --color-brand-soft: #4da3ff;
+  --color-surface: #f5f7fb;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+  --color-line: #e2e8f0;
+  --radius-card: 1.125rem;
+  --shadow-card: 0 4px 24px rgba(15, 23, 42, 0.06);
+  --gradient-brand: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  --gradient-brand-soft: linear-gradient(135deg, #e8f3ff 0%, #f5f7fb 55%, #ffffff 100%);
+}
+
+.bg-brand-gradient {
+  background-image: var(--gradient-brand);
+}
+
+.bg-brand-soft-gradient {
+  background-image: var(--gradient-brand-soft);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+.leaflet-container {
+  font-family: var(--font-sans);
+  border-radius: inherit;
+  z-index: 0;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
