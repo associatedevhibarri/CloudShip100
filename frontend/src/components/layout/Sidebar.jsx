@@ -7,7 +7,7 @@ import { Logo } from '../Logo'
 function NavItem({ item, onNavigate }) {
   const location = useLocation()
   const [open, setOpen] = useState(
-    item.children?.some((c) => location.pathname.startsWith(c.path)) ?? false,
+    item.children?.some((c) => c.path && location.pathname.startsWith(c.path)) ?? false,
   )
 
   if (item.children) {
@@ -26,20 +26,29 @@ function NavItem({ item, onNavigate }) {
         </button>
         {open ? (
           <div className="ml-3 space-y-1 border-l border-line pl-3">
-            {item.children.map((child) => (
-              <NavLink
-                key={child.path}
-                to={child.path}
-                onClick={onNavigate}
-                className={({ isActive }) =>
-                  `block rounded-lg px-3 py-2 text-sm ${
-                    isActive ? 'bg-brand text-white' : 'text-muted hover:bg-brand-light hover:text-brand'
-                  }`
-                }
-              >
-                {child.label}
-              </NavLink>
-            ))}
+            {item.children.map((child) =>
+              child.section ? (
+                <p
+                  key={child.section}
+                  className="px-3 pb-1 pt-3 text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand"
+                >
+                  {child.section}
+                </p>
+              ) : (
+                <NavLink
+                  key={child.path}
+                  to={child.path}
+                  onClick={onNavigate}
+                  className={({ isActive }) =>
+                    `block rounded-lg px-3 py-2 text-sm ${
+                      isActive ? 'bg-brand text-white' : 'text-muted hover:bg-brand-light hover:text-brand'
+                    }`
+                  }
+                >
+                  {child.label}
+                </NavLink>
+              ),
+            )}
           </div>
         ) : null}
       </div>

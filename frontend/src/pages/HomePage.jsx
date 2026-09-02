@@ -1,136 +1,349 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Map, Route, Plane, Shield } from 'lucide-react'
+import {
+  ArrowRight,
+  Map,
+  Route,
+  Plane,
+  Bell,
+  UserCheck,
+  Plug,
+  Store,
+  ShieldCheck,
+  Clock,
+  Globe2,
+} from 'lucide-react'
 import { Logo } from '../components/Logo'
+
+const trustBadges = [
+  { icon: ShieldCheck, label: 'Enterprise-grade security' },
+  { icon: Clock, label: 'Built for zero downtime' },
+  { icon: Globe2, label: 'Road · Rail · Air · Maritime' },
+]
 
 const features = [
   {
     icon: Map,
-    title: 'Live multimodal map',
-    text: 'Track trucks, freighters, vessels, depots, and cargo in one command view.',
+    title: 'Live Multimodal Map',
+    text: 'A high-tech operating system for road, rail, maritime and air operations.',
+    accent: 'from-sky-500/15 to-brand/5',
   },
   {
     icon: Route,
-    title: 'Trip control towers',
-    text: 'Starting soon, ending soon, and in-progress queues for road and air.',
+    title: 'Trip Control Towers',
+    text: 'Trips, assets, wallets, geomapping and deep delivery insights from intelligent parcel to person matching technology.',
+    accent: 'from-indigo-500/15 to-brand/5',
   },
   {
     icon: Plane,
-    title: 'Air + road + maritime assets',
-    text: 'Yards, hangars, compliance docs, crew, and equipment in one ERP shell.',
+    title: 'Air + Ground + Maritime',
+    text: 'Whether your own assets or outsourced, deliveries are tracked end to end.',
+    accent: 'from-cyan-500/15 to-brand/5',
   },
   {
-    icon: Shield,
-    title: 'Compliance & geofencing',
-    text: 'Permits, inspections, country coverage, and restricted-zone rules.',
+    icon: Bell,
+    title: 'Geofencing & Notifications',
+    text: 'Parcels attach to persons, vehicles and drivers, thus maintaining central mission control while sending live status updates to your customers in real time.',
+    accent: 'from-violet-500/15 to-brand/5',
   },
 ]
 
+const platformFeatures = [
+  {
+    icon: UserCheck,
+    title: 'Automated KYC & Self-Service',
+    text: 'Automated KYC and self-service profile updates in user friendly customer dashboards.',
+  },
+  {
+    icon: Plug,
+    title: 'ERP, CRM & Accounting',
+    text: 'Compatible with your ERP, CRM and accounting systems. Integrates or replaces required business functions.',
+  },
+  {
+    icon: Store,
+    title: 'E-Commerce API Marketplace',
+    text: 'Integrates with bulk e-commerce platforms. Logistics companies with live pre-programmed prices are able to win trips from new customers through our API marketplace.',
+  },
+]
+
+function FeatureCard({ icon: Icon, title, text, accent }) {
+  return (
+    <article className="group flex h-full flex-col rounded-2xl border border-line/80 bg-white p-6 shadow-[var(--shadow-card)] transition duration-300 hover:-translate-y-1 hover:border-brand/25 hover:shadow-lg hover:shadow-brand/10">
+      <div
+        className={`mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${accent} text-brand ring-1 ring-brand/10 transition group-hover:scale-105 group-hover:ring-brand/20`}
+      >
+        <Icon size={20} strokeWidth={2.25} />
+      </div>
+      <h3 className="text-base font-extrabold leading-snug text-ink">{title}</h3>
+      <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{text}</p>
+    </article>
+  )
+}
+
+function PlatformCard({ icon: Icon, title, text }) {
+  return (
+    <article className="group flex h-full flex-col rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm transition duration-300 hover:bg-white/10">
+      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-brand/20 text-brand-soft ring-1 ring-white/10">
+        <Icon size={20} strokeWidth={2.25} />
+      </div>
+      <h3 className="text-base font-extrabold text-white">{title}</h3>
+      <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-300">{text}</p>
+    </article>
+  )
+}
+
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#e8f3ff_0%,_#f5f7fb_45%,_#ffffff_100%)]">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <Logo />
-        <div className="flex items-center gap-3">
-          <Link to="/login" className="text-sm font-semibold text-ink hover:text-brand">
-            Login
-          </Link>
-          <Link
-            to="/login"
-            className="rounded-full bg-brand-gradient px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-brand/20 hover:brightness-105"
-          >
-            Open demo
-          </Link>
+    <div className="relative min-h-screen overflow-x-hidden bg-surface">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[42rem] bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,#007bff22,transparent_70%)]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#e2e8f012_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f012_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_75%)]"
+      />
+
+      <header className="sticky top-0 z-50 border-b border-line/60 bg-white/75 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-6">
+          <Logo />
+          <nav className="flex items-center gap-2 sm:gap-3">
+            <Link
+              to="/login"
+              className="rounded-full px-3 py-2 text-sm font-semibold text-ink transition hover:bg-brand-light hover:text-brand"
+            >
+              Login
+            </Link>
+            <Link
+              to="/login"
+              className="rounded-full bg-brand-gradient px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-brand/25 transition hover:brightness-105"
+            >
+              Try Demo
+            </Link>
+          </nav>
         </div>
       </header>
 
-      <section className="relative mx-auto grid max-w-6xl items-center gap-10 px-6 pb-16 pt-8 lg:grid-cols-2 lg:pt-12">
-        <div>
-          <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.28em] text-brand">
-            Cloud Ship 100
-          </p>
-          <h1 className="text-4xl font-extrabold tracking-tight text-ink sm:text-5xl lg:text-6xl">
-            End-to-end logistics ERP that feels mission control.
-          </h1>
-          <p className="mt-4 max-w-xl text-base text-muted sm:text-lg">
-            A high-tech demo for road, rail, maritime, and air operations — trips, assets, wallets,
-            geomapping, and customer deliveries — built frontend-first with rich dummy data.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              to="/login"
-              className="inline-flex items-center gap-2 rounded-full bg-brand-gradient px-5 py-3 text-sm font-bold text-white shadow-lg shadow-brand/25 hover:brightness-105"
-            >
-              Launch operator ERP <ArrowRight size={16} />
-            </Link>
-            <Link
-              to="/login?role=customer"
-              className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-5 py-3 text-sm font-bold text-ink hover:border-brand"
-            >
-              Customer portal
-            </Link>
-          </div>
-        </div>
+      <main>
+        <section className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-10 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pb-24 lg:pt-16">
+          <div className="max-w-xl lg:max-w-none">
+            <p className="inline-flex items-center rounded-full border border-brand/15 bg-brand-light/80 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.22em] text-brand">
+              Cloud Ship 100
+            </p>
+            <h1 className="mt-5 text-[2rem] font-extrabold leading-[1.08] tracking-tight text-ink sm:text-5xl lg:text-[3.35rem]">
+              <span className="block">The World&apos;s Most Integrated</span>
+              <span className="mt-1 block bg-gradient-to-r from-brand via-brand-soft to-brand-dark bg-clip-text text-transparent">
+                Transport Management System
+              </span>
+            </h1>
+            <p className="mt-5 max-w-lg text-base leading-relaxed text-muted sm:text-lg">
+              Logistics enterprise software for companies that can&apos;t afford system downtime.
+            </p>
 
-        <div className="relative">
-          <div className="absolute -inset-4 rounded-[2rem] bg-brand/10 blur-2xl" />
-          <div className="relative overflow-hidden rounded-[1.5rem] border border-white/70 bg-white/80 p-4 shadow-2xl backdrop-blur">
-            <div className="grid gap-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-brand p-4 text-white">
-                  <p className="text-xs text-white/80">Total Revenue</p>
-                  <p className="mt-1 text-2xl font-extrabold">$24,580</p>
-                  <p className="mt-1 text-xs">+12% from last month</p>
-                </div>
-                <div className="rounded-2xl border border-line bg-white p-4">
-                  <p className="text-xs text-muted">Deliveries</p>
-                  <p className="mt-1 text-2xl font-extrabold">1,245</p>
-                  <p className="mt-1 text-xs text-emerald-600">+8% growth</p>
-                </div>
-              </div>
-              <div className="h-36 rounded-2xl bg-[linear-gradient(180deg,#e8f3ff_0%,#ffffff_100%)] p-4">
-                <p className="text-xs font-bold text-muted">Activity preview</p>
-                <svg viewBox="0 0 320 80" className="mt-3 h-16 w-full">
-                  <path
-                    d="M0 60 C40 50, 60 20, 100 35 S160 70, 200 40 S260 10, 320 25"
-                    fill="none"
-                    stroke="#007BFF"
-                    strokeWidth="3"
-                  />
-                  <path
-                    d="M0 70 C50 65, 80 40, 120 50 S180 75, 220 55 S280 30, 320 45"
-                    fill="none"
-                    stroke="#4DA3FF"
-                    strokeWidth="2"
-                  />
-                </svg>
-              </div>
-              <div className="rounded-2xl border border-line bg-slate-50 p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-muted">Road Cargo</p>
-                <p className="mt-1 text-sm font-semibold text-ink">
-                  Southern Africa corridor · live vehicle clusters
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-2 rounded-full bg-brand-gradient px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-brand/30 transition hover:brightness-105 hover:shadow-xl hover:shadow-brand/25"
+              >
+                Try Demo
+                <ArrowRight size={16} className="transition group-hover:translate-x-0.5" />
+              </Link>
+              <Link
+                to="/login?role=customer"
+                className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-6 py-3.5 text-sm font-bold text-ink shadow-sm transition hover:border-brand/40 hover:bg-brand-light/40"
+              >
+                Customer Portal
+              </Link>
+            </div>
+
+            <ul className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
+              {trustBadges.map(({ icon: Icon, label }) => (
+                <li key={label} className="flex items-center gap-2 text-sm text-muted">
+                  <Icon size={15} className="shrink-0 text-brand" strokeWidth={2.25} />
+                  <span>{label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="relative lg:justify-self-end">
+            <div className="absolute -inset-6 rounded-[2.5rem] bg-brand/10 blur-3xl" aria-hidden />
+            <div className="relative overflow-hidden rounded-[1.75rem] border border-white/80 bg-white/90 shadow-2xl shadow-brand/10 ring-1 ring-line/50 backdrop-blur">
+              <div className="flex items-center gap-2 border-b border-line/70 bg-slate-50/90 px-4 py-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-rose-400/90" />
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-400/90" />
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/90" />
+                <p className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
+                  Operations Command Center
                 </p>
               </div>
+
+              <div className="grid gap-3 p-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl bg-brand-gradient p-4 text-white shadow-md shadow-brand/20">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/75">
+                      Total Revenue
+                    </p>
+                    <p className="mt-1 text-2xl font-extrabold tracking-tight">$24,580</p>
+                    <p className="mt-1 text-xs text-emerald-200">+12% from last month</p>
+                  </div>
+                  <div className="rounded-2xl border border-line bg-white p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                      Deliveries
+                    </p>
+                    <p className="mt-1 text-2xl font-extrabold tracking-tight text-ink">1,245</p>
+                    <p className="mt-1 text-xs font-semibold text-emerald-600">+8% growth</p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-line bg-gradient-to-b from-brand-light/60 to-white p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-xs font-bold text-muted">Live activity</p>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                      Live
+                    </span>
+                  </div>
+                  <svg viewBox="0 0 320 80" className="h-20 w-full" aria-hidden>
+                    <defs>
+                      <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#007BFF" stopOpacity="0.25" />
+                        <stop offset="100%" stopColor="#007BFF" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d="M0 60 C40 50, 60 20, 100 35 S160 70, 200 40 S260 10, 320 25 L320 80 L0 80 Z"
+                      fill="url(#chartFill)"
+                    />
+                    <path
+                      d="M0 60 C40 50, 60 20, 100 35 S160 70, 200 40 S260 10, 320 25"
+                      fill="none"
+                      stroke="#007BFF"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M0 70 C50 65, 80 40, 120 50 S180 75, 220 55 S280 30, 320 45"
+                      fill="none"
+                      stroke="#4DA3FF"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </div>
+
+                <div className="rounded-2xl border border-line bg-slate-50 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-muted">
+                        Road Cargo
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-ink">
+                        Southern Africa corridor · live vehicle clusters
+                      </p>
+                    </div>
+                    <span className="rounded-lg bg-brand-light px-2 py-1 text-[10px] font-bold text-brand">
+                      MAP
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="border-t border-line/70 bg-white/60 py-16">
-        <div className="mx-auto grid max-w-6xl gap-6 px-6 sm:grid-cols-2 lg:grid-cols-4">
-          {features.map(({ icon: Icon, title, text }) => (
-            <div key={title} className="rounded-2xl border border-line bg-white p-5 shadow-sm">
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand">
-                <Icon size={18} />
-              </div>
-              <h3 className="font-extrabold text-ink">{title}</h3>
-              <p className="mt-2 text-sm text-muted">{text}</p>
+        <section className="border-t border-line/70 bg-white py-20">
+          <div className="mx-auto max-w-6xl px-5 sm:px-6">
+            <div className="mx-auto mb-12 max-w-2xl text-center">
+              <p className="text-xs font-extrabold uppercase tracking-[0.28em] text-brand">
+                Core Platform
+              </p>
+              <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+                One system for every mode of transport
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted sm:text-base">
+                Mission control for operators who need live visibility across fleets, trips, and
+                customer deliveries — without switching tools.
+              </p>
             </div>
-          ))}
-        </div>
-      </section>
 
-      <footer className="border-t border-line py-8 text-center text-sm text-muted">
-        Cloud Ship 100 — demo frontend for logistics software services.
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {features.map((feature) => (
+                <FeatureCard key={feature.title} {...feature} />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="relative overflow-hidden border-t border-line/70 bg-ink py-20 text-white">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,#007bff33,transparent_42%),radial-gradient(circle_at_85%_80%,#4da3ff22,transparent_40%)]"
+          />
+          <div className="relative mx-auto max-w-6xl px-5 sm:px-6">
+            <div className="mx-auto mb-12 max-w-2xl text-center">
+              <p className="text-xs font-extrabold uppercase tracking-[0.28em] text-brand-soft">
+                Platform Capabilities
+              </p>
+              <h2 className="mt-3 text-2xl font-extrabold tracking-tight sm:text-3xl">
+                Enterprise-ready from day one
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-slate-400 sm:text-base">
+                Compliance, integrations, and customer self-service built into the same platform
+                your operations team runs on.
+              </p>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-3">
+              {platformFeatures.map((feature) => (
+                <PlatformCard key={feature.title} {...feature} />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-line/70 bg-brand-soft-gradient py-16">
+          <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-5 text-center sm:px-6">
+            <h2 className="max-w-xl text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+              See Cloud Ship in action
+            </h2>
+            <p className="max-w-lg text-sm leading-relaxed text-muted sm:text-base">
+              Explore the full operator ERP demo or sign in through the customer portal — no setup
+              required.
+            </p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-2 rounded-full bg-brand-gradient px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-brand/25 transition hover:brightness-105"
+              >
+                Try Demo
+                <ArrowRight size={16} />
+              </Link>
+              <Link
+                to="/login?role=customer"
+                className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-6 py-3.5 text-sm font-bold text-ink transition hover:border-brand/40"
+              >
+                Customer Portal
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-line bg-white py-10">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 text-center sm:flex-row sm:px-6 sm:text-left">
+          <Logo size="sm" />
+          <p className="text-sm text-muted">
+            Made with <span className="text-brand">♡</span> by{' '}
+            <a
+              href="https://hibarri.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-brand transition hover:underline"
+            >
+              Hibarri
+            </a>
+          </p>
+        </div>
       </footer>
     </div>
   )
