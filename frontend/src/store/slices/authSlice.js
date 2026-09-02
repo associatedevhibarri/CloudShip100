@@ -61,6 +61,11 @@ export const fetchCurrentUser = createAsyncThunk(
       return null
     }
 
+    if (tokens.access.token === 'demo-operator') {
+      const raw = localStorage.getItem('cloudship_user')
+      return raw ? { user: JSON.parse(raw), tokens } : null
+    }
+
     try {
       const currentUser = await authService.getMe(tokens.access.token)
       localStorage.setItem('cloudship_user', JSON.stringify(currentUser))

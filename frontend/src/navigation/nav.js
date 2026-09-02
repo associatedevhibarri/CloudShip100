@@ -5,6 +5,7 @@ import {
   Warehouse,
   Users,
   Package,
+  Boxes,
   Wallet,
   Building2,
   Receipt,
@@ -22,6 +23,19 @@ export const operatorNav = [
   { label: 'Dashboard', path: '/app/dashboard', icon: LayoutDashboard },
   { label: 'Map', path: '/app/map', icon: Map },
   { label: 'Trips', path: '/app/trips', icon: Route },
+  {
+    label: 'Warehouse',
+    icon: Boxes,
+    children: [
+      { label: 'Overview', path: '/app/warehouse' },
+      { label: 'Labelling & Batching', path: '/app/warehouse/labelling' },
+      { label: 'Smart Assignment', path: '/app/warehouse/assignment' },
+      { label: 'Geofences & Zones', path: '/app/warehouse/zones' },
+      { label: 'Dispatch & Tracking', path: '/app/warehouse/dispatch' },
+      { label: 'Route Optimisation', path: '/app/warehouse/routes' },
+      { label: 'Driver Board', path: '/app/warehouse/drivers' },
+    ],
+  },
   {
     label: 'Assets',
     icon: Warehouse,

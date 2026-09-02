@@ -42,6 +42,13 @@ import DriverParcelsPage from './pages/driver/DriverParcelsPage'
 import DriverTripsPage from './pages/driver/DriverTripsPage'
 import DriverDamageLogsPage from './pages/driver/DriverDamageLogsPage'
 import DriverHistoryPage from './pages/driver/DriverHistoryPage'
+import WarehouseOverviewPage from './pages/warehouse/WarehouseOverviewPage'
+import LabellingPage from './pages/warehouse/LabellingPage'
+import AssignmentPage from './pages/warehouse/AssignmentPage'
+import WarehouseZonesPage from './pages/warehouse/WarehouseZonesPage'
+import DispatchPage from './pages/warehouse/DispatchPage'
+import WarehouseRoutesPage from './pages/warehouse/WarehouseRoutesPage'
+import WarehouseDriversPage from './pages/warehouse/WarehouseDriversPage'
 
 export default function App() {
   return (
@@ -63,6 +70,13 @@ export default function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="map" element={<MapPage />} />
             <Route path="trips" element={<TripsPage />} />
+            <Route path="warehouse" element={<WarehouseOverviewPage />} />
+            <Route path="warehouse/labelling" element={<LabellingPage />} />
+            <Route path="warehouse/assignment" element={<AssignmentPage />} />
+            <Route path="warehouse/zones" element={<WarehouseZonesPage />} />
+            <Route path="warehouse/dispatch" element={<DispatchPage />} />
+            <Route path="warehouse/routes" element={<WarehouseRoutesPage />} />
+            <Route path="warehouse/drivers" element={<WarehouseDriversPage />} />
             <Route path="drivers" element={<DriversPage />} />
             <Route path="assets" element={<AssetsOverviewPage />} />
             <Route path="assets/yards" element={<YardsPage />} />

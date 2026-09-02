@@ -17,7 +17,7 @@ const icons = [
   { icon: Sparkles, label: 'AI', to: '/app/geo-analytics' },
   { icon: Coins, label: 'Wallet', to: '/app/wallet' },
   { icon: Languages, label: 'Locale', to: '/app/dashboard' },
-  { icon: MapPinned, label: 'Tracking', to: '/app/map' },
+  { icon: MapPinned, label: 'Tracking', to: '/app/warehouse/dispatch' },
   { icon: Shield, label: 'Compliance', to: '/app/assets/vehicles' },
   { icon: MessageSquare, label: 'Messages', to: '/app/notifications' },
   { icon: Settings, label: 'Settings', to: '/app/dashboard' },
