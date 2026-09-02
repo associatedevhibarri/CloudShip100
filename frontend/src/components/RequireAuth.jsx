@@ -21,7 +21,13 @@ export function RequireAuth({ role, children }) {
   const userRole = user.role === 'admin' ? 'operator' : user.role
 
   if (role && userRole !== role) {
-    return <Navigate to={userRole === 'customer' ? '/customer/deliveries' : '/app/dashboard'} replace />
+    const fallback =
+      userRole === 'customer'
+        ? '/customer/deliveries'
+        : userRole === 'driver'
+          ? '/driver/trips'
+          : '/app/dashboard'
+    return <Navigate to={fallback} replace />
   }
 
   return children

@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { AppLayout } from './components/layout/AppLayout'
 import { CustomerLayout } from './components/layout/CustomerLayout'
+import { DriverLayout } from './components/layout/DriverLayout'
 import { RequireAuth } from './components/RequireAuth'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
@@ -36,6 +37,11 @@ import AirEquipmentPage from './pages/assets/AirEquipmentPage'
 import CrewPage from './pages/assets/CrewPage'
 import CustomerAccountPage from './pages/customer/CustomerAccountPage'
 import CustomerDeliveriesPage from './pages/customer/CustomerDeliveriesPage'
+import DriverProfilePage from './pages/driver/DriverProfilePage'
+import DriverParcelsPage from './pages/driver/DriverParcelsPage'
+import DriverTripsPage from './pages/driver/DriverTripsPage'
+import DriverDamageLogsPage from './pages/driver/DriverDamageLogsPage'
+import DriverHistoryPage from './pages/driver/DriverHistoryPage'
 
 export default function App() {
   return (
@@ -96,6 +102,22 @@ export default function App() {
             <Route index element={<Navigate to="deliveries" replace />} />
             <Route path="account" element={<CustomerAccountPage />} />
             <Route path="deliveries" element={<CustomerDeliveriesPage />} />
+          </Route>
+
+          <Route
+            path="/driver"
+            element={
+              <RequireAuth role="driver">
+                <DriverLayout />
+              </RequireAuth>
+            }
+          >
+            <Route index element={<Navigate to="trips" replace />} />
+            <Route path="profile" element={<DriverProfilePage />} />
+            <Route path="parcels" element={<DriverParcelsPage />} />
+            <Route path="trips" element={<DriverTripsPage />} />
+            <Route path="damage-logs" element={<DriverDamageLogsPage />} />
+            <Route path="history" element={<DriverHistoryPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

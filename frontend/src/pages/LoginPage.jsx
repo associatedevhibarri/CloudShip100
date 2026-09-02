@@ -9,7 +9,13 @@ export default function LoginPage() {
   const [params] = useSearchParams()
 
   const [mode, setMode] = useState('login') // 'login' | 'register'
-  const [role, setRole] = useState(params.get('role') === 'customer' ? 'customer' : 'operator')
+  const [role, setRole] = useState(
+    params.get('role') === 'customer'
+      ? 'customer'
+      : params.get('role') === 'driver'
+        ? 'driver'
+        : 'operator',
+  )
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -26,11 +32,23 @@ export default function LoginPage() {
       if (mode === 'login') {
         const authenticatedUser = await login(email, password)
         const targetRole = authenticatedUser?.role || role
-        navigate(targetRole === 'customer' ? '/customer/deliveries' : '/app/dashboard')
+        navigate(
+          targetRole === 'customer'
+            ? '/customer/deliveries'
+            : targetRole === 'driver'
+              ? '/driver/trips'
+              : '/app/dashboard',
+        )
       } else {
         const newUser = await register(name, email, password, role)
         const targetRole = newUser?.role || role
-        navigate(targetRole === 'customer' ? '/customer/deliveries' : '/app/dashboard')
+        navigate(
+          targetRole === 'customer'
+            ? '/customer/deliveries'
+            : targetRole === 'driver'
+              ? '/driver/trips'
+              : '/app/dashboard',
+        )
       }
     } catch (err) {
       setErrorMsg(err.message || 'Authentication failed. Please check your credentials or server connection.')
@@ -163,10 +181,11 @@ export default function LoginPage() {
                 <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted">
                   Account Role
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {[
                     { id: 'operator', label: 'Ops / Logistics Operator' },
                     { id: 'customer', label: 'Customer / Buyer Portal' },
+                    { id: 'driver', label: 'Driver Portal' },
                   ].map((r) => (
                     <button
                       key={r.id}
