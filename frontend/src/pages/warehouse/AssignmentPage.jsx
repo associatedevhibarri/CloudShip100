@@ -11,8 +11,11 @@ export default function AssignmentPage() {
   const { data, loading, error, reload } = useWarehouse()
   const suggestions = data?.suggestions || []
   const parcels = data?.parcels || []
+  const registeredDrivers = data?.registeredDrivers || []
   const [fleet, setFleet] = useState('all')
   const [flash, setFlash] = useState('')
+  const [picks, setPicks] = useState({})
+  const [busyId, setBusyId] = useState('')
 
   const visible = useMemo(() => {
     if (fleet === 'all') return parcels
@@ -22,12 +25,38 @@ export default function AssignmentPage() {
 
   const applySuggestion = async (parcelId) => {
     const hint = suggestions.find((s) => s.parcelId === parcelId || s.id === parcelId)
-    await api.assignParcel(parcelId)
-    await reload()
-    if (hint) {
-      setFlash(
-        `Assigned ${parcelId} → ${hint.driver} (${hint.fleetType === 'own' ? 'own fleet' : hint.partner})`,
-      )
+    setBusyId(parcelId)
+    try {
+      await api.assignParcel(parcelId)
+      await reload()
+      if (hint) {
+        setFlash(
+          `Assigned ${parcelId} → ${hint.driver} (${hint.fleetType === 'own' ? 'own fleet' : hint.partner})`,
+        )
+      }
+    } catch (err) {
+      setFlash(err.message || 'Assignment failed')
+    } finally {
+      setBusyId('')
+    }
+  }
+
+  const assignToDriver = async (parcelId) => {
+    const employeeId = picks[parcelId] || registeredDrivers[0]?.employeeId
+    if (!employeeId) {
+      setFlash('Register a driver at /login?role=driver first, then assign using their employee ID.')
+      return
+    }
+    const driver = registeredDrivers.find((d) => d.employeeId === employeeId)
+    setBusyId(parcelId)
+    try {
+      await api.assignParcel(parcelId, employeeId)
+      await reload()
+      setFlash(`Assigned ${parcelId} → ${driver?.name || employeeId} (${employeeId}). Driver portal will show only this driver's parcels.`)
+    } catch (err) {
+      setFlash(err.message || 'Assignment failed')
+    } finally {
+      setBusyId('')
     }
   }
 
@@ -43,7 +72,7 @@ export default function AssignmentPage() {
     <div>
       <PageHeader
         title="Smart Assignment"
-        subtitle="Parcel → truck → driver → client. Own fleet first; if you do not own the capacity, assign a subcontractor."
+        subtitle="Parcel → truck → driver employee ID. Registered drivers see only their own parcels in Driver Portal."
         actions={
           <button
             type="button"
@@ -61,6 +90,27 @@ export default function AssignmentPage() {
           </p>
         ) : null}
 
+        <div className="mb-6">
+          <h3 className="mb-3 text-lg font-extrabold">Registered drivers</h3>
+          {registeredDrivers.length ? (
+            <div className="grid gap-3 md:grid-cols-3">
+              {registeredDrivers.map((d) => (
+                <Card key={d.employeeId} className="p-4">
+                  <p className="text-xs font-extrabold uppercase tracking-wide text-brand">{d.employeeId}</p>
+                  <p className="mt-1 font-extrabold text-ink">{d.name}</p>
+                  <p className="text-xs text-muted">{d.email}</p>
+                  <p className="mt-2 text-sm font-semibold">{d.vehicle || 'No vehicle yet'}</p>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-muted">
+              No portal drivers yet. A driver registers at <span className="font-semibold text-ink">/login?role=driver</span>,
+              gets an employee ID (DRV-01…), then you assign parcels here.
+            </p>
+          )}
+        </div>
+
         {chain ? (
           <div className="mb-6 grid gap-2 sm:grid-cols-4">
             {[
@@ -70,7 +120,7 @@ export default function AssignmentPage() {
                 chain.truck || '—',
                 chain.fleetType === 'own' ? 'Own fleet' : chain.partner || 'Unassigned',
               ],
-              ['Driver', chain.driver || '—', chain.fleetType || 'pending'],
+              ['Driver', chain.driver || '—', chain.driverEmployeeId || chain.fleetType || 'pending'],
               ['Client', chain.client, `${chain.pickup} → ${chain.dropoff}`],
             ].map(([label, title, sub]) => (
               <Card key={label} className="p-4">
@@ -110,13 +160,13 @@ export default function AssignmentPage() {
                   <span className="text-xs text-muted">Unassigned</span>
                 ),
             },
-            {
-              key: 'partner',
-              label: 'Partner',
-              render: (r) => r.partner || 'Cloud Ship',
-            },
             { key: 'truck', label: 'Truck', render: (r) => r.truck || '—' },
             { key: 'driver', label: 'Driver', render: (r) => r.driver || '—' },
+            {
+              key: 'driverEmployeeId',
+              label: 'Driver ID',
+              render: (r) => r.driverEmployeeId || '—',
+            },
             {
               key: 'status',
               label: 'Status',
@@ -125,18 +175,44 @@ export default function AssignmentPage() {
             {
               key: 'actions',
               label: '',
-              render: (r) =>
-                suggestions.some((s) => (s.parcelId || s.id) === r.id) && !r.truck ? (
-                  <button
-                    type="button"
-                    className="text-sm font-semibold text-brand"
-                    onClick={() => applySuggestion(r.id)}
-                  >
-                    Apply match
-                  </button>
-                ) : (
-                  '—'
-                ),
+              render: (r) => (
+                <div className="flex min-w-[220px] flex-col gap-2">
+                  {registeredDrivers.length ? (
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={picks[r.id] || registeredDrivers[0].employeeId}
+                        onChange={(e) => setPicks((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                        className="rounded-lg border border-line bg-white px-2 py-1 text-xs font-semibold"
+                      >
+                        {registeredDrivers.map((d) => (
+                          <option key={d.employeeId} value={d.employeeId}>
+                            {d.employeeId} · {d.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={busyId === r.id}
+                        className="text-sm font-semibold text-brand disabled:opacity-50"
+                        onClick={() => assignToDriver(r.id)}
+                      >
+                        Assign
+                      </button>
+                    </div>
+                  ) : suggestions.some((s) => (s.parcelId || s.id) === r.id) && !r.truck ? (
+                    <button
+                      type="button"
+                      disabled={busyId === r.id}
+                      className="text-sm font-semibold text-brand disabled:opacity-50"
+                      onClick={() => applySuggestion(r.id)}
+                    >
+                      Apply match
+                    </button>
+                  ) : (
+                    '—'
+                  )}
+                </div>
+              ),
             },
           ]}
           rows={visible}

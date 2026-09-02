@@ -28,6 +28,21 @@ export default function WarehouseDriversPage() {
         }
       />
       <WarehouseGate loading={loading} error={error}>
+      {(data?.registeredDrivers || []).length ? (
+        <div className="mb-6">
+          <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wide text-muted">Portal drivers</h3>
+          <div className="mb-4 grid gap-3 md:grid-cols-3">
+            {data.registeredDrivers.map((d) => (
+              <Card key={d.employeeId} className="p-4">
+                <p className="text-xs font-extrabold uppercase tracking-wide text-brand">{d.employeeId}</p>
+                <p className="mt-1 font-extrabold">{d.name}</p>
+                <p className="text-xs text-muted">{d.email}</p>
+                <p className="mt-2 text-sm">{d.vehicle || 'No vehicle yet'}</p>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Card className="p-4">
