@@ -20,9 +20,17 @@ const bookingSchema = mongoose.Schema(
     },
     code: {
       type: String,
-      trim: true,
+      required: true,
       unique: true,
-      sparse: true,
+      trim: true,
+    },
+    distanceKm: {
+      type: Number,
+      default: null,
+    },
+    durationMinutes: {
+      type: Number,
+      default: null,
     },
     status: {
       type: String,

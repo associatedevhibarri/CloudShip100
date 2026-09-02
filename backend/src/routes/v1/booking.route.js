@@ -9,6 +9,8 @@ const router = express.Router();
 router
   .route('/mine')
   .get(auth('viewOwnBookings'), bookingController.getMyBookings)
-  .post(auth('manageOwnBookings'), validate(bookingValidation.create), bookingController.createMyBooking);
+  .post(auth('manageOwnBookings'), validate(bookingValidation.createBooking), bookingController.createBooking);
+
+router.post('/', auth('manageOwnBookings'), validate(bookingValidation.createBooking), bookingController.createBooking);
 
 module.exports = router;

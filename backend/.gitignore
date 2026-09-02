@@ -13,3 +13,5 @@ coverage
 
 # Uploads
 uploads
+
+.env

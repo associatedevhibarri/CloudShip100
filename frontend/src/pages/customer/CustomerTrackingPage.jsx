@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { portalService } from '../../services/portalService'
 import { usePortalFetch } from '../../hooks/usePortalFetch'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -49,7 +50,12 @@ export default function CustomerTrackingPage() {
       <PageHeader title="Parcel Status Updates" subtitle="Live tracking for your active shipments." />
       <div className="space-y-4">
         {parcels.length === 0 ? (
-          <Card className="p-6 text-sm text-muted">No active parcels right now.</Card>
+          <Card className="p-6 text-sm text-muted">
+            No active parcels right now.{' '}
+            <Link to="/customer/new-booking" className="font-semibold text-brand hover:underline">
+              Book your first shipment →
+            </Link>
+          </Card>
         ) : (
           parcels.map((p) => (
             <Card key={p.id} className="p-5">

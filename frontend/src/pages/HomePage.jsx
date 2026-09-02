@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
@@ -11,8 +12,125 @@ import {
   ShieldCheck,
   Clock,
   Globe2,
+  Calculator,
 } from 'lucide-react'
 import { Logo } from '../components/Logo'
+import { portalService } from '../services/portalService'
+import { ErrorState } from '../components/ui/LoadingState'
+
+const MODES = ['Road', 'Air', 'Maritime', 'Rail']
+
+function LivePricingWidget() {
+  const [pickup, setPickup] = useState('')
+  const [dropoff, setDropoff] = useState('')
+  const [weightKg, setWeightKg] = useState('')
+  const [mode, setMode] = useState('Road')
+  const [quote, setQuote] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleQuote = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    setQuote(null)
+    try {
+      const result = await portalService.getQuote({
+        pickup: pickup.trim(),
+        dropoff: dropoff.trim(),
+        weightKg: Number(weightKg),
+        mode,
+      })
+      setQuote(result)
+    } catch (err) {
+      setError(err.message || 'Could not calculate a price')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-3xl rounded-[1.75rem] border border-line bg-white p-6 shadow-[var(--shadow-card)] sm:p-8">
+      <form onSubmit={handleQuote} className="grid gap-4 sm:grid-cols-2">
+        <label className="text-sm">
+          <span className="mb-1 block font-semibold text-ink">Pickup</span>
+          <input
+            type="text"
+            required
+            value={pickup}
+            onChange={(e) => setPickup(e.target.value)}
+            placeholder="e.g. Durban, South Africa"
+            className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block font-semibold text-ink">Dropoff</span>
+          <input
+            type="text"
+            required
+            value={dropoff}
+            onChange={(e) => setDropoff(e.target.value)}
+            placeholder="e.g. Johannesburg, South Africa"
+            className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block font-semibold text-ink">Weight (kg)</span>
+          <input
+            type="number"
+            min="1"
+            required
+            value={weightKg}
+            onChange={(e) => setWeightKg(e.target.value)}
+            placeholder="100"
+            className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block font-semibold text-ink">Mode</span>
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value)}
+            className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          >
+            {MODES.map((m) => (
+              <option key={m}>{m}</option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-gradient px-6 py-3 text-sm font-bold text-white shadow-md shadow-brand/20 transition hover:brightness-105 disabled:opacity-60 sm:col-span-2"
+        >
+          <Calculator size={16} />
+          {loading ? 'Calculating...' : 'Calculate Price'}
+        </button>
+      </form>
+
+      {error ? (
+        <div className="mt-5">
+          <ErrorState message={error} />
+        </div>
+      ) : null}
+      {quote ? (
+        <div className="mt-6 rounded-2xl border border-brand/15 bg-brand-light/40 p-5 text-center">
+          <p className="text-3xl font-extrabold text-ink">${quote.price.toLocaleString()}</p>
+          <p className="mt-1 text-sm text-muted">
+            {quote.distanceKm.toLocaleString()} km · ~{Math.round(quote.durationMinutes / 60)} hr transit
+          </p>
+          <Link
+            to="/login?role=customer"
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-gradient px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:brightness-105"
+          >
+            Sign up to book this shipment
+            <ArrowRight size={16} />
+          </Link>
+        </div>
+      ) : null}
+    </div>
+  )
+}
 
 const trustBadges = [
   { icon: ShieldCheck, label: 'Enterprise-grade security' },
@@ -254,6 +372,23 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="border-t border-line/70 bg-surface py-20">
+          <div className="mx-auto max-w-6xl px-5 sm:px-6">
+            <div className="mx-auto mb-10 max-w-2xl text-center">
+              <p className="text-xs font-extrabold uppercase tracking-[0.28em] text-brand">
+                Live Pricing
+              </p>
+              <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+                Get an instant quote
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted sm:text-base">
+                Real distance-based pricing, calculated live — no sales call required.
+              </p>
+            </div>
+            <LivePricingWidget />
           </div>
         </section>
 

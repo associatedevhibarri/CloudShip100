@@ -54,6 +54,9 @@ if (config.env === 'production') {
 // uploaded driver documents
 app.use('/v1/uploads/drivers', express.static(path.join(__dirname, '../uploads/drivers')));
 
+// uploaded damage-log photos
+app.use('/v1/uploads/damage-logs', express.static(path.join(__dirname, '../uploads/damage-logs')));
+
 // v1 api routes
 app.use('/v1', routes);
 

@@ -1,12 +1,15 @@
 module.exports.authService = require('./auth.service');
 module.exports.bookingService = require('./booking.service');
+module.exports.bookingSyncService = require('./bookingSync.service');
 module.exports.companyService = require('./company.service');
 module.exports.contractService = require('./contract.service');
 module.exports.emailService = require('./email.service');
+module.exports.googleMapsService = require('./googleMaps.service');
 module.exports.invoiceService = require('./invoice.service');
 module.exports.kycDocumentService = require('./kycDocument.service');
 module.exports.notificationService = require('./notification.service');
 module.exports.paymentRequestService = require('./paymentRequest.service');
+module.exports.pricingService = require('./pricing.service');
 module.exports.promotionService = require('./promotion.service');
 module.exports.tokenService = require('./token.service');
 module.exports.userService = require('./user.service');

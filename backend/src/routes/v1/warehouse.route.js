@@ -46,5 +46,11 @@ router.post(
   warehouseController.closeBatch
 );
 router.post('/routes/auto-assign', auth('manageWarehouse'), warehouseController.autoAssignRoutes);
+router.post(
+  '/routes/:routeId/optimize',
+  auth('manageWarehouse'),
+  validate(warehouseValidation.optimizeRoute),
+  warehouseController.optimizeRoute
+);
 
 module.exports = router;

@@ -26,7 +26,7 @@ const getMyDamageLogs = catchAsync(async (req, res) => {
 });
 
 const createDamageLog = catchAsync(async (req, res) => {
-  const log = await driverOperationsService.createDamageLog(req.user, req.body);
+  const log = await driverOperationsService.createDamageLog(req.user, req.body, req.file);
   res.status(201).send(log);
 });
 

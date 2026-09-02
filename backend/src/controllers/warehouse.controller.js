@@ -51,6 +51,11 @@ const receiveParcel = catchAsync(async (req, res) => {
   res.send(parcel);
 });
 
+const optimizeRoute = catchAsync(async (req, res) => {
+  const route = await warehouseService.optimizeRoute(req.params.routeId);
+  res.send(route);
+});
+
 module.exports = {
   getSnapshot,
   listRegisteredDrivers,
@@ -62,4 +67,5 @@ module.exports = {
   addParcelToBatch,
   closeBatch,
   dispatchParcel,
+  optimizeRoute,
 };

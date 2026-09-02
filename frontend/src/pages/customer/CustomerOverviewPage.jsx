@@ -50,7 +50,12 @@ export default function CustomerOverviewPage() {
             </Link>
           </div>
           {bookingList.length === 0 ? (
-            <p className="text-sm text-muted">No parcels booked yet.</p>
+            <p className="text-sm text-muted">
+              No parcels booked yet.{' '}
+              <Link to="/customer/new-booking" className="font-semibold text-brand hover:underline">
+                Book one now →
+              </Link>
+            </p>
           ) : (
             <div className="space-y-3">
               {bookingList.slice(0, 4).map((b) => (

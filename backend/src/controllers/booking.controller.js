@@ -8,7 +8,7 @@ const getMyBookings = catchAsync(async (req, res) => {
   res.send(bookings);
 });
 
-const createMyBooking = catchAsync(async (req, res) => {
+const createBooking = catchAsync(async (req, res) => {
   const company = await companyService.getOrCreateCompanyForUser(req.user);
   const booking = await bookingService.createBooking(company, req.body);
   res.status(httpStatus.CREATED).send(booking);
@@ -16,5 +16,5 @@ const createMyBooking = catchAsync(async (req, res) => {
 
 module.exports = {
   getMyBookings,
-  createMyBooking,
+  createBooking,
 };

@@ -3,6 +3,7 @@ const auth = require('../../middlewares/auth');
 const requireDriver = require('../../middlewares/requireDriver');
 const validate = require('../../middlewares/validate');
 const upload = require('../../middlewares/upload');
+const uploadDamagePhoto = require('../../middlewares/uploadDamagePhoto');
 const driverProfileValidation = require('../../validations/driverProfile.validation');
 const driverOperationsValidation = require('../../validations/driverOperations.validation');
 const driverProfileController = require('../../controllers/driverProfile.controller');
@@ -34,7 +35,11 @@ router
 router
   .route('/me/damage-logs')
   .get(driverOperationsController.getMyDamageLogs)
-  .post(validate(driverOperationsValidation.createDamageLog), driverOperationsController.createDamageLog);
+  .post(
+    uploadDamagePhoto.single('photo'),
+    validate(driverOperationsValidation.createDamageLog),
+    driverOperationsController.createDamageLog
+  );
 
 router.get('/me/history', driverOperationsController.getMyHistory);
 

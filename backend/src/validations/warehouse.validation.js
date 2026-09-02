@@ -26,9 +26,16 @@ const closeBatch = {
   }),
 };
 
+const optimizeRoute = {
+  params: Joi.object().keys({
+    routeId: Joi.string().required(),
+  }),
+};
+
 module.exports = {
   assignParcel,
   parcelAction: parcelIdParam,
   addToBatch,
   closeBatch,
+  optimizeRoute,
 };
