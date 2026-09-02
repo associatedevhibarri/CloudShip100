@@ -83,6 +83,41 @@ export default function DashboardPage() {
         />
       </div>
 
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1.6fr_0.7fr]">
+        <div className="relative">
+          <LogisticsMap assets={mapAssets} height="360px" />
+          <p className="pointer-events-none absolute bottom-5 left-1/2 z-[500] -translate-x-1/2 text-sm font-extrabold tracking-wide text-ink drop-shadow">
+            Road Cargo
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+          <Link to="/app/assets/air/aeroplanes">
+            <Card tone="brand" className="flex h-full min-h-[160px] flex-col justify-between bg-brand-gradient p-5 transition hover:brightness-105">
+              <h3 className="text-xl font-extrabold">Air Cargo</h3>
+              <div className="mx-auto my-3 flex h-24 w-24 items-center justify-center rounded-full bg-white/15">
+                <svg viewBox="0 0 80 80" className="h-16 w-16 text-white">
+                  <circle cx="40" cy="40" r="22" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.5" />
+                  <path d="M12 44 L50 36 L68 28 L54 40 L58 52 Z" fill="currentColor" />
+                </svg>
+              </div>
+              <p className="text-sm text-white/85">Freighters, hangars & crew schedules</p>
+            </Card>
+          </Link>
+          <Link to="/app/assets/maritime">
+            <Card className="flex h-full min-h-[160px] flex-col justify-between p-5 transition hover:border-brand">
+              <h3 className="text-xl font-extrabold text-ink">Maritime Cargo</h3>
+              <div className="relative mx-auto my-4 h-20 w-36 rounded-xl bg-brand-light">
+                <span className="absolute left-4 top-5 h-2.5 w-2.5 rounded-full bg-brand" />
+                <span className="absolute left-16 top-8 h-2.5 w-2.5 rounded-full bg-brand" />
+                <span className="absolute right-6 top-4 h-2.5 w-2.5 rounded-full bg-brand-soft" />
+                <span className="absolute bottom-4 left-10 h-2.5 w-2.5 rounded-full bg-brand-dark" />
+              </div>
+              <p className="text-sm text-muted">Ports, berths & ocean lane visibility</p>
+            </Card>
+          </Link>
+        </div>
+      </div>
+
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.4fr_1fr]">
         <Card className="p-5">
           <div className="mb-4 flex items-center justify-between">
@@ -154,41 +189,6 @@ export default function DashboardPage() {
             ))}
           </ul>
         </Card>
-      </div>
-
-      <div className="mt-4 grid gap-4 xl:grid-cols-[1.6fr_0.7fr]">
-        <div className="relative">
-          <LogisticsMap assets={mapAssets} height="360px" />
-          <p className="pointer-events-none absolute bottom-5 left-1/2 z-[500] -translate-x-1/2 text-sm font-extrabold tracking-wide text-ink drop-shadow">
-            Road Cargo
-          </p>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
-          <Link to="/app/assets/air/aeroplanes">
-            <Card tone="brand" className="flex h-full min-h-[160px] flex-col justify-between bg-brand-gradient p-5 transition hover:brightness-105">
-              <h3 className="text-xl font-extrabold">Air Cargo</h3>
-              <div className="mx-auto my-3 flex h-24 w-24 items-center justify-center rounded-full bg-white/15">
-                <svg viewBox="0 0 80 80" className="h-16 w-16 text-white">
-                  <circle cx="40" cy="40" r="22" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.5" />
-                  <path d="M12 44 L50 36 L68 28 L54 40 L58 52 Z" fill="currentColor" />
-                </svg>
-              </div>
-              <p className="text-sm text-white/85">Freighters, hangars & crew schedules</p>
-            </Card>
-          </Link>
-          <Link to="/app/assets/maritime">
-            <Card className="flex h-full min-h-[160px] flex-col justify-between p-5 transition hover:border-brand">
-              <h3 className="text-xl font-extrabold text-ink">Maritime Cargo</h3>
-              <div className="relative mx-auto my-4 h-20 w-36 rounded-xl bg-brand-light">
-                <span className="absolute left-4 top-5 h-2.5 w-2.5 rounded-full bg-brand" />
-                <span className="absolute left-16 top-8 h-2.5 w-2.5 rounded-full bg-brand" />
-                <span className="absolute right-6 top-4 h-2.5 w-2.5 rounded-full bg-brand-soft" />
-                <span className="absolute bottom-4 left-10 h-2.5 w-2.5 rounded-full bg-brand-dark" />
-              </div>
-              <p className="text-sm text-muted">Ports, berths & ocean lane visibility</p>
-            </Card>
-          </Link>
-        </div>
       </div>
     </div>
   )
