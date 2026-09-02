@@ -38,6 +38,7 @@ const localWarehouseSnapshot = () => ({
   events: dispatchEvents,
   routes: warehouseRoutes,
   drivers: warehouseDrivers,
+  registeredDrivers: [],
   mapAssets: warehouseMapAssets,
 })
 
@@ -105,12 +106,15 @@ export const api = {
       return localWarehouseSnapshot()
     }
   },
-  assignParcel: async (parcelId) => {
+  assignParcel: async (parcelId, employeeId) => {
     if (!isLiveSession()) {
       applyLocalParcelAssign(parcelId)
       return localWarehouseSnapshot()
     }
-    await apiFetch(`/warehouse/parcels/${encodeURIComponent(parcelId)}/assign`, { method: 'POST' })
+    await apiFetch(`/warehouse/parcels/${encodeURIComponent(parcelId)}/assign`, {
+      method: 'POST',
+      body: JSON.stringify(employeeId ? { employeeId } : {}),
+    })
     return apiFetch('/warehouse')
   },
   autoAssignParcels: async () => {

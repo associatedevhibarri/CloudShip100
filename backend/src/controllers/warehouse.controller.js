@@ -6,8 +6,13 @@ const getSnapshot = catchAsync(async (req, res) => {
   res.send(snapshot);
 });
 
+const listRegisteredDrivers = catchAsync(async (req, res) => {
+  const drivers = await warehouseService.listRegisteredDrivers();
+  res.send({ drivers });
+});
+
 const assignParcel = catchAsync(async (req, res) => {
-  const parcel = await warehouseService.assignParcel(req.params.parcelId);
+  const parcel = await warehouseService.assignParcel(req.params.parcelId, req.body);
   res.send(parcel);
 });
 
@@ -23,6 +28,7 @@ const autoAssignRoutes = catchAsync(async (req, res) => {
 
 module.exports = {
   getSnapshot,
+  listRegisteredDrivers,
   assignParcel,
   autoAssignParcels,
   autoAssignRoutes,
