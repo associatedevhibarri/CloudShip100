@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { api } from '../../services/api'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/StatusBadge'
@@ -7,12 +8,28 @@ import { LogisticsMap } from '../../components/map/LogisticsMap'
 import { WarehouseGate, useWarehouse } from '../../hooks/useWarehouse'
 
 export default function DispatchPage() {
-  const { data, loading, error } = useWarehouse()
+  const { data, loading, error, reload } = useWarehouse()
   const parcels = data?.parcels || []
   const mapAssets = data?.mapAssets || []
   const [selectedId, setSelectedId] = useState('PCL-1001')
+  const [flash, setFlash] = useState('')
+  const [busyId, setBusyId] = useState('')
   const selected = parcels.find((p) => p.id === selectedId) || parcels[0]
   const events = (data?.events || []).filter((e) => e.parcelId === selected?.id)
+
+  const dispatchSelected = async (parcelId) => {
+    setBusyId(parcelId)
+    try {
+      await api.dispatchParcel(parcelId)
+      await reload()
+      setSelectedId(parcelId)
+      setFlash(`${parcelId} left the dispatch bay geofence.`)
+    } catch (err) {
+      setFlash(err.message || 'Dispatch failed')
+    } finally {
+      setBusyId('')
+    }
+  }
 
   return (
     <div>
@@ -23,6 +40,12 @@ export default function DispatchPage() {
       <WarehouseGate loading={loading} error={error}>
         {selected ? (
           <>
+            {flash ? (
+              <p className="mb-4 rounded-xl border border-brand/20 bg-brand-light px-4 py-2 text-sm font-semibold text-brand-dark">
+                {flash}
+              </p>
+            ) : null}
+
             <div className="mb-4 grid gap-3 sm:grid-cols-3">
               <Card className="p-4">
                 <p className="text-xs font-semibold uppercase text-muted">In warehouse</p>
@@ -66,6 +89,16 @@ export default function DispatchPage() {
                     <p className="text-sm text-muted">No dispatch events yet — still in yard.</p>
                   )}
                 </ol>
+                {selected.status === 'assigned' ? (
+                  <button
+                    type="button"
+                    disabled={busyId === selected.id}
+                    onClick={() => dispatchSelected(selected.id)}
+                    className="mt-4 w-full rounded-full bg-brand-gradient py-2 text-sm font-bold text-white disabled:opacity-50"
+                  >
+                    Dispatch from yard
+                  </button>
+                ) : null}
               </Card>
             </div>
 
@@ -90,13 +123,25 @@ export default function DispatchPage() {
                   key: 'actions',
                   label: '',
                   render: (r) => (
-                    <button
-                      type="button"
-                      className="text-sm font-semibold text-brand"
-                      onClick={() => setSelectedId(r.id)}
-                    >
-                      Track
-                    </button>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        className="text-sm font-semibold text-brand"
+                        onClick={() => setSelectedId(r.id)}
+                      >
+                        Track
+                      </button>
+                      {r.status === 'assigned' ? (
+                        <button
+                          type="button"
+                          disabled={busyId === r.id}
+                          className="text-sm font-semibold text-brand disabled:opacity-50"
+                          onClick={() => dispatchSelected(r.id)}
+                        >
+                          Dispatch
+                        </button>
+                      ) : null}
+                    </div>
                   ),
                 },
               ]}

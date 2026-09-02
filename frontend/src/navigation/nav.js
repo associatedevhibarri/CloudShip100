@@ -92,6 +92,7 @@ export const operatorNav = [
 
 export const customerNav = [
   { label: 'Overview', path: '/customer/overview', icon: LayoutDashboard },
+  { label: 'Deliveries', path: '/customer/deliveries', icon: Truck },
   { label: 'Parcel Tracking', path: '/customer/tracking', icon: Package },
   { label: 'Documents (KYC/FICA/AML)', path: '/customer/documents', icon: ShieldCheck },
   { label: 'Booking History', path: '/customer/bookings', icon: History },
