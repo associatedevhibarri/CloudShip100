@@ -38,6 +38,7 @@ import AeroplanesPage from './pages/assets/AeroplanesPage'
 import AirEquipmentPage from './pages/assets/AirEquipmentPage'
 import CrewPage from './pages/assets/CrewPage'
 import CustomerAccountPage from './pages/customer/CustomerAccountPage'
+import CustomerDeliveriesPage from './pages/customer/CustomerDeliveriesPage'
 import CustomerOverviewPage from './pages/customer/CustomerOverviewPage'
 import CustomerTrackingPage from './pages/customer/CustomerTrackingPage'
 import CustomerDocumentsPage from './pages/customer/CustomerDocumentsPage'
@@ -133,7 +134,7 @@ export default function App() {
             <Route path="notifications" element={<CustomerNotificationsPage />} />
             <Route path="account" element={<CustomerAccountPage />} />
           </Route>
- <Route path="deliveries" element={<CustomerDeliveriesPage />} />
+          <Route path="deliveries" element={<CustomerDeliveriesPage />} />
           <Route
             path="/driver"
             element={
