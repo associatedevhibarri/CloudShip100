@@ -137,6 +137,126 @@ const getSnapshot = async () => {
   };
 };
 
+const clockTime = () => new Date().toTimeString().slice(0, 5);
+
+const makeLabelCode = (parcel) => {
+  if (parcel.labelCode) return parcel.labelCode;
+  const num = String(parcel.code || '').replace(/\D/g, '').slice(-4).padStart(4, '0');
+  const slug = String(parcel.cargo || 'GEN')
+    .split(/[\s—-]/)[0]
+    .replace(/[^A-Za-z]/g, '')
+    .slice(0, 5)
+    .toUpperCase() || 'GEN';
+  return `CS-ZA-${num}-${slug}`;
+};
+
+const appendEvent = async (parcelId, title, detail) => {
+  await DispatchEvent.create({
+    code: `EVT-${Date.now().toString(36)}`,
+    parcelId,
+    time: clockTime(),
+    title,
+    detail,
+  });
+};
+
+const findWarehouseParcel = async (parcelCode) => {
+  await ensureSeed();
+  const parcel = await Parcel.findOne({ code: parcelCode });
+  if (!parcel) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Parcel not found');
+  }
+  return parcel;
+};
+
+const syncDriverPortalStatus = async (parcel, status) => {
+  if (!parcel.driverEmployeeId && !parcel.code) return;
+  const existing = await DriverParcel.findOne({ code: parcel.code });
+  if (!existing) return;
+  existing.status = status;
+  if (parcel.labelCode) existing.barcode = parcel.labelCode;
+  await existing.save();
+};
+
+const labelParcel = async (parcelCode) => {
+  const parcel = await findWarehouseParcel(parcelCode);
+  if (parcel.status === 'dispatched') {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Dispatched parcels cannot be relabelled');
+  }
+
+  parcel.labelCode = makeLabelCode(parcel);
+  parcel.zone = parcel.zone || 'Staging / labelling';
+  if (parcel.status === 'received') {
+    parcel.status = 'labelled';
+  }
+  await parcel.save();
+  await appendEvent(parcel.code, 'Labelled', parcel.labelCode);
+  await syncDriverPortalStatus(parcel, 'assigned');
+  return parcel.toJSON();
+};
+
+const addParcelToBatch = async (parcelCode, batchId) => {
+  const parcel = await findWarehouseParcel(parcelCode);
+  const batch = await WarehouseBatch.findOne({ code: batchId });
+  if (!batch) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Batch not found');
+  }
+  if (batch.status === 'dispatched') {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Cannot add parcels to a dispatched batch');
+  }
+
+  const ids = new Set(batch.parcelIds || []);
+  ids.add(parcel.code);
+  batch.parcelIds = [...ids];
+  if (batch.status === 'open') {
+    batch.status = 'ready';
+  }
+  await batch.save();
+
+  parcel.batchId = batch.code;
+  if (parcel.status === 'received' || parcel.status === 'labelled') {
+    parcel.status = 'labelled';
+  }
+  await parcel.save();
+  await appendEvent(parcel.code, 'Batched', batch.code);
+  return parcel.toJSON();
+};
+
+const closeBatch = async (batchId) => {
+  await ensureSeed();
+  const batch = await WarehouseBatch.findOne({ code: batchId });
+  if (!batch) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Batch not found');
+  }
+  if (batch.status === 'dispatched') {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Batch already dispatched');
+  }
+  batch.status = 'ready';
+  await batch.save();
+  return batch.toJSON();
+};
+
+const dispatchParcel = async (parcelCode) => {
+  const parcel = await findWarehouseParcel(parcelCode);
+  if (parcel.status === 'dispatched') {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Parcel already dispatched');
+  }
+  if (!parcel.driver && !parcel.fleetType) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Assign a driver before dispatch');
+  }
+
+  parcel.status = 'dispatched';
+  parcel.zone = 'Dispatch bay';
+  await parcel.save();
+  await appendEvent(
+    parcel.code,
+    'Dispatched',
+    `Left dispatch bay geofence${parcel.driverEmployeeId ? ` · ${parcel.driverEmployeeId}` : ''}`
+  );
+  await syncDriverPortalStatus(parcel, 'in_transit');
+  return parcel.toJSON();
+};
+
 const applySuggestionToParcel = async (parcel, parcelCode) => {
   const hint = await AssignmentSuggestion.findOne({ code: parcelCode });
   if (!hint) {
@@ -150,6 +270,11 @@ const applySuggestionToParcel = async (parcel, parcelCode) => {
   parcel.partner = hint.partner;
   parcel.driverEmployeeId = undefined;
   await parcel.save();
+  await appendEvent(
+    parcel.code,
+    'Smart assigned',
+    `${hint.fleetType === 'own' ? 'Own fleet' : hint.partner} · ${hint.truck} · ${hint.driver}`
+  );
 
   const driver = await WarehouseDriver.findOne({ name: hint.driver });
   if (driver) {
@@ -177,6 +302,11 @@ const assignParcelToRegisteredDriver = async (parcel, parcelCode, employeeId) =>
   parcel.partner = null;
   await parcel.save();
   await syncDriverPortalParcel(parcel, profile);
+  await appendEvent(
+    parcel.code,
+    'Smart assigned',
+    `Own fleet · ${parcel.truck} · ${profile.user.name} (${profile.employeeId})`
+  );
 
   return parcel.toJSON();
 };
@@ -227,4 +357,8 @@ module.exports = {
   assignParcel,
   autoAssignParcels,
   autoAssignRoutes,
+  labelParcel,
+  addParcelToBatch,
+  closeBatch,
+  dispatchParcel,
 };

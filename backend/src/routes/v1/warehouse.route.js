@@ -10,10 +10,34 @@ router.get('/', auth('manageWarehouse'), warehouseController.getSnapshot);
 router.get('/drivers', auth('manageWarehouse'), warehouseController.listRegisteredDrivers);
 router.post('/parcels/auto-assign', auth('manageWarehouse'), warehouseController.autoAssignParcels);
 router.post(
+  '/parcels/:parcelId/label',
+  auth('manageWarehouse'),
+  validate(warehouseValidation.parcelAction),
+  warehouseController.labelParcel
+);
+router.post(
+  '/parcels/:parcelId/batch',
+  auth('manageWarehouse'),
+  validate(warehouseValidation.addToBatch),
+  warehouseController.addParcelToBatch
+);
+router.post(
   '/parcels/:parcelId/assign',
   auth('manageWarehouse'),
   validate(warehouseValidation.assignParcel),
   warehouseController.assignParcel
+);
+router.post(
+  '/parcels/:parcelId/dispatch',
+  auth('manageWarehouse'),
+  validate(warehouseValidation.parcelAction),
+  warehouseController.dispatchParcel
+);
+router.post(
+  '/batches/:batchId/close',
+  auth('manageWarehouse'),
+  validate(warehouseValidation.closeBatch),
+  warehouseController.closeBatch
 );
 router.post('/routes/auto-assign', auth('manageWarehouse'), warehouseController.autoAssignRoutes);
 
