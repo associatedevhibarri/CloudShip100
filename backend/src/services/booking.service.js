@@ -1,6 +1,7 @@
+const httpStatus = require('http-status');
 const { Booking, Contract, Invoice, PaymentRequest, Notification } = require('../models');
-const { Parcel: WarehouseParcel } = require('../models/warehouse.model');
 const pricingService = require('./pricing.service');
+const ApiError = require('../utils/ApiError');
 
 const TIMELINE_STAGE_ORDER = ['booked', 'warehouse', 'in_transit', 'out_for_delivery', 'delivered'];
 
@@ -27,16 +28,34 @@ const generateBookingCode = async () => {
 };
 
 /**
- * Create a real booking for a company: quotes the price via the pricing engine, then
- * generates the matching Contract, Invoice, PaymentRequest and Notification, and drops
- * a parcel into the (unmodified) Warehouse pipeline using the booking's own code.
+ * Create a booking: quote via the pricing engine when weight is given, generate the matching
+ * Contract / Invoice / PaymentRequest / Notification, and ingest an expected inbound parcel
+ * so warehouse receiving still has to confirm arrival.
  * @param {Company} company
- * @param {Object} body - { pickup, dropoff, cargo, weightKg, mode }
+ * @param {Object} body - { pickup, dropoff, cargo, mode, weightKg?, value? }
  * @returns {Promise<Booking>}
  */
 const createBooking = async (company, body) => {
-  const { pickup, dropoff, cargo, weightKg, mode } = body;
-  const quote = await pricingService.getQuote({ pickup, dropoff, weightKg, mode });
+  const { pickup, dropoff, cargo, weightKg, mode, value } = body;
+
+  let quotedPickup = pickup;
+  let quotedDropoff = dropoff;
+  let price = value;
+  let distanceKm = null;
+  let durationMinutes = null;
+
+  if (weightKg) {
+    const quote = await pricingService.getQuote({ pickup, dropoff, weightKg, mode });
+    quotedPickup = quote.pickup;
+    quotedDropoff = quote.dropoff;
+    price = quote.price;
+    distanceKm = quote.distanceKm;
+    durationMinutes = quote.durationMinutes;
+  }
+
+  if (price == null) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'weightKg or value is required');
+  }
 
   const code = await generateBookingCode();
   const now = new Date();
@@ -52,11 +71,11 @@ const createBooking = async (company, body) => {
     status: 'pending',
     mode,
     cargo,
-    value: quote.price,
-    pickup: quote.pickup,
-    dropoff: quote.dropoff,
-    distanceKm: quote.distanceKm,
-    durationMinutes: quote.durationMinutes,
+    value: price,
+    pickup: quotedPickup,
+    dropoff: quotedDropoff,
+    distanceKm,
+    durationMinutes,
     timeline,
     bookedAt: now,
   });
@@ -66,10 +85,10 @@ const createBooking = async (company, body) => {
   await Contract.create({
     company: company.id,
     booking: booking.id,
-    title: `${mode} Freight — ${quote.pickup} to ${quote.dropoff}`,
-    price: quote.price,
-    pickup: quote.pickup,
-    destination: quote.dropoff,
+    title: `${mode} Freight — ${quotedPickup} to ${quotedDropoff}`,
+    price,
+    pickup: quotedPickup,
+    destination: quotedDropoff,
     terms: `Payment due within 7 days of delivery. Carrier liable for damage up to contract value. Booking reference ${code}.`,
     status: 'pending_signature',
     startDate: now,
@@ -79,7 +98,7 @@ const createBooking = async (company, body) => {
   const invoice = await Invoice.create({
     company: company.id,
     booking: booking.id,
-    amount: quote.price,
+    amount: price,
     status: 'Open',
     due: dueDate,
   });
@@ -87,7 +106,7 @@ const createBooking = async (company, body) => {
   await PaymentRequest.create({
     company: company.id,
     invoice: invoice.id,
-    amount: quote.price,
+    amount: price,
     dueDate,
     status: 'due',
   });
@@ -95,26 +114,17 @@ const createBooking = async (company, body) => {
   await Notification.create({
     company: company.id,
     title: `Booking ${code} confirmed`,
-    body: `Your shipment from ${quote.pickup} to ${quote.dropoff} has been booked. Estimated price $${quote.price.toFixed(
+    body: `Your shipment from ${quotedPickup} to ${quotedDropoff} has been booked. Estimated price $${Number(price).toFixed(
       2
     )}.`,
     type: 'booking',
     unread: true,
   });
 
-  await WarehouseParcel.create({
-    code,
-    orderId: code,
-    cargo,
-    weightKg,
-    client: company.name,
-    shipper: company.name,
-    pickup: quote.pickup,
-    dropoff: quote.dropoff,
-    mode: mode.toLowerCase(),
-    status: 'received',
-    receivedAt: now.toISOString(),
-  });
+  // Lazy require avoids a cycle: warehouse.service -> bookingSync.service -> booking.service.
+  // eslint-disable-next-line global-require
+  const warehouseService = require('./warehouse.service');
+  await warehouseService.ingestBooking(booking, company, { weightKg });
 
   return booking;
 };

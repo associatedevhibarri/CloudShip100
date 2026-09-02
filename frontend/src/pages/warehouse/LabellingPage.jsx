@@ -9,7 +9,7 @@ import { WarehouseGate, useWarehouse } from '../../hooks/useWarehouse'
 
 export default function LabellingPage() {
   const { data, loading, error, reload } = useWarehouse()
-  const parcels = data?.parcels || []
+  const parcels = (data?.parcels || []).filter((p) => p.status !== 'expected')
   const batches = data?.batches || []
   const [batchId, setBatchId] = useState('all')
   const [selected, setSelected] = useState(null)

@@ -46,6 +46,11 @@ const dispatchParcel = catchAsync(async (req, res) => {
   res.send(parcel);
 });
 
+const receiveParcel = catchAsync(async (req, res) => {
+  const parcel = await warehouseService.receiveParcel(req.params.parcelId);
+  res.send(parcel);
+});
+
 const optimizeRoute = catchAsync(async (req, res) => {
   const route = await warehouseService.optimizeRoute(req.params.routeId);
   res.send(route);
@@ -57,6 +62,7 @@ module.exports = {
   assignParcel,
   autoAssignParcels,
   autoAssignRoutes,
+  receiveParcel,
   labelParcel,
   addParcelToBatch,
   closeBatch,

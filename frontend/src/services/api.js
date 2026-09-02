@@ -29,14 +29,22 @@ import {
 import { apiFetch, isLiveSession } from './http'
 
 const localKpis = (list) => {
-  const inboundToday = list.length
+  const isToday = (iso) => {
+    if (!iso) return false
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return false
+    return d.toDateString() === new Date().toDateString()
+  }
+  const awaitingReceive = list.filter((p) => p.status === 'expected').length
+  const inboundToday = list.filter((p) => p.status !== 'expected' && isToday(p.receivedAt)).length
   const labelled = list.filter((p) => p.labelCode).length
-  const awaitingAssign = list.filter((p) => !p.fleetType).length
+  const awaitingAssign = list.filter((p) => !p.fleetType && p.status !== 'expected' && p.status !== 'dispatched').length
   const dispatched = list.filter((p) => p.status === 'dispatched').length
   const assigned = list.filter((p) => p.fleetType)
   const own = assigned.filter((p) => p.fleetType === 'own').length
   const ownFleetShare = assigned.length ? Math.round((own / assigned.length) * 100) : 0
   return {
+    awaitingReceive,
     inboundToday,
     labelled,
     awaitingAssign,
@@ -48,15 +56,15 @@ const localKpis = (list) => {
 
 const localWarehouseSnapshot = () => ({
   kpis: localKpis(parcels),
-  parcels,
-  batches,
-  suggestions: assignmentSuggestions,
-  zones: warehouseZones,
-  events: dispatchEvents,
-  routes: warehouseRoutes,
-  drivers: warehouseDrivers,
+  parcels: parcels.map((p) => ({ ...p })),
+  batches: batches.map((b) => ({ ...b })),
+  suggestions: assignmentSuggestions.map((s) => ({ ...s })),
+  zones: warehouseZones.map((z) => ({ ...z })),
+  events: [...dispatchEvents],
+  routes: warehouseRoutes.map((r) => ({ ...r })),
+  drivers: warehouseDrivers.map((d) => ({ ...d })),
   registeredDrivers: [],
-  mapAssets: warehouseMapAssets,
+  mapAssets: warehouseMapAssets.map((a) => ({ ...a })),
 })
 
 const pushLocalEvent = (parcelId, title, detail) => {
@@ -157,6 +165,23 @@ export const api = {
     } catch {
       return localWarehouseSnapshot()
     }
+  },
+  receiveParcel: async (parcelId) => {
+    if (!isLiveSession()) {
+      const parcel = parcels.find((p) => p.id === parcelId)
+      if (parcel && (parcel.status === 'expected' || !parcel.status)) {
+        parcel.status = 'received'
+        parcel.zone = 'Receiving dock'
+        parcel.receivedAt = new Date().toISOString()
+        pushLocalEvent(
+          parcelId,
+          'Received at warehouse',
+          `${parcel.warehouse || 'Yard'} — receiving dock${parcel.orderId ? ` · ${parcel.orderId}` : ''}`,
+        )
+      }
+      return localWarehouseSnapshot()
+    }
+    return postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/receive`)
   },
   assignParcel: async (parcelId, employeeId) => {
     if (!isLiveSession()) {

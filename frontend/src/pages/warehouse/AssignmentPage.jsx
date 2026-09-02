@@ -10,7 +10,7 @@ import { WarehouseGate, useWarehouse } from '../../hooks/useWarehouse'
 export default function AssignmentPage() {
   const { data, loading, error, reload } = useWarehouse()
   const suggestions = data?.suggestions || []
-  const parcels = data?.parcels || []
+  const parcels = (data?.parcels || []).filter((p) => p.status !== 'expected')
   const registeredDrivers = data?.registeredDrivers || []
   const [fleet, setFleet] = useState('all')
   const [flash, setFlash] = useState('')

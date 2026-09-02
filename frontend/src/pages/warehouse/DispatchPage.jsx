@@ -9,7 +9,7 @@ import { WarehouseGate, useWarehouse } from '../../hooks/useWarehouse'
 
 export default function DispatchPage() {
   const { data, loading, error, reload } = useWarehouse()
-  const parcels = data?.parcels || []
+  const parcels = (data?.parcels || []).filter((p) => p.status !== 'expected')
   const mapAssets = data?.mapAssets || []
   const [selectedId, setSelectedId] = useState('PCL-1001')
   const [flash, setFlash] = useState('')

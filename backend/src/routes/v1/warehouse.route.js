@@ -10,6 +10,12 @@ router.get('/', auth('manageWarehouse'), warehouseController.getSnapshot);
 router.get('/drivers', auth('manageWarehouse'), warehouseController.listRegisteredDrivers);
 router.post('/parcels/auto-assign', auth('manageWarehouse'), warehouseController.autoAssignParcels);
 router.post(
+  '/parcels/:parcelId/receive',
+  auth('manageWarehouse'),
+  validate(warehouseValidation.parcelAction),
+  warehouseController.receiveParcel
+);
+router.post(
   '/parcels/:parcelId/label',
   auth('manageWarehouse'),
   validate(warehouseValidation.parcelAction),

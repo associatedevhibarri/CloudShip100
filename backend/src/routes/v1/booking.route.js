@@ -6,7 +6,11 @@ const bookingController = require('../../controllers/booking.controller');
 
 const router = express.Router();
 
-router.get('/mine', auth('viewOwnBookings'), bookingController.getMyBookings);
+router
+  .route('/mine')
+  .get(auth('viewOwnBookings'), bookingController.getMyBookings)
+  .post(auth('manageOwnBookings'), validate(bookingValidation.createBooking), bookingController.createBooking);
+
 router.post('/', auth('manageOwnBookings'), validate(bookingValidation.createBooking), bookingController.createBooking);
 
 module.exports = router;
