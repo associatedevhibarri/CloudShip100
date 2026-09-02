@@ -1,5 +1,7 @@
 const allRoles = {
   user: [],
+  customer: [],
+  operator: ['getUsers', 'manageUsers'],
   admin: ['getUsers', 'manageUsers'],
 };
 
@@ -10,3 +12,4 @@ module.exports = {
   roles,
   roleRights,
 };
+
