@@ -22,6 +22,7 @@ const styles = {
   Active: 'bg-emerald-50 text-emerald-700 border-emerald-100',
   Available: 'bg-emerald-50 text-emerald-700 border-emerald-100',
   received: 'bg-slate-100 text-slate-700 border-slate-200',
+  expected: 'bg-amber-50 text-amber-800 border-amber-100',
   labelled: 'bg-sky-50 text-sky-700 border-sky-100',
   batched: 'bg-violet-50 text-violet-700 border-violet-100',
   assigned: 'bg-brand-light text-brand-dark border-brand/20',

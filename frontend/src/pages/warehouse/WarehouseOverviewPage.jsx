@@ -1,10 +1,16 @@
 import { Link } from 'react-router-dom'
-import { Boxes, ScanLine, GitMerge, MapPinned, Truck, Route, Users } from 'lucide-react'
+import { Boxes, Inbox, ScanLine, GitMerge, MapPinned, Truck, Route, Users } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { WarehouseGate, useWarehouse } from '../../hooks/useWarehouse'
 
 const links = [
+  {
+    to: '/app/warehouse/receiving',
+    title: 'Receive orders',
+    desc: 'Confirm customer bookings at the dock',
+    icon: Inbox,
+  },
   {
     to: '/app/warehouse/labelling',
     title: 'Labelling & Batching',
@@ -57,8 +63,17 @@ export default function WarehouseOverviewPage() {
       <WarehouseGate loading={loading} error={error}>
         {kpis ? (
           <>
-            <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {(kpis.awaitingReceive || 0) > 0 ? (
+              <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+                {kpis.awaitingReceive} order{kpis.awaitingReceive === 1 ? '' : 's'} waiting at the dock.{' '}
+                <Link to="/app/warehouse/receiving" className="underline">
+                  Receive now
+                </Link>
+              </p>
+            ) : null}
+            <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               {[
+                ['Awaiting receive', kpis.awaitingReceive ?? 0],
                 ['Inbound today', kpis.inboundToday],
                 ['Labelled', kpis.labelled],
                 ['Awaiting assign', kpis.awaitingAssign],

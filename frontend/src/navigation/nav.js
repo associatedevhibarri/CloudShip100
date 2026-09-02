@@ -33,6 +33,7 @@ export const operatorNav = [
     icon: Boxes,
     children: [
       { label: 'Overview', path: '/app/warehouse' },
+      { label: 'Receive orders', path: '/app/warehouse/receiving' },
       { label: 'Labelling & Batching', path: '/app/warehouse/labelling' },
       { label: 'Smart Assignment', path: '/app/warehouse/assignment' },
       { label: 'Geofences & Zones', path: '/app/warehouse/zones' },

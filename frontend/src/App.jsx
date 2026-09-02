@@ -38,7 +38,7 @@ import AeroplanesPage from './pages/assets/AeroplanesPage'
 import AirEquipmentPage from './pages/assets/AirEquipmentPage'
 import CrewPage from './pages/assets/CrewPage'
 import CustomerAccountPage from './pages/customer/CustomerAccountPage'
-import CustomerDeliveriesPage from './pages/customer/CustomerDeliveriesPage'
+import CustomerDeliveriesPage from './pages/customer/CustomerDeliveriesPage.jsx'
 import CustomerOverviewPage from './pages/customer/CustomerOverviewPage'
 import CustomerTrackingPage from './pages/customer/CustomerTrackingPage'
 import CustomerDocumentsPage from './pages/customer/CustomerDocumentsPage'
@@ -53,6 +53,7 @@ import DriverTripsPage from './pages/driver/DriverTripsPage'
 import DriverDamageLogsPage from './pages/driver/DriverDamageLogsPage'
 import DriverHistoryPage from './pages/driver/DriverHistoryPage'
 import WarehouseOverviewPage from './pages/warehouse/WarehouseOverviewPage'
+import ReceivingPage from './pages/warehouse/ReceivingPage'
 import LabellingPage from './pages/warehouse/LabellingPage'
 import AssignmentPage from './pages/warehouse/AssignmentPage'
 import WarehouseZonesPage from './pages/warehouse/WarehouseZonesPage'
@@ -81,6 +82,7 @@ export default function App() {
             <Route path="map" element={<MapPage />} />
             <Route path="trips" element={<TripsPage />} />
             <Route path="warehouse" element={<WarehouseOverviewPage />} />
+            <Route path="warehouse/receiving" element={<ReceivingPage />} />
             <Route path="warehouse/labelling" element={<LabellingPage />} />
             <Route path="warehouse/assignment" element={<AssignmentPage />} />
             <Route path="warehouse/zones" element={<WarehouseZonesPage />} />

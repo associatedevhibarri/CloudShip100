@@ -21,6 +21,7 @@ export const portalService = {
   getMyCompany: (token) => request('/companies/me', { token }),
   updateMyCompany: (token, body) => request('/companies/me', { token, method: 'PATCH', body }),
   getMyBookings: (token) => request('/bookings/mine', { token }),
+  createBooking: (token, body) => request('/bookings/mine', { token, method: 'POST', body }),
   getMyInvoices: (token) => request('/invoices/mine', { token }),
   getMyContracts: (token) => request('/contracts/mine', { token }),
   getMyKycDocuments: (token) => request('/kyc-documents/mine', { token }),

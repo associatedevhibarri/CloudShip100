@@ -18,6 +18,12 @@ const bookingSchema = mongoose.Schema(
       ref: 'Company',
       required: true,
     },
+    code: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true,
+    },
     status: {
       type: String,
       enum: ['pending', 'in_transit', 'completed', 'history'],

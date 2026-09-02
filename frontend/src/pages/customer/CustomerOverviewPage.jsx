@@ -56,7 +56,7 @@ export default function CustomerOverviewPage() {
               {bookingList.slice(0, 4).map((b) => (
                 <div key={b.id} className="flex items-center justify-between gap-3 rounded-xl bg-surface px-3 py-2.5">
                   <div>
-                    <p className="text-sm font-bold text-ink">{b.id}</p>
+                    <p className="text-sm font-bold text-ink">{b.code || b.id}</p>
                     <p className="text-xs text-muted">{b.cargo}</p>
                   </div>
                   <StatusBadge status={b.status} />

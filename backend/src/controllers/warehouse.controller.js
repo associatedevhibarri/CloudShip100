@@ -46,12 +46,18 @@ const dispatchParcel = catchAsync(async (req, res) => {
   res.send(parcel);
 });
 
+const receiveParcel = catchAsync(async (req, res) => {
+  const parcel = await warehouseService.receiveParcel(req.params.parcelId);
+  res.send(parcel);
+});
+
 module.exports = {
   getSnapshot,
   listRegisteredDrivers,
   assignParcel,
   autoAssignParcels,
   autoAssignRoutes,
+  receiveParcel,
   labelParcel,
   addParcelToBatch,
   closeBatch,
