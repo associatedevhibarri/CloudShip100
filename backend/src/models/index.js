@@ -1,2 +1,10 @@
+module.exports.Booking = require('./booking.model');
+module.exports.Company = require('./company.model');
+module.exports.Contract = require('./contract.model');
+module.exports.Invoice = require('./invoice.model');
+module.exports.KycDocument = require('./kycDocument.model');
+module.exports.Notification = require('./notification.model');
+module.exports.PaymentRequest = require('./paymentRequest.model');
+module.exports.Promotion = require('./promotion.model');
 module.exports.Token = require('./token.model');
 module.exports.User = require('./user.model');

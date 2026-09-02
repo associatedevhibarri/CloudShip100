@@ -1,6 +1,18 @@
 const allRoles = {
   user: [],
-  customer: [],
+  customer: [
+    'viewOwnCompany',
+    'manageOwnCompany',
+    'viewOwnBookings',
+    'viewOwnInvoices',
+    'viewOwnContracts',
+    'viewOwnDocuments',
+    'manageOwnDocuments',
+    'viewOwnPayments',
+    'manageOwnPayments',
+    'viewPromotions',
+    'viewOwnNotifications',
+  ],
   operator: ['getUsers', 'manageUsers'],
   admin: ['getUsers', 'manageUsers'],
 };
@@ -12,4 +24,3 @@ module.exports = {
   roles,
   roleRights,
 };
-

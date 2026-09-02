@@ -21,7 +21,7 @@ export function RequireAuth({ role, children }) {
   const userRole = user.role === 'admin' ? 'operator' : user.role
 
   if (role && userRole !== role) {
-    return <Navigate to={userRole === 'customer' ? '/customer/deliveries' : '/app/dashboard'} replace />
+    return <Navigate to={userRole === 'customer' ? '/customer/overview' : '/app/dashboard'} replace />
   }
 
   return children

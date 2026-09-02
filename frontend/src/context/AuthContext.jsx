@@ -27,8 +27,8 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const register = async (name, email, password, role) => {
-    const resultAction = await dispatch(registerUser({ name, email, password, role }))
+  const register = async (name, email, password, role, companyName) => {
+    const resultAction = await dispatch(registerUser({ name, email, password, role, companyName }))
     if (registerUser.fulfilled.match(resultAction)) {
       return resultAction.payload.user
     } else {

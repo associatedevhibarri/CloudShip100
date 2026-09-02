@@ -16,6 +16,11 @@ import {
   TrainFront,
   Truck,
   Home,
+  ShieldCheck,
+  History,
+  FileSignature,
+  CreditCard,
+  UserCircle,
 } from 'lucide-react'
 
 export const operatorNav = [
@@ -69,6 +74,18 @@ export const operatorNav = [
   { label: 'Geomapping', path: '/app/geomapping', icon: MapPinned },
   { label: 'Geo Analytics', path: '/app/geo-analytics', icon: ChartSpline },
   { label: 'Notifications', path: '/app/notifications', icon: Bell },
+]
+
+export const customerNav = [
+  { label: 'Overview', path: '/customer/overview', icon: LayoutDashboard },
+  { label: 'Parcel Tracking', path: '/customer/tracking', icon: Package },
+  { label: 'Documents (KYC/FICA/AML)', path: '/customer/documents', icon: ShieldCheck },
+  { label: 'Booking History', path: '/customer/bookings', icon: History },
+  { label: 'Invoices', path: '/customer/invoices', icon: Receipt },
+  { label: 'Contracts', path: '/customer/contracts', icon: FileSignature },
+  { label: 'Payments', path: '/customer/payments', icon: CreditCard },
+  { label: 'Notifications', path: '/customer/notifications', icon: Bell },
+  { label: 'Account', path: '/customer/account', icon: UserCircle },
 ]
 
 export const modeChips = [
