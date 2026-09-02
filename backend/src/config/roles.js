@@ -1,6 +1,18 @@
 const allRoles = {
   user: [],
-  customer: [],
+  customer: [
+    'viewOwnCompany',
+    'manageOwnCompany',
+    'viewOwnBookings',
+    'viewOwnInvoices',
+    'viewOwnContracts',
+    'viewOwnDocuments',
+    'manageOwnDocuments',
+    'viewOwnPayments',
+    'manageOwnPayments',
+    'viewPromotions',
+    'viewOwnNotifications',
+  ],
   driver: [],
   operator: ['getUsers', 'manageUsers', 'manageWarehouse'],
   admin: ['getUsers', 'manageUsers', 'manageWarehouse'],
@@ -13,4 +25,3 @@ module.exports = {
   roles,
   roleRights,
 };
-

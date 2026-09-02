@@ -23,7 +23,7 @@ export function RequireAuth({ role, children }) {
   if (role && userRole !== role) {
     const fallback =
       userRole === 'customer'
-        ? '/customer/deliveries'
+        ? '/customer/overview'
         : userRole === 'driver'
           ? '/driver/trips'
           : '/app/dashboard'
