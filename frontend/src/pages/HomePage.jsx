@@ -153,6 +153,12 @@ export default function HomePage() {
               >
                 Customer Portal
               </Link>
+              <Link
+                to="/login?role=driver"
+                className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-6 py-3.5 text-sm font-bold text-ink shadow-sm transition hover:border-brand/40 hover:bg-brand-light/40"
+              >
+                Driver Portal
+              </Link>
             </div>
 
             <ul className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
@@ -307,8 +313,7 @@ export default function HomePage() {
               See Cloud Ship in action
             </h2>
             <p className="max-w-lg text-sm leading-relaxed text-muted sm:text-base">
-              Explore the full operator ERP demo or sign in through the customer portal — no setup
-              required.
+              Explore the operator ERP demo, customer portal, or driver portal — no setup required.
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <Link
