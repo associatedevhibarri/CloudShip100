@@ -35,6 +35,15 @@ export const customers = [
     tier: 'Standard',
     outstanding: 2100,
   },
+  {
+    id: 'CUS-05',
+    name: 'Vasanth Foods',
+    contact: 'Vasanth Reddy',
+    email: 'ops@vasanthfoods.demo',
+    phone: '+27 31 555 0188',
+    tier: 'Growth',
+    outstanding: 1850,
+  },
 ]
 
 export const orders = [
@@ -103,6 +112,17 @@ export const orders = [
     createdAt: '2026-08-05',
     pickup: 'Cape Town',
     dropoff: 'East London',
+  },
+  {
+    id: 'ORD-8810',
+    customer: 'Vasanth Foods',
+    status: 'in_transit',
+    mode: 'Road',
+    cargo: 'Rice — 100kg',
+    value: 1850,
+    createdAt: '2026-09-02',
+    pickup: 'Chatsworth, Durban',
+    dropoff: 'City Deep, Johannesburg',
   },
 ]
 
