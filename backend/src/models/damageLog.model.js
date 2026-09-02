@@ -45,6 +45,16 @@ const damageLogSchema = mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    photoUrl: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    photoFilename: {
+      type: String,
+      trim: true,
+      default: null,
+    },
   },
   { timestamps: true }
 );

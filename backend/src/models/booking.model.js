@@ -18,6 +18,20 @@ const bookingSchema = mongoose.Schema(
       ref: 'Company',
       required: true,
     },
+    code: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
+    distanceKm: {
+      type: Number,
+      default: null,
+    },
+    durationMinutes: {
+      type: Number,
+      default: null,
+    },
     status: {
       type: String,
       enum: ['pending', 'in_transit', 'completed', 'history'],

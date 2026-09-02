@@ -12,6 +12,7 @@ const kycDocumentRoute = require('./kycDocument.route');
 const paymentRequestRoute = require('./paymentRequest.route');
 const notificationRoute = require('./notification.route');
 const promotionRoute = require('./promotion.route');
+const pricingRoute = require('./pricing.route');
 const config = require('../../config/config');
 
 const router = express.Router();
@@ -64,6 +65,10 @@ const defaultRoutes = [
   {
     path: '/promotions',
     route: promotionRoute,
+  },
+  {
+    path: '/pricing',
+    route: pricingRoute,
   },
 ];
 

@@ -29,4 +29,6 @@ export const portalService = {
   payPaymentRequest: (token, id) => request(`/payment-requests/${id}/pay`, { token, method: 'PATCH' }),
   getMyNotifications: (token) => request('/notifications/mine', { token }),
   getPromotions: (token) => request('/promotions', { token }),
+  getQuote: (body) => request('/pricing/quote', { method: 'POST', body }),
+  createBooking: (token, body) => request('/bookings', { token, method: 'POST', body }),
 }

@@ -2,6 +2,7 @@ const httpStatus = require('http-status');
 const { DriverProfile, Trip, Parcel, DamageLog } = require('../models');
 const ApiError = require('../utils/ApiError');
 const { driverProfileService } = require('./driverProfile.service');
+const bookingSyncService = require('./bookingSync.service');
 
 const formatTrip = (trip, parcelCodes = []) => ({
   id: trip.code,
@@ -49,6 +50,7 @@ const formatDamageLog = (log) => ({
   location: log.location,
   reportedAt: log.reportedAt,
   status: log.status,
+  photoUrl: log.photoUrl || null,
 });
 
 const getDriverProfile = async (user) => {
@@ -64,8 +66,11 @@ const getDriverProfile = async (user) => {
 };
 
 const ensureDriverSeedData = async (profile) => {
-  const existingTrips = await Trip.countDocuments({ driverProfile: profile.id });
-  if (existingTrips > 0) return;
+  const [existingTrips, existingParcels] = await Promise.all([
+    Trip.countDocuments({ driverProfile: profile.id }),
+    Parcel.countDocuments({ driverProfile: profile.id }),
+  ]);
+  if (existingTrips > 0 || existingParcels > 0) return;
 
   if (!profile.assignedVehicle) {
     profile.assignedVehicle = 'XYX 767 GP';
@@ -285,6 +290,7 @@ const updateMyParcelStatus = async (user, parcelCode, status) => {
 
   parcel.status = status;
   await parcel.save();
+  await bookingSyncService.syncBookingFromParcelStatus(parcel.clientOrderId, status);
 
   return formatParcel(parcel.toJSON());
 };
@@ -301,7 +307,7 @@ const getMyDamageLogs = async (user) => {
   return logs.map((log) => formatDamageLog(log.toJSON()));
 };
 
-const createDamageLog = async (user, body) => {
+const createDamageLog = async (user, body, file) => {
   const profile = await getDriverProfile(user);
 
   const parcel = body.parcelId
@@ -327,6 +333,12 @@ const createDamageLog = async (user, body) => {
     location: body.location || 'Current location',
     status: 'open',
     reportedAt: new Date(),
+    ...(file
+      ? {
+          photoUrl: `/v1/uploads/damage-logs/${file.filename}`,
+          photoFilename: file.filename,
+        }
+      : {}),
   });
 
   await log.populate('parcel');

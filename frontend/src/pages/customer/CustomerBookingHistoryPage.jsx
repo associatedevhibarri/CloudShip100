@@ -37,7 +37,7 @@ export default function CustomerBookingHistoryPage() {
 
           <DataTable
             columns={[
-              { key: 'id', label: 'Booking' },
+              { key: 'code', label: 'Booking', render: (row) => row.code || row.id },
               { key: 'cargo', label: 'Cargo' },
               { key: 'mode', label: 'Mode' },
               { key: 'pickup', label: 'Pickup' },

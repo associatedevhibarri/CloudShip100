@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
-import { AlertTriangle, Camera } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { AlertTriangle, Camera, X } from 'lucide-react'
 import { useDriverData } from '../../hooks/useDriverData'
-import { driverService } from '../../services/driverService'
+import { driverService, getDocumentUrl } from '../../services/driverService'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/StatusBadge'
@@ -20,6 +20,8 @@ export default function DriverDamageLogsPage() {
   })
   const [notice, setNotice] = useState('')
   const [formError, setFormError] = useState('')
+  const [photo, setPhoto] = useState(null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (parcels.length && !form.parcelId) {
@@ -41,8 +43,10 @@ export default function DriverDamageLogsPage() {
     setSubmitting(true)
     setFormError('')
     try {
-      await driverService.createDamageLog(token, form)
+      await driverService.createDamageLog(token, form, photo)
       setForm({ ...form, description: '', location: '' })
+      setPhoto(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
       setNotice('Damage report submitted successfully.')
       await reload()
       setTimeout(() => setNotice(''), 3000)
@@ -153,15 +157,35 @@ export default function DriverDamageLogsPage() {
               {formError}
             </p>
           ) : null}
-          <div className="sm:col-span-2 flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-full border border-line px-4 py-2 text-sm font-bold"
-              onClick={() => setNotice('Photo capture opened (demo placeholder).')}
+          <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => setPhoto(e.target.files?.[0] || null)}
+              className="hidden"
+              id="damage-photo-input"
+            />
+            <label
+              htmlFor="damage-photo-input"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-line px-4 py-2 text-sm font-bold hover:bg-surface"
             >
               <Camera size={16} />
-              Add photo
-            </button>
+              {photo ? photo.name : 'Add photo'}
+            </label>
+            {photo ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setPhoto(null)
+                  if (fileInputRef.current) fileInputRef.current.value = ''
+                }}
+                className="text-muted hover:text-ink"
+                aria-label="Remove photo"
+              >
+                <X size={16} />
+              </button>
+            ) : null}
             <button
               type="submit"
               disabled={submitting}
@@ -191,6 +215,13 @@ export default function DriverDamageLogsPage() {
                 <span>{log.location}</span>
                 <span>{new Date(log.reportedAt).toLocaleString()}</span>
               </div>
+              {log.photoUrl ? (
+                <img
+                  src={getDocumentUrl(log.photoUrl)}
+                  alt="Damage report"
+                  className="mt-3 h-32 w-full max-w-xs rounded-xl border border-line object-cover"
+                />
+              ) : null}
             </Card>
           ))
         ) : (

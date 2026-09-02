@@ -8,6 +8,11 @@ const contractSchema = mongoose.Schema(
       ref: 'Company',
       required: true,
     },
+    booking: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'Booking',
+      default: null,
+    },
     title: {
       type: String,
       required: true,

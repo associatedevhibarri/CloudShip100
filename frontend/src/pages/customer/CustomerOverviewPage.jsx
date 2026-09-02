@@ -50,13 +50,18 @@ export default function CustomerOverviewPage() {
             </Link>
           </div>
           {bookingList.length === 0 ? (
-            <p className="text-sm text-muted">No parcels booked yet.</p>
+            <p className="text-sm text-muted">
+              No parcels booked yet.{' '}
+              <Link to="/customer/new-booking" className="font-semibold text-brand hover:underline">
+                Book one now →
+              </Link>
+            </p>
           ) : (
             <div className="space-y-3">
               {bookingList.slice(0, 4).map((b) => (
                 <div key={b.id} className="flex items-center justify-between gap-3 rounded-xl bg-surface px-3 py-2.5">
                   <div>
-                    <p className="text-sm font-bold text-ink">{b.id}</p>
+                    <p className="text-sm font-bold text-ink">{b.code || b.id}</p>
                     <p className="text-xs text-muted">{b.cargo}</p>
                   </div>
                   <StatusBadge status={b.status} />

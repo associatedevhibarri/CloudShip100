@@ -39,6 +39,7 @@ import AirEquipmentPage from './pages/assets/AirEquipmentPage'
 import CrewPage from './pages/assets/CrewPage'
 import CustomerAccountPage from './pages/customer/CustomerAccountPage'
 import CustomerDeliveriesPage from './pages/customer/CustomerDeliveriesPage'
+import CustomerNewBookingPage from './pages/customer/CustomerNewBookingPage'
 import CustomerOverviewPage from './pages/customer/CustomerOverviewPage'
 import CustomerTrackingPage from './pages/customer/CustomerTrackingPage'
 import CustomerDocumentsPage from './pages/customer/CustomerDocumentsPage'
@@ -125,6 +126,7 @@ export default function App() {
           >
             <Route index element={<Navigate to="overview" replace />} />
             <Route path="overview" element={<CustomerOverviewPage />} />
+            <Route path="new-booking" element={<CustomerNewBookingPage />} />
             <Route path="tracking" element={<CustomerTrackingPage />} />
             <Route path="documents" element={<CustomerDocumentsPage />} />
             <Route path="bookings" element={<CustomerBookingHistoryPage />} />

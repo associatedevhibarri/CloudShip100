@@ -4,6 +4,7 @@ const allRoles = {
     'viewOwnCompany',
     'manageOwnCompany',
     'viewOwnBookings',
+    'manageOwnBookings',
     'viewOwnInvoices',
     'viewOwnContracts',
     'viewOwnDocuments',

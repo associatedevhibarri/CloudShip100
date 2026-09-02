@@ -77,7 +77,20 @@ export const driverService = {
     return parseResponse(res)
   },
 
-  async createDamageLog(token, payload) {
+  async createDamageLog(token, payload, photo) {
+    if (photo) {
+      const formData = new FormData()
+      Object.entries(payload).forEach(([key, value]) => formData.append(key, value ?? ''))
+      formData.append('photo', photo)
+
+      const res = await fetch(`${API_BASE_URL}/drivers/me/damage-logs`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+      return parseResponse(res)
+    }
+
     const res = await fetch(`${API_BASE_URL}/drivers/me/damage-logs`, {
       method: 'POST',
       headers: authHeaders(token),
