@@ -4,6 +4,14 @@ const userRoute = require('./user.route');
 const driverRoute = require('./driver.route');
 const warehouseRoute = require('./warehouse.route');
 const docsRoute = require('./docs.route');
+const companyRoute = require('./company.route');
+const bookingRoute = require('./booking.route');
+const invoiceRoute = require('./invoice.route');
+const contractRoute = require('./contract.route');
+const kycDocumentRoute = require('./kycDocument.route');
+const paymentRequestRoute = require('./paymentRequest.route');
+const notificationRoute = require('./notification.route');
+const promotionRoute = require('./promotion.route');
 const config = require('../../config/config');
 
 const router = express.Router();
@@ -24,6 +32,38 @@ const defaultRoutes = [
   {
     path: '/warehouse',
     route: warehouseRoute,
+  },
+  {
+    path: '/companies',
+    route: companyRoute,
+  },
+  {
+    path: '/bookings',
+    route: bookingRoute,
+  },
+  {
+    path: '/invoices',
+    route: invoiceRoute,
+  },
+  {
+    path: '/contracts',
+    route: contractRoute,
+  },
+  {
+    path: '/kyc-documents',
+    route: kycDocumentRoute,
+  },
+  {
+    path: '/payment-requests',
+    route: paymentRequestRoute,
+  },
+  {
+    path: '/notifications',
+    route: notificationRoute,
+  },
+  {
+    path: '/promotions',
+    route: promotionRoute,
   },
 ];
 

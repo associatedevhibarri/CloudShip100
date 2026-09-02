@@ -1,3 +1,5 @@
+//
+
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { AppLayout } from './components/layout/AppLayout'
@@ -36,7 +38,14 @@ import AeroplanesPage from './pages/assets/AeroplanesPage'
 import AirEquipmentPage from './pages/assets/AirEquipmentPage'
 import CrewPage from './pages/assets/CrewPage'
 import CustomerAccountPage from './pages/customer/CustomerAccountPage'
-import CustomerDeliveriesPage from './pages/customer/CustomerDeliveriesPage'
+import CustomerOverviewPage from './pages/customer/CustomerOverviewPage'
+import CustomerTrackingPage from './pages/customer/CustomerTrackingPage'
+import CustomerDocumentsPage from './pages/customer/CustomerDocumentsPage'
+import CustomerInvoicesPage from './pages/customer/CustomerInvoicesPage'
+import CustomerContractsPage from './pages/customer/CustomerContractsPage'
+import CustomerBookingHistoryPage from './pages/customer/CustomerBookingHistoryPage'
+import CustomerNotificationsPage from './pages/customer/CustomerNotificationsPage'
+import CustomerPaymentsPage from './pages/customer/CustomerPaymentsPage'
 import DriverProfilePage from './pages/driver/DriverProfilePage'
 import DriverParcelsPage from './pages/driver/DriverParcelsPage'
 import DriverTripsPage from './pages/driver/DriverTripsPage'
@@ -113,9 +122,32 @@ export default function App() {
               </RequireAuth>
             }
           >
-            <Route index element={<Navigate to="deliveries" replace />} />
+            <Route index element={<Navigate to="overview" replace />} />
+            <Route path="overview" element={<CustomerOverviewPage />} />
+            <Route path="tracking" element={<CustomerTrackingPage />} />
+            <Route path="documents" element={<CustomerDocumentsPage />} />
+            <Route path="bookings" element={<CustomerBookingHistoryPage />} />
+            <Route path="invoices" element={<CustomerInvoicesPage />} />
+            <Route path="contracts" element={<CustomerContractsPage />} />
+            <Route path="payments" element={<CustomerPaymentsPage />} />
+            <Route path="notifications" element={<CustomerNotificationsPage />} />
             <Route path="account" element={<CustomerAccountPage />} />
-            <Route path="deliveries" element={<CustomerDeliveriesPage />} />
+          </Route>
+ <Route path="deliveries" element={<CustomerDeliveriesPage />} />
+          <Route
+            path="/driver"
+            element={
+              <RequireAuth role="driver">
+                <DriverLayout />
+              </RequireAuth>
+            }
+          >
+            <Route index element={<Navigate to="trips" replace />} />
+            <Route path="profile" element={<DriverProfilePage />} />
+            <Route path="parcels" element={<DriverParcelsPage />} />
+            <Route path="trips" element={<DriverTripsPage />} />
+            <Route path="damage-logs" element={<DriverDamageLogsPage />} />
+            <Route path="history" element={<DriverHistoryPage />} />
           </Route>
 
           <Route

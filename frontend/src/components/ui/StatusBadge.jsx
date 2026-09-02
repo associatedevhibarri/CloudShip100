@@ -37,6 +37,12 @@ const styles = {
   loading: 'bg-orange-50 text-orange-700 border-orange-100',
   on_route: 'bg-brand-light text-brand-dark border-brand/20',
   available: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  active: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  pending_signature: 'bg-amber-50 text-amber-700 border-amber-100',
+  expired: 'bg-rose-50 text-rose-700 border-rose-100',
+  due: 'bg-amber-50 text-amber-700 border-amber-100',
+  overdue: 'bg-rose-50 text-rose-700 border-rose-100',
+  paid: 'bg-emerald-50 text-emerald-700 border-emerald-100',
   default: 'bg-slate-100 text-slate-600 border-slate-200',
 }
 

@@ -27,9 +27,9 @@ export const loginUser = createAsyncThunk(
 
 export const registerUser = createAsyncThunk(
   'auth/register',
-  async ({ name, email, password, role }, { rejectWithValue }) => {
+  async ({ name, email, password, role, companyName }, { rejectWithValue }) => {
     try {
-      const data = await authService.register({ name, email, password, role })
+      const data = await authService.register({ name, email, password, role, companyName })
       localStorage.setItem('cloudship_user', JSON.stringify(data.user))
       localStorage.setItem('cloudship_tokens', JSON.stringify(data.tokens))
       return data

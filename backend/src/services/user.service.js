@@ -1,9 +1,9 @@
 const httpStatus = require('http-status');
-const { User } = require('../models');
+const { User, Company } = require('../models');
 const ApiError = require('../utils/ApiError');
 
 /**
- * Create a user
+ * Create a user. Customer signups also establish their Company record.
  * @param {Object} userBody
  * @returns {Promise<User>}
  */
@@ -11,7 +11,21 @@ const createUser = async (userBody) => {
   if (await User.isEmailTaken(userBody.email)) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
   }
-  return User.create(userBody);
+  const { companyName, ...userFields } = userBody;
+  const user = await User.create(userFields);
+
+  if (user.role === 'customer' && companyName) {
+    const company = await Company.create({
+      name: companyName,
+      contact: user.name,
+      email: user.email,
+      owner: user._id,
+    });
+    user.company = company._id;
+    await user.save();
+  }
+
+  return user;
 };
 
 /**

@@ -44,6 +44,11 @@ const userSchema = mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    company: {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: 'Company',
+      default: null,
+    },
   },
   {
     timestamps: true,

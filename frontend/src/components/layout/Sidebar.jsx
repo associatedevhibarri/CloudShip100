@@ -71,7 +71,7 @@ function NavItem({ item, onNavigate }) {
   )
 }
 
-export function Sidebar({ open, onClose }) {
+export function Sidebar({ open, onClose, nav = operatorNav }) {
   return (
     <>
       <div
@@ -90,7 +90,7 @@ export function Sidebar({ open, onClose }) {
           </button>
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
-          {operatorNav.map((item) => (
+          {nav.map((item) => (
             <NavItem key={item.label} item={item} onNavigate={onClose} />
           ))}
         </nav>

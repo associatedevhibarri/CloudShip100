@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState('login') // 'login' | 'register'
   const [role, setRole] = useState(
     params.get('role') === 'customer'
-      ? 'customer'
+      ? 'customer/'
       : params.get('role') === 'driver'
         ? 'driver'
         : 'operator',
@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [companyName, setCompanyName] = useState('')
   
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -34,17 +35,17 @@ export default function LoginPage() {
         const targetRole = authenticatedUser?.role || role
         navigate(
           targetRole === 'customer'
-            ? '/customer/deliveries'
+            ? '/customer/overview'
             : targetRole === 'driver'
               ? '/driver/trips'
               : '/app/dashboard',
         )
       } else {
-        const newUser = await register(name, email, password, role)
+        const newUser = await register(name, email, password, role, companyName)
         const targetRole = newUser?.role || role
         navigate(
           targetRole === 'customer'
-            ? '/customer/deliveries'
+            ? '/customer/overview'
             : targetRole === 'driver'
               ? '/driver/trips'
               : '/app/dashboard',
@@ -201,6 +202,25 @@ export default function LoginPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {mode === 'register' && role === 'customer' && (
+              <div>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted">
+                  Company Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="e.g. AfriMetals Pty"
+                  className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+                />
+                <p className="mt-1 text-[11px] text-muted">
+                  Used to verify your business and issue invoices, contracts, and compliance documents.
+                </p>
               </div>
             )}
 
