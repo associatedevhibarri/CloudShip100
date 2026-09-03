@@ -6,6 +6,7 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { FilterBar, FilterButton } from '../../components/ui/FilterBar'
+import { useToast } from '../../context/ToastContext'
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -17,10 +18,10 @@ const FILTERS = [
 
 export default function DriverParcelsPage() {
   const { parcels, loading, error, reload, token } = useDriverData()
+  const toast = useToast()
   const [filter, setFilter] = useState('all')
   const [selected, setSelected] = useState(null)
   const [updating, setUpdating] = useState(false)
-  const [notice, setNotice] = useState('')
 
   const filtered = useMemo(() => {
     return filter === 'all' ? parcels : parcels.filter((p) => p.status === filter)
@@ -32,11 +33,10 @@ export default function DriverParcelsPage() {
     try {
       await driverService.updateParcelStatus(token, id, status)
       setSelected(null)
-      setNotice(`Parcel ${id} marked as ${status.replaceAll('_', ' ')}.`)
+      toast.success(`Parcel ${id} marked as ${status.replaceAll('_', ' ')}.`)
       await reload()
-      setTimeout(() => setNotice(''), 3000)
     } catch (err) {
-      setNotice(err.message || 'Failed to update parcel')
+      toast.error(err.message || 'Failed to update parcel')
     } finally {
       setUpdating(false)
     }
@@ -61,10 +61,6 @@ export default function DriverParcelsPage() {
           </button>
         }
       />
-
-      {notice ? (
-        <Card className="mb-4 border-brand/20 bg-brand-light/30 p-3 text-sm font-semibold text-brand-dark">{notice}</Card>
-      ) : null}
 
       {error ? (
         <Card className="mb-4 border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</Card>

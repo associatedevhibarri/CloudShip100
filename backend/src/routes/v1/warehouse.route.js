@@ -39,6 +39,7 @@ router.post(
   validate(warehouseValidation.parcelAction),
   warehouseController.dispatchParcel
 );
+router.post('/batches', auth('manageWarehouse'), validate(warehouseValidation.createBatch), warehouseController.createBatch);
 router.post(
   '/batches/:batchId/close',
   auth('manageWarehouse'),
@@ -57,6 +58,12 @@ router.post(
   auth('manageWarehouse'),
   validate(warehouseValidation.evaluateZones),
   warehouseController.evaluateZones
+);
+router.post(
+  '/zones/:zoneId/toggle',
+  auth('manageWarehouse'),
+  validate(warehouseValidation.toggleZone),
+  warehouseController.toggleZone
 );
 
 module.exports = router;

@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 
 export default function LoginPage() {
   const { login, register } = useAuth()
+  const toast = useToast()
   const navigate = useNavigate()
   const [params] = useSearchParams()
 
@@ -22,11 +24,9 @@ export default function LoginPage() {
   const [companyName, setCompanyName] = useState('')
   
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errorMsg, setErrorMsg] = useState('')
 
   const onSubmit = async (e) => {
     e.preventDefault()
-    setErrorMsg('')
     setIsSubmitting(true)
 
     try {
@@ -52,7 +52,7 @@ export default function LoginPage() {
         )
       }
     } catch (err) {
-      setErrorMsg(err.message || 'Authentication failed. Please check your credentials or server connection.')
+      toast.error(err.message || 'Authentication failed. Please check your credentials or server connection.')
     } finally {
       setIsSubmitting(false)
     }
@@ -119,12 +119,6 @@ export default function LoginPage() {
               ? 'Enter your registered credentials to access your dashboard.'
               : 'Sign up to manage logistics orders, fleets, and portals.'}
           </p>
-
-          {errorMsg && (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-600">
-              {errorMsg}
-            </div>
-          )}
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
             {mode === 'register' && (

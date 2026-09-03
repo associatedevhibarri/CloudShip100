@@ -6,14 +6,15 @@ import { Card } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { DataTable } from '../../components/ui/DataTable'
 import { WarehouseGate, useWarehouse } from '../../hooks/useWarehouse'
+import { useToast } from '../../context/ToastContext'
 
 export default function AssignmentPage() {
   const { data, loading, error, reload } = useWarehouse()
+  const toast = useToast()
   const suggestions = data?.suggestions || []
   const parcels = (data?.parcels || []).filter((p) => p.status !== 'expected')
   const registeredDrivers = data?.registeredDrivers || []
   const [fleet, setFleet] = useState('all')
-  const [flash, setFlash] = useState('')
   const [picks, setPicks] = useState({})
   const [busyId, setBusyId] = useState('')
 
@@ -27,15 +28,22 @@ export default function AssignmentPage() {
     const hint = suggestions.find((s) => s.parcelId === parcelId || s.id === parcelId)
     setBusyId(parcelId)
     try {
-      await api.assignParcel(parcelId)
+      await api.assignParcel(parcelId, hint?.employeeId, hint
+        ? {
+            fleetType: hint.fleetType,
+            truck: hint.truck,
+            driver: hint.driver,
+            partner: hint.partner,
+          }
+        : {})
       await reload()
       if (hint) {
-        setFlash(
+        toast.success(
           `Assigned ${parcelId} → ${hint.driver} (${hint.fleetType === 'own' ? 'own fleet' : hint.partner})`,
         )
       }
     } catch (err) {
-      setFlash(err.message || 'Assignment failed')
+      toast.error(err.message || 'Assignment failed')
     } finally {
       setBusyId('')
     }
@@ -44,7 +52,7 @@ export default function AssignmentPage() {
   const assignToDriver = async (parcelId) => {
     const employeeId = picks[parcelId] || registeredDrivers[0]?.employeeId
     if (!employeeId) {
-      setFlash('Register a driver at /login?role=driver first, then assign using their employee ID.')
+      toast.info('Register a driver at /login?role=driver first, then assign using their employee ID.')
       return
     }
     const driver = registeredDrivers.find((d) => d.employeeId === employeeId)
@@ -52,21 +60,31 @@ export default function AssignmentPage() {
     try {
       await api.assignParcel(parcelId, employeeId)
       await reload()
-      setFlash(`Assigned ${parcelId} → ${driver?.name || employeeId} (${employeeId}). Driver portal will show only this driver's parcels.`)
+      toast.success(`Assigned ${parcelId} → ${driver?.name || employeeId} (${employeeId}). Driver portal will show only this driver's parcels.`)
     } catch (err) {
-      setFlash(err.message || 'Assignment failed')
+      toast.error(err.message || 'Assignment failed')
     } finally {
       setBusyId('')
     }
   }
 
   const autoAssignAll = async () => {
-    await api.autoAssignParcels()
-    await reload()
-    setFlash('Auto-assigned all open parcels using 4PL capacity rules.')
+    setBusyId('auto')
+    try {
+      await api.autoAssignParcels()
+      await reload()
+      toast.success('Auto-assigned open parcels to own-fleet drivers first, then 4PL partners.')
+    } catch (err) {
+      toast.error(err.message || 'Auto-assign failed')
+    } finally {
+      setBusyId('')
+    }
   }
 
-  const chain = parcels.find((p) => p.id === 'PCL-1001')
+  const chain =
+    parcels.find((p) => p.fleetType && p.driver) ||
+    parcels.find((p) => p.status === 'labelled' || p.status === 'received') ||
+    parcels[0]
 
   return (
     <div>
@@ -76,20 +94,15 @@ export default function AssignmentPage() {
         actions={
           <button
             type="button"
+            disabled={busyId === 'auto'}
             onClick={autoAssignAll}
-            className="rounded-full bg-brand-gradient px-4 py-2 text-sm font-bold text-white shadow-sm"
+            className="rounded-full bg-brand-gradient px-4 py-2 text-sm font-bold text-white shadow-sm disabled:opacity-50"
           >
             Auto-assign open parcels
           </button>
         }
       />
       <WarehouseGate loading={loading} error={error}>
-        {flash ? (
-          <p className="mb-4 rounded-xl border border-brand/20 bg-brand-light px-4 py-2 text-sm font-semibold text-brand-dark">
-            {flash}
-          </p>
-        ) : null}
-
         <div className="mb-6">
           <h3 className="mb-3 text-lg font-extrabold">Registered drivers</h3>
           {registeredDrivers.length ? (

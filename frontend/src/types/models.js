@@ -3,7 +3,7 @@
  * @typedef {'compliant' | 'expiring' | 'non_compliant'} ComplianceStatus
  * @typedef {'Warehouse' | 'Yard' | 'Depot' | 'Terminal'} YardType
  * @typedef {'narrow-body' | 'wide-body' | 'freighter'} AircraftCategory
- * @typedef {'operator' | 'customer'} UserRole
+ * @typedef {'operator' | 'customer' | 'driver'} UserRole
  */
 
 export {}

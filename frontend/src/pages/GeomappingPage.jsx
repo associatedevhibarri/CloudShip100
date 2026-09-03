@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../services/api'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
@@ -116,6 +117,11 @@ export default function GeomappingPage() {
       <PageHeader
         title="Geomapping"
         subtitle="Coverage by country, province/state, radius, and exclusions. Evaluate any point against live restriction rules."
+        actions={
+          <Link to="/app/warehouse/zones" className="text-sm font-bold text-brand hover:underline">
+            Yard geofences & zones →
+          </Link>
+        }
       />
 
       {error ? (

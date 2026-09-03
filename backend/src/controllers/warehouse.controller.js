@@ -61,6 +61,16 @@ const evaluateZones = catchAsync(async (req, res) => {
   res.send(result);
 });
 
+const createBatch = catchAsync(async (req, res) => {
+  const batch = await warehouseService.createBatch(req.body);
+  res.status(201).send(batch);
+});
+
+const toggleZone = catchAsync(async (req, res) => {
+  const zone = await warehouseService.toggleZone(req.params.zoneId, req.body.active);
+  res.send(zone);
+});
+
 module.exports = {
   getSnapshot,
   listRegisteredDrivers,
@@ -69,9 +79,11 @@ module.exports = {
   autoAssignRoutes,
   receiveParcel,
   labelParcel,
+  createBatch,
   addParcelToBatch,
   closeBatch,
   dispatchParcel,
   optimizeRoute,
   evaluateZones,
+  toggleZone,
 };

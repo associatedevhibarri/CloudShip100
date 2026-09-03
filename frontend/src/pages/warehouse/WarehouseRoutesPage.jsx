@@ -1,20 +1,30 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../../services/api'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { DataTable } from '../../components/ui/DataTable'
 import { WarehouseGate, useWarehouse } from '../../hooks/useWarehouse'
+import { useToast } from '../../context/ToastContext'
 
 export default function WarehouseRoutesPage() {
   const { data, loading, error, reload } = useWarehouse()
+  const toast = useToast()
   const routes = data?.routes || []
-  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState('')
 
-  const autoAssignRoutes = async () => {
-    await api.autoAssignRoutes()
-    await reload()
-    setNote('Suggested SADC and coastal routes applied to open parcels.')
+  const run = async (key, work, okMessage) => {
+    setBusy(key)
+    try {
+      await work()
+      await reload()
+      toast.success(okMessage)
+    } catch (err) {
+      toast.error(err.message || 'Route action failed')
+    } finally {
+      setBusy('')
+    }
   }
 
   return (
@@ -23,22 +33,24 @@ export default function WarehouseRoutesPage() {
         title="Route Optimisation"
         subtitle="Baseline vs optimised hours, fuel save, and automated parcel-to-route assignment."
         actions={
-          <button
-            type="button"
-            onClick={autoAssignRoutes}
-            className="rounded-full bg-brand-gradient px-4 py-2 text-sm font-bold text-white shadow-sm"
-          >
-            Auto-assign suggested routes
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link to="/app/geo-analytics" className="text-sm font-bold text-brand hover:underline">
+              Geo analytics →
+            </Link>
+            <button
+              type="button"
+              disabled={busy === 'auto'}
+              onClick={() =>
+                run('auto', () => api.autoAssignRoutes(), 'Suggested SADC and coastal routes applied to open parcels.')
+              }
+              className="rounded-full bg-brand-gradient px-4 py-2 text-sm font-bold text-white shadow-sm disabled:opacity-50"
+            >
+              Auto-assign suggested routes
+            </button>
+          </div>
         }
       />
       <WarehouseGate loading={loading} error={error}>
-        {note ? (
-          <p className="mb-4 rounded-xl border border-brand/20 bg-brand-light px-4 py-2 text-sm font-semibold text-brand-dark">
-            {note}
-          </p>
-        ) : null}
-
         <div className="mb-6 grid gap-4 lg:grid-cols-2">
           {routes.map((r) => (
             <Card key={r.id} className="p-5">
@@ -66,6 +78,11 @@ export default function WarehouseRoutesPage() {
                   <dd className="font-extrabold">−{r.fuelSavePct}%</dd>
                 </div>
               </dl>
+              {r.distanceKm ? (
+                <p className="mt-2 text-xs font-semibold text-muted">
+                  {r.distanceKm} km · {r.durationMinutes} min
+                </p>
+              ) : null}
               <p className="mt-3 text-xs font-semibold uppercase text-muted">Stops</p>
               <ol className="mt-1 flex flex-wrap gap-1.5">
                 {(r.stops || []).map((stop) => (
@@ -77,7 +94,19 @@ export default function WarehouseRoutesPage() {
                   </li>
                 ))}
               </ol>
-              <p className="mt-3 text-xs text-muted">Parcels: {(r.parcelIds || []).join(', ')}</p>
+              <p className="mt-3 text-xs text-muted">Parcels: {(r.parcelIds || []).join(', ') || 'None yet'}</p>
+              <button
+                type="button"
+                disabled={busy === r.id || r.optimized}
+                onClick={() => run(r.id, () => api.optimizeRoute(r.id), `Optimised ${r.name}`)}
+                className={`mt-4 w-full rounded-full py-2 text-sm font-bold disabled:opacity-50 ${
+                  r.optimized
+                    ? 'cursor-default border border-emerald-100 bg-emerald-50 text-emerald-800'
+                    : 'border border-line text-ink'
+                }`}
+              >
+                {r.optimized ? 'Optimised' : busy === r.id ? 'Optimising…' : 'Optimise this lane'}
+              </button>
             </Card>
           ))}
         </div>
@@ -89,7 +118,7 @@ export default function WarehouseRoutesPage() {
             {
               key: 'save',
               label: 'Hours saved',
-              render: (r) => `${(r.baselineHrs - r.optimizedHrs).toFixed(1)} h`,
+              render: (r) => `${((r.baselineHrs || 0) - (r.optimizedHrs || 0)).toFixed(1)} h`,
             },
             {
               key: 'status',

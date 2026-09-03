@@ -2,6 +2,7 @@
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { ToastProvider } from './context/ToastContext'
 import { AppLayout } from './components/layout/AppLayout'
 import { CustomerLayout } from './components/layout/CustomerLayout'
 import { DriverLayout } from './components/layout/DriverLayout'
@@ -67,6 +68,7 @@ import WarehouseDriversPage from './pages/warehouse/WarehouseDriversPage'
 export default function App() {
   return (
     <AuthProvider>
+      <ToastProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -163,6 +165,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   )
 }

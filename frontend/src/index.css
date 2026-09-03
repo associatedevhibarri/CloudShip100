@@ -49,6 +49,28 @@ select {
   font-family: inherit;
 }
 
+@layer base {
+  a,
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  select,
+  label[for],
+  summary {
+    cursor: pointer;
+  }
+
+  a[aria-disabled="true"],
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  input:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+}
+
 .leaflet-container {
   font-family: var(--font-sans);
   border-radius: inherit;
@@ -60,7 +82,17 @@ select {
   height: 8px;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 999px;
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.toast-enter {
+  animation: toast-in 180ms ease-out;
 }

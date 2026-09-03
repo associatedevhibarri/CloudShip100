@@ -6,15 +6,20 @@ import { StatusBadge } from '../../components/ui/StatusBadge'
 import { DataTable } from '../../components/ui/DataTable'
 import { LogisticsMap } from '../../components/map/LogisticsMap'
 import { WarehouseGate, useWarehouse } from '../../hooks/useWarehouse'
+import { useToast } from '../../context/ToastContext'
 
 export default function DispatchPage() {
   const { data, loading, error, reload } = useWarehouse()
+  const toast = useToast()
   const parcels = (data?.parcels || []).filter((p) => p.status !== 'expected')
   const mapAssets = data?.mapAssets || []
-  const [selectedId, setSelectedId] = useState('PCL-1001')
-  const [flash, setFlash] = useState('')
+  const zones = data?.zones || []
+  const [selectedId, setSelectedId] = useState('')
   const [busyId, setBusyId] = useState('')
-  const selected = parcels.find((p) => p.id === selectedId) || parcels[0]
+  const selected =
+    parcels.find((p) => p.id === selectedId) ||
+    parcels.find((p) => p.status === 'assigned' || p.status === 'dispatched') ||
+    parcels[0]
   const events = (data?.events || []).filter((e) => e.parcelId === selected?.id)
 
   const dispatchSelected = async (parcelId) => {
@@ -23,15 +28,13 @@ export default function DispatchPage() {
       await api.dispatchParcel(parcelId)
       await reload()
       setSelectedId(parcelId)
-            setFlash(`${parcelId} left the dispatch bay geofence.`)
+      toast.success(`${parcelId} left the dispatch bay geofence.`)
     } catch (err) {
-      setFlash(err.message || 'Dispatch failed')
+      toast.error(err.message || 'Dispatch failed')
     } finally {
       setBusyId('')
     }
   }
-
-  const flashIsError = /blocked|failed|error/i.test(flash)
 
   return (
     <div>
@@ -42,18 +45,6 @@ export default function DispatchPage() {
       <WarehouseGate loading={loading} error={error}>
         {selected ? (
           <>
-            {flash ? (
-              <p
-                className={`mb-4 rounded-xl border px-4 py-2 text-sm font-semibold ${
-                  flashIsError
-                    ? 'border-rose-200 bg-rose-50 text-rose-700'
-                    : 'border-brand/20 bg-brand-light text-brand-dark'
-                }`}
-              >
-                {flash}
-              </p>
-            ) : null}
-
             <div className="mb-4 grid gap-3 sm:grid-cols-3">
               <Card className="p-4">
                 <p className="text-xs font-semibold uppercase text-muted">In warehouse</p>
@@ -76,7 +67,7 @@ export default function DispatchPage() {
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
-              <LogisticsMap assets={mapAssets} height="480px" center={[-27.8, 29.2]} zoom={6} />
+              <LogisticsMap assets={mapAssets} zones={zones} height="480px" center={[-27.8, 29.2]} zoom={6} />
 
               <Card className="p-5">
                 <p className="text-xs font-extrabold uppercase tracking-wide text-brand">Timeline</p>
