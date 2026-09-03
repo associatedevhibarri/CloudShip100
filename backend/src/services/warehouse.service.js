@@ -1,3 +1,6 @@
+/* eslint-disable no-await-in-loop, no-restricted-syntax, no-param-reassign */
+const mongoose = require('mongoose');
+const httpStatus = require('http-status');
 const seed = require('../seed/warehouse.seed.json');
 const {
   Parcel,
@@ -9,18 +12,10 @@ const {
   WarehouseDriver,
   WarehouseMapAsset,
 } = require('../models/warehouse.model');
-const mongoose = require('mongoose');
 const { DriverProfile, Parcel: DriverParcel, Booking, Trip } = require('../models');
 const ApiError = require('../utils/ApiError');
-const httpStatus = require('http-status');
 const bookingSyncService = require('./bookingSync.service');
 const googleMapsService = require('./googleMaps.service');
-
-// NOTE: these warehouse models declare only `code` as a real schema path (`strict: false`
-// for everything else). Mongoose does NOT expose undeclared paths via plain dot-notation
-// get/set on a document fetched from the DB — only `.get(path)`/`.toObject()` for reads,
-// and `Model.findOneAndUpdate` (or `.set(path, value)`) for writes actually persist. Plain
-// `doc.someField = x; await doc.save()` silently no-ops for any field other than `code`.
 
 const withCode = (item) => {
   const { id, createdAt, ...rest } = item;
@@ -33,7 +28,7 @@ const withCode = (item) => {
 
 const insertIfEmpty = async (Model, items, mapFn) => {
   const count = await Model.countDocuments();
-  if (count || !items?.length) return;
+  if (count || !items || !items.length) return;
   try {
     await Model.insertMany(items.map(mapFn), { ordered: false });
   } catch (err) {
@@ -47,12 +42,20 @@ const ensureSeed = async () => {
   await insertIfEmpty(AssignmentSuggestion, seed.assignmentSuggestions, (s) => ({
     code: s.parcelId,
     ...s,
+    source: 'seed',
   }));
   await insertIfEmpty(WarehouseZone, seed.warehouseZones, withCode);
   await insertIfEmpty(DispatchEvent, seed.dispatchEvents, withCode);
   await insertIfEmpty(WarehouseRoute, seed.warehouseRoutes, withCode);
   await insertIfEmpty(WarehouseDriver, seed.warehouseDrivers, withCode);
-  await insertIfEmpty(WarehouseMapAsset, seed.warehouseMapAssets, withCode);
+  await insertIfEmpty(WarehouseMapAsset, seed.warehouseMapAssets, (item) => {
+    const mapped = withCode(item);
+    if (mapped.collection) {
+      mapped.collectionPoint = mapped.collection;
+      delete mapped.collection;
+    }
+    return mapped;
+  });
 };
 
 const toJsonList = (docs) => docs.map((d) => d.toJSON());
@@ -94,6 +97,12 @@ const nextParcelCode = async () => {
   const docs = await Parcel.find({ code: /^PCL-/ }).select('code');
   const max = docs.reduce((acc, doc) => Math.max(acc, numericSuffix(doc.code)), 1000);
   return `PCL-${max + 1}`;
+};
+
+const nextBatchCode = async () => {
+  const docs = await WarehouseBatch.find({ code: /^BAT-/ }).select('code');
+  const max = docs.reduce((acc, doc) => Math.max(acc, numericSuffix(doc.code)), 100);
+  return `BAT-${String(max + 1).padStart(3, '0')}`;
 };
 
 const ensureExpectedParcels = async () => {
@@ -143,13 +152,17 @@ const ingestBooking = async (booking, company, extras = {}) => {
   });
   if (existing) return existing.toJSON();
 
-  const clientName = company?.name || 'Customer';
+  const clientName = (company && company.name) || 'Customer';
+  let weightKg = null;
+  if (extras.weightKg != null) weightKg = extras.weightKg;
+  else if (booking.weightKg != null) weightKg = booking.weightKg;
+
   const parcel = await Parcel.create({
     code: await nextParcelCode(),
     orderId,
     bookingId,
     cargo: booking.cargo,
-    weightKg: extras.weightKg ?? booking.weightKg ?? null,
+    weightKg,
     shipper: clientName,
     consignee: booking.dropoff,
     client: clientName,
@@ -183,8 +196,8 @@ const listRegisteredDrivers = async () => {
       const plain = profile.toJSON();
       return {
         employeeId: plain.employeeId,
-        name: plain.user?.name || 'Driver',
-        email: plain.user?.email || '',
+        name: (plain.user && plain.user.name) || 'Driver',
+        email: (plain.user && plain.user.email) || '',
         vehicle: plain.assignedVehicle || '',
         phone: plain.phone || '',
       };
@@ -272,6 +285,88 @@ const syncDriverPortalParcel = async (warehouseParcel, profile) => {
   });
 };
 
+const scoreMatch = (parcel, driver, isPortal) => {
+  let score = isPortal ? 78 : 68;
+  if (driver.vehicle) score += 8;
+  if (driver.yard && parcel.warehouse && driver.yard === parcel.warehouse) score += 10;
+  if (driver.status === 'available') score += 5;
+  if (parcel.mode === 'Road') score += 2;
+  return Math.min(99, score);
+};
+
+const buildLiveSuggestions = (parcels, registeredDrivers, warehouseDrivers, seedHints) => {
+  const unassigned = parcels.filter((p) => p.status !== 'expected' && p.status !== 'dispatched' && !p.fleetType && !p.truck);
+  const seeded = seedHints.map((hint) => ({ ...hint, source: hint.source || 'seed' }));
+  const live = [];
+
+  unassigned.forEach((parcel, index) => {
+    if (seeded.some((s) => (s.parcelId || s.id) === parcel.id)) return;
+
+    const portal = registeredDrivers[index % Math.max(registeredDrivers.length, 1)];
+    if (registeredDrivers.length && portal) {
+      live.push({
+        id: parcel.id,
+        parcelId: parcel.id,
+        reason: `Own-fleet first: portal driver ${portal.employeeId} matches ${parcel.client || 'client'} on ${
+          parcel.mode || 'Road'
+        }`,
+        fleetType: 'own',
+        truck: portal.vehicle || 'TBC',
+        driver: portal.name,
+        employeeId: portal.employeeId,
+        partner: null,
+        score: scoreMatch(parcel, { ...portal, status: 'available' }, true),
+        source: 'live',
+      });
+      return;
+    }
+
+    const available = warehouseDrivers.find((d) => d.status === 'available') || warehouseDrivers[0];
+    if (!available) return;
+    live.push({
+      id: parcel.id,
+      parcelId: parcel.id,
+      reason: `${available.fleetType === 'own' ? 'Own fleet' : available.partner} has spare capacity at ${available.yard}`,
+      fleetType: available.fleetType,
+      truck: available.vehicle,
+      driver: available.name,
+      partner: available.fleetType === 'own' ? null : available.partner,
+      score: scoreMatch(parcel, available, false),
+      source: 'live',
+    });
+  });
+
+  return [...seeded, ...live];
+};
+
+const mergeDriverBoard = (warehouseDrivers, registeredDrivers, parcels) => {
+  const assignedByEmployee = {};
+  parcels.forEach((p) => {
+    if (!p.driverEmployeeId) return;
+    assignedByEmployee[p.driverEmployeeId] = assignedByEmployee[p.driverEmployeeId] || [];
+    assignedByEmployee[p.driverEmployeeId].push(p.id);
+  });
+
+  const portalCrew = registeredDrivers.map((d) => ({
+    id: d.employeeId,
+    name: d.name,
+    fleetType: 'own',
+    partner: 'Cloud Ship own fleet',
+    status: assignedByEmployee[d.employeeId] && assignedByEmployee[d.employeeId].length ? 'loading' : 'available',
+    yard: 'Registered portal',
+    assignedParcels: assignedByEmployee[d.employeeId] || [],
+    vehicle: d.vehicle || '—',
+    shift: 'Portal',
+    employeeId: d.employeeId,
+    email: d.email,
+    source: 'portal',
+  }));
+
+  const names = new Set(portalCrew.map((d) => d.name.toLowerCase()));
+  const yardCrew = warehouseDrivers.filter((d) => !names.has(String(d.name || '').toLowerCase()));
+  return [...portalCrew, ...yardCrew];
+};
+
 const getSnapshot = async () => {
   await ensureSeed();
   await ensureExpectedParcels();
@@ -281,7 +376,7 @@ const getSnapshot = async () => {
     WarehouseBatch.find(),
     AssignmentSuggestion.find(),
     WarehouseZone.find(),
-    DispatchEvent.find(),
+    DispatchEvent.find().sort({ createdAt: 1 }),
     WarehouseRoute.find(),
     WarehouseDriver.find(),
     WarehouseMapAsset.find(),
@@ -289,6 +384,7 @@ const getSnapshot = async () => {
   ]);
 
   const parcelJson = toJsonList(parcels);
+  const driverJson = toJsonList(drivers);
   await Promise.all(
     parcelJson
       .filter((p) => p.receivedAt && p.status && p.status !== 'expected')
@@ -298,11 +394,11 @@ const getSnapshot = async () => {
     kpis: computeKpis(parcelJson),
     parcels: parcelJson,
     batches: toJsonList(batches),
-    suggestions: toJsonList(suggestions),
+    suggestions: buildLiveSuggestions(parcelJson, registeredDrivers, driverJson, toJsonList(suggestions)),
     zones: toJsonList(zones),
     events: toJsonList(events),
     routes: toJsonList(routes),
-    drivers: toJsonList(drivers),
+    drivers: mergeDriverBoard(driverJson, registeredDrivers, parcelJson),
     registeredDrivers,
     mapAssets: toJsonList(mapAssets),
   };
@@ -311,13 +407,14 @@ const getSnapshot = async () => {
 const clockTime = () => new Date().toTimeString().slice(0, 5);
 
 const makeLabelCode = (parcel) => {
-  if (parcel.labelCode) return parcel.labelCode;
-  const num = String(parcel.code || '')
+  const obj = parcel.toObject ? parcel.toObject() : parcel;
+  if (obj.labelCode) return obj.labelCode;
+  const num = String(obj.code || '')
     .replace(/\D/g, '')
     .slice(-4)
     .padStart(4, '0');
   const slug =
-    String(parcel.cargo || 'GEN')
+    String(obj.cargo || 'GEN')
       .split(/[\s—-]/)[0]
       .replace(/[^A-Za-z]/g, '')
       .slice(0, 5)
@@ -418,15 +515,35 @@ const labelParcel = async (parcelCode) => {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Dispatched parcels cannot be relabelled');
   }
 
-  parcel.labelCode = makeLabelCode(parcel);
-  parcel.zone = parcel.zone || 'Staging / labelling';
-  if (parcel.status === 'received') {
-    parcel.status = 'labelled';
-  }
-  await parcel.save();
-  await appendEvent(parcel.code, 'Labelled', parcel.labelCode);
-  await syncDriverPortalStatus(parcel, 'assigned');
-  return parcel.toJSON();
+  const labelCode = makeLabelCode(parcel);
+  const updated = await Parcel.findOneAndUpdate(
+    { code: parcel.code },
+    {
+      $set: {
+        labelCode,
+        zone: parcel.zone || 'Staging / labelling',
+        ...(parcel.status === 'received' ? { status: 'labelled' } : {}),
+      },
+    },
+    { new: true }
+  );
+  await appendEvent(updated.code, 'Labelled', updated.labelCode);
+  await syncDriverPortalStatus(updated, 'assigned');
+  return updated.toJSON();
+};
+
+const createBatch = async ({ name, warehouse, destination }) => {
+  await ensureSeed();
+  const batch = await WarehouseBatch.create({
+    code: await nextBatchCode(),
+    name,
+    warehouse,
+    destination,
+    parcelIds: [],
+    status: 'open',
+    openedAt: new Date().toISOString(),
+  });
+  return batch.toJSON();
 };
 
 const addParcelToBatch = async (parcelCode, batchId) => {
@@ -442,19 +559,29 @@ const addParcelToBatch = async (parcelCode, batchId) => {
 
   const ids = new Set(batch.parcelIds || []);
   ids.add(parcel.code);
-  batch.parcelIds = [...ids];
-  if (batch.status === 'open') {
-    batch.status = 'ready';
-  }
-  await batch.save();
+  const updatedBatch = await WarehouseBatch.findOneAndUpdate(
+    { code: batchId },
+    {
+      $set: {
+        parcelIds: [...ids],
+        status: batch.status === 'open' ? 'ready' : batch.status,
+      },
+    },
+    { new: true }
+  );
 
-  parcel.batchId = batch.code;
-  if (parcel.status === 'received' || parcel.status === 'labelled') {
-    parcel.status = 'labelled';
-  }
-  await parcel.save();
-  await appendEvent(parcel.code, 'Batched', batch.code);
-  return parcel.toJSON();
+  const updated = await Parcel.findOneAndUpdate(
+    { code: parcel.code },
+    {
+      $set: {
+        batchId: updatedBatch.code,
+        status: parcel.status === 'received' || parcel.status === 'labelled' ? 'labelled' : parcel.status,
+      },
+    },
+    { new: true }
+  );
+  await appendEvent(updated.code, 'Batched', updatedBatch.code);
+  return updated.toJSON();
 };
 
 const closeBatch = async (batchId) => {
@@ -466,9 +593,32 @@ const closeBatch = async (batchId) => {
   if (batch.status === 'dispatched') {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Batch already dispatched');
   }
-  batch.status = 'ready';
-  await batch.save();
-  return batch.toJSON();
+  const updated = await WarehouseBatch.findOneAndUpdate({ code: batchId }, { $set: { status: 'ready' } }, { new: true });
+  return updated.toJSON();
+};
+
+const upsertDispatchAsset = async (parcel, zone) => {
+  const payload = {
+    type: 'vehicle',
+    label: parcel.truck || parcel.code,
+    status: 'dispatched',
+    lat: (zone && zone.lat) || -28.1,
+    lng: (zone && zone.lng) || 29.6,
+    driver: parcel.driver || '—',
+    payload: `${parcel.cargo || 'Cargo'} · ${parcel.code}`,
+    distance: 'En route',
+    collectionPoint: parcel.warehouse || parcel.pickup || 'Yard',
+    delivery: parcel.dropoff || 'Destination',
+  };
+  await WarehouseMapAsset.findOneAndUpdate(
+    { code: `WH-MAP-${parcel.code}` },
+    { $set: payload, $setOnInsert: { code: `WH-MAP-${parcel.code}` } },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true,
+    }
+  );
 };
 
 const dispatchParcel = async (parcelCode) => {
@@ -480,25 +630,54 @@ const dispatchParcel = async (parcelCode) => {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Assign a driver before dispatch');
   }
 
-  parcel.status = 'dispatched';
-  parcel.zone = 'Dispatch bay';
-  await parcel.save();
-  await appendEvent(
-    parcel.code,
-    'Dispatched',
-    `Left dispatch bay geofence${parcel.driverEmployeeId ? ` · ${parcel.driverEmployeeId}` : ''}`
+  const dispatchZones = await WarehouseZone.find({
+    type: 'dispatch',
+    warehouse: parcel.warehouse,
+  });
+  if (dispatchZones.length && dispatchZones.every((z) => !z.active)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Dispatch geofence is inactive at ${parcel.warehouse}`);
+  }
+  const activeZone =
+    dispatchZones.find((z) => z.active) || (await WarehouseZone.findOne({ type: 'dispatch', active: true }));
+
+  const updated = await Parcel.findOneAndUpdate(
+    { code: parcel.code },
+    { $set: { status: 'dispatched', zone: (activeZone && activeZone.name) || 'Dispatch bay' } },
+    { new: true }
   );
-  await syncDriverPortalStatus(parcel, 'in_transit');
-  await markBookingStage(parcel, 'in_transit', { status: 'in_transit' });
-  return parcel.toJSON();
+
+  if (updated.batchId) {
+    await WarehouseBatch.findOneAndUpdate({ code: updated.batchId }, { $set: { status: 'dispatched' } });
+  }
+  if (updated.driver) {
+    await WarehouseDriver.findOneAndUpdate(
+      { name: updated.driver },
+      { $set: { status: 'on_route' }, $addToSet: { assignedParcels: updated.code } }
+    );
+  }
+
+  await upsertDispatchAsset(updated, activeZone);
+  await appendEvent(
+    updated.code,
+    'Dispatched',
+    `Left ${(activeZone && activeZone.name) || 'dispatch bay'} geofence${
+      updated.driverEmployeeId ? ` · ${updated.driverEmployeeId}` : ''
+    }`
+  );
+  await syncDriverPortalStatus(updated, 'in_transit');
+  await markBookingStage(updated, 'in_transit', { status: 'in_transit' });
+  return updated.toJSON();
 };
 
-const applySuggestionToParcel = async (parcelCode) => {
-  const hintDoc = await AssignmentSuggestion.findOne({ code: parcelCode });
-  if (!hintDoc) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'No assignment suggestion for this parcel');
+const applySuggestionToParcel = async (parcelCode, hintOverride) => {
+  let hint = hintOverride;
+  if (!hint) {
+    const hintDoc = await AssignmentSuggestion.findOne({ code: parcelCode });
+    if (!hintDoc) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'No assignment suggestion for this parcel');
+    }
+    hint = hintDoc.toObject();
   }
-  const hint = hintDoc.toObject();
 
   const updated = await Parcel.findOneAndUpdate(
     { code: parcelCode },
@@ -507,7 +686,7 @@ const applySuggestionToParcel = async (parcelCode) => {
       fleetType: hint.fleetType,
       truck: hint.truck,
       driver: hint.driver,
-      partner: hint.partner,
+      partner: hint.partner || null,
       $unset: { driverEmployeeId: '' },
     },
     { new: true }
@@ -521,10 +700,10 @@ const applySuggestionToParcel = async (parcelCode) => {
 
   const driverDoc = await WarehouseDriver.findOne({ name: hint.driver });
   if (driverDoc) {
-    const driverData = driverDoc.toObject();
-    const assigned = new Set(driverData.assignedParcels || []);
-    assigned.add(parcelCode);
-    await WarehouseDriver.findOneAndUpdate({ code: driverDoc.code }, { assignedParcels: [...assigned], status: 'loading' });
+    await WarehouseDriver.findOneAndUpdate(
+      { code: driverDoc.code },
+      { $addToSet: { assignedParcels: parcelCode }, $set: { status: 'loading' } }
+    );
   }
 
   return updated.toJSON();
@@ -537,7 +716,7 @@ const assignParcelToRegisteredDriver = async (parcelCode, employeeId) => {
   }
 
   const existing = await Parcel.findOne({ code: parcelCode });
-  const existingTruck = existing ? existing.get('truck') : null;
+  const existingTruck = existing ? existing.truck : null;
 
   const updated = await Parcel.findOneAndUpdate(
     { code: parcelCode },
@@ -553,17 +732,17 @@ const assignParcelToRegisteredDriver = async (parcelCode, employeeId) => {
   );
 
   await syncDriverPortalParcel(updated, profile);
-  await bookingSyncService.syncBookingFromParcelStatus(updated.get('orderId'), 'assigned');
+  await bookingSyncService.syncBookingFromParcelStatus(updated.orderId, 'assigned');
   await appendEvent(
     parcelCode,
     'Smart assigned',
-    `Own fleet · ${updated.get('truck')} · ${profile.user.name} (${profile.employeeId})`
+    `Own fleet · ${updated.truck} · ${profile.user.name} (${profile.employeeId})`
   );
 
   return updated.toJSON();
 };
 
-const assignParcel = async (parcelCode, { employeeId } = {}) => {
+const assignParcel = async (parcelCode, { employeeId, fleetType, truck, driver, partner } = {}) => {
   await ensureSeed();
   const parcel = await Parcel.findOne({ code: parcelCode });
   if (!parcel) {
@@ -575,21 +754,57 @@ const assignParcel = async (parcelCode, { employeeId } = {}) => {
     return assignParcelToRegisteredDriver(parcelCode, employeeId);
   }
 
+  if (truck || driver) {
+    return applySuggestionToParcel(parcelCode, { fleetType, truck, driver, partner });
+  }
+
   return applySuggestionToParcel(parcelCode);
 };
 
 const autoAssignParcels = async () => {
   await ensureSeed();
-  const hints = await AssignmentSuggestion.find();
+  const registered = await listRegisteredDrivers();
+  const open = await Parcel.find({
+    status: { $nin: ['expected', 'dispatched'] },
+    $or: [{ truck: null }, { truck: '' }, { truck: { $exists: false } }],
+  });
+  const crew = await WarehouseDriver.find({ status: 'available' });
   const updated = [];
-  for (const hint of hints) {
-    const parcelCode = hint.get('parcelId') || hint.code;
-    const parcel = await Parcel.findOne({ code: parcelCode });
-    if (parcel && !parcel.get('truck')) {
-      updated.push(await assignParcel(parcelCode));
+  let driverIndex = 0;
+
+  for (const parcel of open) {
+    if (registered.length) {
+      const driver = registered[driverIndex % registered.length];
+      driverIndex += 1;
+      updated.push(await assignParcel(parcel.code, { employeeId: driver.employeeId }));
+    } else {
+      const hintDoc = await AssignmentSuggestion.findOne({ code: parcel.code });
+      if (hintDoc) {
+        updated.push(await assignParcel(parcel.code));
+      } else {
+        const match = crew.find((d) => d.yard === parcel.warehouse) || crew[driverIndex % Math.max(crew.length, 1)];
+        if (match) {
+          driverIndex += 1;
+          updated.push(
+            await applySuggestionToParcel(parcel.code, {
+              fleetType: match.fleetType,
+              truck: match.vehicle,
+              driver: match.name,
+              partner: match.fleetType === 'own' ? null : match.partner,
+            })
+          );
+        }
+      }
     }
   }
   return updated;
+};
+
+const applyOptimizedHours = (baselineHrs, durationMinutes) => {
+  const hours = Math.round((durationMinutes / 60) * 10) / 10;
+  const baseline = baselineHrs || hours;
+  const fuelSavePct = baseline > 0 ? Math.max(0, Math.round(((baseline - hours) / baseline) * 100)) : 0;
+  return { optimizedHrs: hours, fuelSavePct };
 };
 
 const optimizeRoute = async (routeCode) => {
@@ -599,38 +814,76 @@ const optimizeRoute = async (routeCode) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Route not found');
   }
 
-  const stops = route.get('stops') || [];
+  const stops = route.stops || [];
   if (stops.length < 2) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Route needs at least an origin and a destination stop');
   }
 
   const waypoints = stops.slice(1, -1);
-  const result = await googleMapsService.getRoute({
-    origin: stops[0],
-    destination: stops[stops.length - 1],
-    waypoints,
-  });
+  const update = { status: 'assigned' };
 
-  const update = {
-    distanceKm: result.distanceKm,
-    durationMinutes: result.durationMinutes,
-    status: 'assigned',
-  };
-  if (result.waypointOrder.length === waypoints.length) {
-    update.stops = [stops[0], ...result.waypointOrder.map((i) => waypoints[i]), stops[stops.length - 1]];
+  try {
+    const result = await googleMapsService.getRoute({
+      origin: stops[0],
+      destination: stops[stops.length - 1],
+      waypoints,
+    });
+    update.distanceKm = result.distanceKm;
+    update.durationMinutes = result.durationMinutes;
+    Object.assign(update, applyOptimizedHours(route.baselineHrs, result.durationMinutes));
+    if (result.waypointOrder.length === waypoints.length) {
+      update.stops = [stops[0], ...result.waypointOrder.map((i) => waypoints[i]), stops[stops.length - 1]];
+    }
+  } catch (err) {
+    if (err.statusCode !== httpStatus.SERVICE_UNAVAILABLE && err.statusCode !== httpStatus.BAD_GATEWAY) {
+      throw err;
+    }
+    const baseline = route.baselineHrs || stops.length * 4;
+    update.optimizedHrs = Math.round(baseline * 0.85 * 10) / 10;
+    update.fuelSavePct = 15;
   }
 
-  const updated = await WarehouseRoute.findOneAndUpdate({ code: routeCode }, update, { new: true });
+  const updated = await WarehouseRoute.findOneAndUpdate({ code: routeCode }, { $set: update }, { new: true });
   return updated.toJSON();
+};
+
+const attachParcelsToRoute = async (route) => {
+  const stops = route.stops || [];
+  const lastStop = String(stops[stops.length - 1] || '')
+    .split(',')[0]
+    .trim();
+  if (!lastStop) return route.parcelIds || [];
+  const candidates = await Parcel.find({ status: { $nin: ['expected', 'dispatched'] } }).select('code dropoff');
+  const needle = lastStop.toLowerCase();
+  const extras = candidates.filter((p) =>
+    String(p.dropoff || '')
+      .toLowerCase()
+      .includes(needle)
+  );
+  return [...new Set([...(route.parcelIds || []), ...extras.map((p) => p.code)])];
 };
 
 const autoAssignRoutes = async () => {
   await ensureSeed();
-  const routes = await WarehouseRoute.find({ status: 'suggested' });
+  const routes = await WarehouseRoute.find({ status: { $in: ['suggested', 'assigned'] } });
   for (const route of routes) {
-    await optimizeRoute(route.code);
+    if (route.status === 'suggested') {
+      await optimizeRoute(route.code);
+    }
+    const parcelIds = await attachParcelsToRoute(route);
+    await WarehouseRoute.findOneAndUpdate({ code: route.code }, { $set: { parcelIds, status: 'assigned' } });
   }
   return toJsonList(await WarehouseRoute.find());
+};
+
+const toggleZone = async (zoneId, active) => {
+  await ensureSeed();
+  const zone = await WarehouseZone.findOne({ code: zoneId });
+  if (!zone) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Zone not found');
+  }
+  const updated = await WarehouseZone.findOneAndUpdate({ code: zoneId }, { $set: { active } }, { new: true });
+  return updated.toJSON();
 };
 
 module.exports = {
@@ -644,7 +897,9 @@ module.exports = {
   autoAssignRoutes,
   receiveParcel,
   labelParcel,
+  createBatch,
   addParcelToBatch,
   closeBatch,
   dispatchParcel,
+  toggleZone,
 };

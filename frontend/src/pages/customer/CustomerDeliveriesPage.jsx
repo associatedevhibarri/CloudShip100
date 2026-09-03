@@ -155,6 +155,20 @@ export default function CustomerDeliveriesPage() {
                 <span className="font-semibold text-ink">${Number(d.value || 0).toLocaleString()}</span>
                 <span className="text-muted">Booked {d.bookedAt?.slice(0, 10)}</span>
               </div>
+              {d.timeline?.length ? (
+                <ol className="mt-4 flex flex-wrap gap-2">
+                  {d.timeline.map((step) => (
+                    <li
+                      key={step.stage}
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                        step.done ? 'bg-brand text-white' : 'bg-surface text-muted'
+                      }`}
+                    >
+                      {step.label}
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
             </Card>
           ))
         )}

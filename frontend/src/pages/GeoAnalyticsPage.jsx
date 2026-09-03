@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { api } from '../services/api'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
@@ -12,6 +13,11 @@ export default function GeoAnalyticsPage() {
       <PageHeader
         title="GeoSpatial Analytics"
         subtitle="Route optimization and weather impact on logistics corridors."
+        actions={
+          <Link to="/app/warehouse/routes" className="text-sm font-bold text-brand hover:underline">
+            Warehouse route optimisation →
+          </Link>
+        }
       />
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
         <Card className="p-5">

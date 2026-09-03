@@ -10,6 +10,10 @@ const assignParcel = {
   ...parcelIdParam,
   body: Joi.object().keys({
     employeeId: Joi.string().trim(),
+    fleetType: Joi.string().trim(),
+    truck: Joi.string().trim(),
+    driver: Joi.string().trim(),
+    partner: Joi.string().trim().allow(null, ''),
   }),
 };
 
@@ -26,9 +30,26 @@ const closeBatch = {
   }),
 };
 
+const createBatch = {
+  body: Joi.object().keys({
+    name: Joi.string().required().trim(),
+    warehouse: Joi.string().required().trim(),
+    destination: Joi.string().required().trim(),
+  }),
+};
+
 const optimizeRoute = {
   params: Joi.object().keys({
     routeId: Joi.string().required(),
+  }),
+};
+
+const toggleZone = {
+  params: Joi.object().keys({
+    zoneId: Joi.string().required(),
+  }),
+  body: Joi.object().keys({
+    active: Joi.boolean().required(),
   }),
 };
 
@@ -37,5 +58,7 @@ module.exports = {
   parcelAction: parcelIdParam,
   addToBatch,
   closeBatch,
+  createBatch,
   optimizeRoute,
+  toggleZone,
 };

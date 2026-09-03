@@ -5,6 +5,7 @@ import { FilterBar, FilterButton } from '../../components/ui/FilterBar'
 import { Card } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { DataTable } from '../../components/ui/DataTable'
+import { FormField, formInputClass } from '../../components/ui/FormField'
 import { WarehouseGate, useWarehouse } from '../../hooks/useWarehouse'
 
 export default function LabellingPage() {
@@ -16,11 +17,12 @@ export default function LabellingPage() {
   const [targetBatch, setTargetBatch] = useState('')
   const [flash, setFlash] = useState('')
   const [busy, setBusy] = useState('')
+  const [batchForm, setBatchForm] = useState({ name: '', warehouse: '', destination: '' })
 
   useEffect(() => {
     if (!parcels.length) return
     setSelected((prev) => {
-      if (!prev) return parcels.find((p) => p.id === 'PCL-1001') || parcels[0]
+      if (!prev) return parcels.find((p) => p.status === 'received' || p.status === 'labelled') || parcels[0]
       return parcels.find((p) => p.id === prev.id) || prev
     })
   }, [parcels])
@@ -30,9 +32,21 @@ export default function LabellingPage() {
     [batches],
   )
 
+  const yards = useMemo(
+    () => [...new Set(parcels.map((p) => p.warehouse).filter(Boolean))],
+    [parcels],
+  )
+
   useEffect(() => {
     if (!targetBatch && openBatches[0]) setTargetBatch(openBatches[0].id)
   }, [openBatches, targetBatch])
+
+  useEffect(() => {
+    setBatchForm((prev) => ({
+      ...prev,
+      warehouse: prev.warehouse || yards[0] || '',
+    }))
+  }, [yards])
 
   const filtered = useMemo(
     () => (batchId === 'all' ? parcels : parcels.filter((p) => p.batchId === batchId)),
@@ -50,6 +64,16 @@ export default function LabellingPage() {
     } finally {
       setBusy('')
     }
+  }
+
+  const createBatch = async (e) => {
+    e.preventDefault()
+    await run(
+      'create-batch',
+      () => api.createBatch(batchForm),
+      `Opened batch ${batchForm.name}`,
+    )
+    setBatchForm({ name: '', warehouse: yards[0] || '', destination: '' })
   }
 
   return (
@@ -80,6 +104,58 @@ export default function LabellingPage() {
               <p className="mt-1 text-2xl font-extrabold">{parcels.filter((p) => !p.labelCode).length}</p>
             </Card>
           </div>
+
+          <Card className="mb-6 p-5">
+            <h3 className="text-lg font-extrabold">Open a new batch</h3>
+            <p className="mt-1 text-sm text-muted">Same pattern as customer bookings — create the record, then add parcels.</p>
+            <form className="mt-4 grid gap-3 md:grid-cols-4" onSubmit={createBatch}>
+              <FormField id="batch-name" label="Name" required>
+                <input
+                  id="batch-name"
+                  required
+                  value={batchForm.name}
+                  onChange={(e) => setBatchForm((prev) => ({ ...prev, name: e.target.value }))}
+                  className={formInputClass()}
+                  placeholder="Rice outbound — JHB"
+                />
+              </FormField>
+              <FormField id="batch-yard" label="Yard" required>
+                <input
+                  id="batch-yard"
+                  required
+                  list="yard-options"
+                  value={batchForm.warehouse}
+                  onChange={(e) => setBatchForm((prev) => ({ ...prev, warehouse: e.target.value }))}
+                  className={formInputClass()}
+                  placeholder="Durban Central Yard"
+                />
+                <datalist id="yard-options">
+                  {yards.map((yard) => (
+                    <option key={yard} value={yard} />
+                  ))}
+                </datalist>
+              </FormField>
+              <FormField id="batch-dest" label="Destination" required>
+                <input
+                  id="batch-dest"
+                  required
+                  value={batchForm.destination}
+                  onChange={(e) => setBatchForm((prev) => ({ ...prev, destination: e.target.value }))}
+                  className={formInputClass()}
+                  placeholder="City Deep, Johannesburg"
+                />
+              </FormField>
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  disabled={busy === 'create-batch'}
+                  className="w-full rounded-full bg-brand-gradient py-2.5 text-sm font-bold text-white disabled:opacity-50"
+                >
+                  Create batch
+                </button>
+              </div>
+            </form>
+          </Card>
 
           <FilterBar>
             <FilterButton active={batchId === 'all'} onClick={() => setBatchId('all')}>
@@ -201,7 +277,7 @@ export default function LabellingPage() {
               {
                 key: 'parcelIds',
                 label: 'Parcels',
-                render: (r) => (r.parcelIds || []).join(', '),
+                render: (r) => (r.parcelIds || []).join(', ') || '—',
               },
               {
                 key: 'status',

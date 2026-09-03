@@ -27,7 +27,14 @@ export default function AssignmentPage() {
     const hint = suggestions.find((s) => s.parcelId === parcelId || s.id === parcelId)
     setBusyId(parcelId)
     try {
-      await api.assignParcel(parcelId)
+      await api.assignParcel(parcelId, hint?.employeeId, hint
+        ? {
+            fleetType: hint.fleetType,
+            truck: hint.truck,
+            driver: hint.driver,
+            partner: hint.partner,
+          }
+        : {})
       await reload()
       if (hint) {
         setFlash(
@@ -61,12 +68,22 @@ export default function AssignmentPage() {
   }
 
   const autoAssignAll = async () => {
-    await api.autoAssignParcels()
-    await reload()
-    setFlash('Auto-assigned all open parcels using 4PL capacity rules.')
+    setBusyId('auto')
+    try {
+      await api.autoAssignParcels()
+      await reload()
+      setFlash('Auto-assigned open parcels to own-fleet drivers first, then 4PL partners.')
+    } catch (err) {
+      setFlash(err.message || 'Auto-assign failed')
+    } finally {
+      setBusyId('')
+    }
   }
 
-  const chain = parcels.find((p) => p.id === 'PCL-1001')
+  const chain =
+    parcels.find((p) => p.fleetType && p.driver) ||
+    parcels.find((p) => p.status === 'labelled' || p.status === 'received') ||
+    parcels[0]
 
   return (
     <div>
@@ -76,8 +93,9 @@ export default function AssignmentPage() {
         actions={
           <button
             type="button"
+            disabled={busyId === 'auto'}
             onClick={autoAssignAll}
-            className="rounded-full bg-brand-gradient px-4 py-2 text-sm font-bold text-white shadow-sm"
+            className="rounded-full bg-brand-gradient px-4 py-2 text-sm font-bold text-white shadow-sm disabled:opacity-50"
           >
             Auto-assign open parcels
           </button>
