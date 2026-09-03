@@ -819,8 +819,12 @@ const optimizeRoute = async (routeCode) => {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Route needs at least an origin and a destination stop');
   }
 
+  if (route.optimized) {
+    return route.toJSON();
+  }
+
   const waypoints = stops.slice(1, -1);
-  const update = { status: 'assigned' };
+  const update = { status: 'assigned', optimized: true };
 
   try {
     const result = await googleMapsService.getRoute({

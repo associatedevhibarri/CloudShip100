@@ -6,22 +6,23 @@ import { Card } from '../../components/ui/Card'
 import { DataTable } from '../../components/ui/DataTable'
 import { LogisticsMap } from '../../components/map/LogisticsMap'
 import { WarehouseGate, useWarehouse } from '../../hooks/useWarehouse'
+import { useToast } from '../../context/ToastContext'
 
 export default function WarehouseZonesPage() {
   const { data, loading, error, reload } = useWarehouse()
+  const toast = useToast()
   const zones = data?.zones || []
   const mapAssets = data?.mapAssets || []
   const [busyId, setBusyId] = useState('')
-  const [flash, setFlash] = useState('')
 
   const toggle = async (zone) => {
     setBusyId(zone.id)
     try {
       await api.toggleZone(zone.id, !zone.active)
       await reload()
-      setFlash(`${zone.name} ${zone.active ? 'paused' : 'armed'}`)
+      toast.success(`${zone.name} ${zone.active ? 'paused' : 'armed'}`)
     } catch (err) {
-      setFlash(err.message || 'Could not update zone')
+      toast.error(err.message || 'Could not update zone')
     } finally {
       setBusyId('')
     }
@@ -39,12 +40,6 @@ export default function WarehouseZonesPage() {
         }
       />
       <WarehouseGate loading={loading} error={error}>
-        {flash ? (
-          <p className="mb-4 rounded-xl border border-brand/20 bg-brand-light px-4 py-2 text-sm font-semibold text-brand-dark">
-            {flash}
-          </p>
-        ) : null}
-
         <div className="mb-4 grid gap-3 sm:grid-cols-4">
           {['dock', 'staging', 'dispatch', 'delivery'].map((type) => (
             <Card key={type} className="p-4">

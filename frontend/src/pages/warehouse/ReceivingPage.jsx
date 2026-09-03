@@ -6,12 +6,13 @@ import { Card } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { DataTable } from '../../components/ui/DataTable'
 import { WarehouseGate, useWarehouse } from '../../hooks/useWarehouse'
+import { useToast } from '../../context/ToastContext'
 
 export default function ReceivingPage() {
   const { data, loading, error, reload } = useWarehouse()
+  const toast = useToast()
   const parcels = data?.parcels || []
   const [filter, setFilter] = useState('expected')
-  const [flash, setFlash] = useState('')
   const [busyId, setBusyId] = useState('')
 
   const expected = useMemo(() => parcels.filter((p) => p.status === 'expected'), [parcels])
@@ -31,9 +32,9 @@ export default function ReceivingPage() {
     try {
       await api.receiveParcel(parcelId)
       await reload()
-      setFlash(`${parcelId} received at the dock. Ready for labelling.`)
+      toast.success(`${parcelId} received at the dock. Ready for labelling.`)
     } catch (err) {
-      setFlash(err.message || 'Receive failed')
+      toast.error(err.message || 'Receive failed')
     } finally {
       setBusyId('')
     }
@@ -46,12 +47,6 @@ export default function ReceivingPage() {
         subtitle="Customer bookings land here as expected inbound. Confirm cargo at the dock before labelling."
       />
       <WarehouseGate loading={loading} error={error}>
-        {flash ? (
-          <p className="mb-4 rounded-xl border border-brand/20 bg-brand-light px-4 py-2 text-sm font-semibold text-brand-dark">
-            {flash}
-          </p>
-        ) : null}
-
         <div className="mb-4 grid gap-3 sm:grid-cols-3">
           <Card className="p-4">
             <p className="text-xs font-semibold uppercase text-muted">Awaiting receive</p>

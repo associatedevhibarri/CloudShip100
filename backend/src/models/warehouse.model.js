@@ -107,6 +107,7 @@ const routeSchema = withCodeId({
   fleetType: { type: String, default: 'own' },
   distanceKm: { type: Number, default: null },
   durationMinutes: { type: Number, default: null },
+  optimized: { type: Boolean, default: false },
 });
 
 const driverSchema = withCodeId({
