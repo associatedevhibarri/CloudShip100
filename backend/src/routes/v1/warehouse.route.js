@@ -52,5 +52,11 @@ router.post(
   validate(warehouseValidation.optimizeRoute),
   warehouseController.optimizeRoute
 );
+router.post(
+  '/zones/evaluate',
+  auth('manageWarehouse'),
+  validate(warehouseValidation.evaluateZones),
+  warehouseController.evaluateZones
+);
 
 module.exports = router;

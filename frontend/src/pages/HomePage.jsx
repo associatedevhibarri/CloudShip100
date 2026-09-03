@@ -13,6 +13,10 @@ import {
   Clock,
   Globe2,
   Calculator,
+  Ship,
+  Truck,
+  Warehouse,
+  Send,
 } from 'lucide-react'
 import { Logo } from '../components/Logo'
 import { portalService } from '../services/portalService'
@@ -182,6 +186,135 @@ const platformFeatures = [
     text: 'Integrates with bulk e-commerce platforms. Logistics companies with live pre-programmed prices are able to win trips from new customers through our API marketplace.',
   },
 ]
+
+const supplyChainModes = [
+  {
+    icon: Plane,
+    title: 'Air',
+    text: 'Airport ops, aircraft, crew and air cargo fees in one control tower.',
+  },
+  {
+    icon: Ship,
+    title: 'Maritime',
+    text: 'Ports, vessels and ocean freight visibility alongside inland handoffs.',
+  },
+  {
+    icon: Truck,
+    title: 'Road & Rail',
+    text: 'Fleet, yards, locomotives and cross-border corridors under live trip control.',
+  },
+  {
+    icon: Warehouse,
+    title: 'Warehousing',
+    text: 'Receive, label, assign and dispatch — own fleet or 4PL partners.',
+  },
+]
+
+function LeadCaptureForm() {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [company, setCompany] = useState('')
+  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [submitted, setSubmitted] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      await portalService.submitLead({
+        name: name.trim(),
+        email: email.trim(),
+        company: company.trim(),
+        message: message.trim(),
+      })
+      setSubmitted(true)
+      setName('')
+      setEmail('')
+      setCompany('')
+      setMessage('')
+    } catch (err) {
+      setError(err.message || 'Could not submit your request')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (submitted) {
+    return (
+      <div className="mx-auto max-w-xl rounded-[1.75rem] border border-brand/15 bg-brand-light/40 p-8 text-center shadow-[var(--shadow-card)]">
+        <p className="text-lg font-extrabold text-ink">Thanks — we received your details.</p>
+        <p className="mt-2 text-sm text-muted">Our team will follow up shortly.</p>
+        <button
+          type="button"
+          onClick={() => setSubmitted(false)}
+          className="mt-5 text-sm font-semibold text-brand hover:underline"
+        >
+          Send another enquiry
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="mx-auto grid max-w-xl gap-4 rounded-[1.75rem] border border-line bg-white p-6 shadow-[var(--shadow-card)] sm:p-8"
+    >
+      <label className="text-sm">
+        <span className="mb-1 block font-semibold text-ink">Name</span>
+        <input
+          type="text"
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+        />
+      </label>
+      <label className="text-sm">
+        <span className="mb-1 block font-semibold text-ink">Work email</span>
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+        />
+      </label>
+      <label className="text-sm">
+        <span className="mb-1 block font-semibold text-ink">Company</span>
+        <input
+          type="text"
+          required
+          value={company}
+          onChange={(e) => setCompany(e.target.value)}
+          className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+        />
+      </label>
+      <label className="text-sm">
+        <span className="mb-1 block font-semibold text-ink">How can we help?</span>
+        <textarea
+          required
+          rows={3}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className="w-full resize-y rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+        />
+      </label>
+      {error ? <ErrorState message={error} /> : null}
+      <button
+        type="submit"
+        disabled={loading}
+        className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-gradient px-6 py-3 text-sm font-bold text-white shadow-md shadow-brand/20 transition hover:brightness-105 disabled:opacity-60"
+      >
+        <Send size={16} />
+        {loading ? 'Sending...' : 'Request a demo'}
+      </button>
+    </form>
+  )
+}
 
 function FeatureCard({ icon: Icon, title, text, accent }) {
   return (
@@ -415,6 +548,37 @@ export default function HomePage() {
           </div>
         </section>
 
+        <section className="border-t border-line/70 bg-surface py-20">
+          <div className="mx-auto max-w-6xl px-5 sm:px-6">
+            <div className="mx-auto mb-12 max-w-2xl text-center">
+              <p className="text-xs font-extrabold uppercase tracking-[0.28em] text-brand">
+                Full 4PL Supply Chain
+              </p>
+              <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+                Control every stage of the value chain
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted sm:text-base">
+                One platform spanning air, maritime, road and rail, and warehousing — own assets or
+                outsourced partners.
+              </p>
+            </div>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {supplyChainModes.map(({ icon: Icon, title, text }) => (
+                <article
+                  key={title}
+                  className="flex h-full flex-col rounded-2xl border border-line/80 bg-white p-6 shadow-[var(--shadow-card)]"
+                >
+                  <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-light text-brand ring-1 ring-brand/10">
+                    <Icon size={20} strokeWidth={2.25} />
+                  </div>
+                  <h3 className="text-base font-extrabold text-ink">{title}</h3>
+                  <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{text}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="relative overflow-hidden border-t border-line/70 bg-ink py-20 text-white">
           <div
             aria-hidden
@@ -439,6 +603,23 @@ export default function HomePage() {
                 <PlatformCard key={feature.title} {...feature} />
               ))}
             </div>
+          </div>
+        </section>
+
+        <section className="border-t border-line/70 bg-white py-20">
+          <div className="mx-auto max-w-6xl px-5 sm:px-6">
+            <div className="mx-auto mb-10 max-w-2xl text-center">
+              <p className="text-xs font-extrabold uppercase tracking-[0.28em] text-brand">
+                Leads
+              </p>
+              <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+                Talk to our logistics team
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted sm:text-base">
+                Tell us about your network and we will follow up with a tailored Cloud Ship walkthrough.
+              </p>
+            </div>
+            <LeadCaptureForm />
           </div>
         </section>
 

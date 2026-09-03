@@ -23,13 +23,15 @@ export default function DispatchPage() {
       await api.dispatchParcel(parcelId)
       await reload()
       setSelectedId(parcelId)
-      setFlash(`${parcelId} left the dispatch bay geofence.`)
+            setFlash(`${parcelId} left the dispatch bay geofence.`)
     } catch (err) {
       setFlash(err.message || 'Dispatch failed')
     } finally {
       setBusyId('')
     }
   }
+
+  const flashIsError = /blocked|failed|error/i.test(flash)
 
   return (
     <div>
@@ -41,7 +43,13 @@ export default function DispatchPage() {
         {selected ? (
           <>
             {flash ? (
-              <p className="mb-4 rounded-xl border border-brand/20 bg-brand-light px-4 py-2 text-sm font-semibold text-brand-dark">
+              <p
+                className={`mb-4 rounded-xl border px-4 py-2 text-sm font-semibold ${
+                  flashIsError
+                    ? 'border-rose-200 bg-rose-50 text-rose-700'
+                    : 'border-brand/20 bg-brand-light text-brand-dark'
+                }`}
+              >
                 {flash}
               </p>
             ) : null}

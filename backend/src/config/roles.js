@@ -15,8 +15,8 @@ const allRoles = {
     'viewOwnNotifications',
   ],
   driver: [],
-  operator: ['getUsers', 'manageUsers', 'manageWarehouse'],
-  admin: ['getUsers', 'manageUsers', 'manageWarehouse'],
+  operator: ['getUsers', 'manageUsers', 'manageWarehouse', 'manageLeads', 'manageGeofences', 'managePricing'],
+  admin: ['getUsers', 'manageUsers', 'manageWarehouse', 'manageLeads', 'manageGeofences', 'managePricing'],
 };
 
 const roles = Object.keys(allRoles);

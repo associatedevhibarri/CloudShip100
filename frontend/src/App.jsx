@@ -19,6 +19,8 @@ import CustomersPage from './pages/CustomersPage'
 import GeomappingPage from './pages/GeomappingPage'
 import GeoAnalyticsPage from './pages/GeoAnalyticsPage'
 import NotificationsPage from './pages/NotificationsPage'
+import LeadsPage from './pages/LeadsPage'
+import PricingRatesPage from './pages/PricingRatesPage'
 import {
   FuelLogsPage,
   YardFeesPage,
@@ -109,6 +111,8 @@ export default function App() {
             <Route path="orders/invoices" element={<InvoicesPage />} />
             <Route path="wallet" element={<WalletPage />} />
             <Route path="customers" element={<CustomersPage />} />
+            <Route path="leads" element={<LeadsPage />} />
+            <Route path="pricing" element={<PricingRatesPage />} />
             <Route path="expenses/fuel" element={<FuelLogsPage />} />
             <Route path="expenses/yard-fees" element={<YardFeesPage />} />
             <Route path="expenses/airport-fees" element={<AirportFeesPage />} />

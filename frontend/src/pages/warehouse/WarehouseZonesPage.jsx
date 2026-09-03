@@ -42,6 +42,11 @@ export default function WarehouseZonesPage() {
           },
           { key: 'rule', label: 'Rule' },
           {
+            key: 'exclusions',
+            label: 'Exclusions',
+            render: (r) => (r.exclusions?.length ? r.exclusions.join(', ') : 'None'),
+          },
+          {
             key: 'active',
             label: 'Active',
             render: (r) => (r.active ? 'Yes' : 'No'),

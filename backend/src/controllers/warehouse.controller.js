@@ -42,7 +42,7 @@ const closeBatch = catchAsync(async (req, res) => {
 });
 
 const dispatchParcel = catchAsync(async (req, res) => {
-  const parcel = await warehouseService.dispatchParcel(req.params.parcelId);
+  const parcel = await warehouseService.dispatchParcel(req.params.parcelId, req.body || {});
   res.send(parcel);
 });
 
@@ -54,6 +54,11 @@ const receiveParcel = catchAsync(async (req, res) => {
 const optimizeRoute = catchAsync(async (req, res) => {
   const route = await warehouseService.optimizeRoute(req.params.routeId);
   res.send(route);
+});
+
+const evaluateZones = catchAsync(async (req, res) => {
+  const result = await warehouseService.evaluateZones(req.body);
+  res.send(result);
 });
 
 module.exports = {
@@ -68,4 +73,5 @@ module.exports = {
   closeBatch,
   dispatchParcel,
   optimizeRoute,
+  evaluateZones,
 };

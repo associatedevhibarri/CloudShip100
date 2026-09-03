@@ -15,6 +15,7 @@ const ApiError = require('../utils/ApiError');
 const httpStatus = require('http-status');
 const bookingSyncService = require('./bookingSync.service');
 const googleMapsService = require('./googleMaps.service');
+const geofenceService = require('./geofence.service');
 
 // NOTE: these warehouse models declare only `code` as a real schema path (`strict: false`
 // for everything else). Mongoose does NOT expose undeclared paths via plain dot-notation
@@ -471,13 +472,30 @@ const closeBatch = async (batchId) => {
   return batch.toJSON();
 };
 
-const dispatchParcel = async (parcelCode) => {
+const dispatchParcel = async (parcelCode, options = {}) => {
   const parcel = await findWarehouseParcel(parcelCode);
   if (parcel.status === 'dispatched') {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Parcel already dispatched');
   }
   if (!parcel.driver && !parcel.fleetType) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Assign a driver before dispatch');
+  }
+
+  const point = await resolveDispatchPoint(parcel, options);
+  if (point) {
+    const evaluation = await geofenceService.evaluatePoint(point);
+    if (!evaluation.allowed) {
+      const reasons = (evaluation.exceptions || [])
+        .map((e) => e.exclusion)
+        .filter(Boolean)
+        .join('; ');
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Dispatch blocked by geomapping exclusions at ${point.lat}, ${point.lng}${
+          reasons ? `: ${reasons}` : ''
+        }`
+      );
+    }
   }
 
   parcel.status = 'dispatched';
@@ -491,6 +509,36 @@ const dispatchParcel = async (parcelCode) => {
   await syncDriverPortalStatus(parcel, 'in_transit');
   await markBookingStage(parcel, 'in_transit', { status: 'in_transit' });
   return parcel.toJSON();
+};
+
+/**
+ * Resolve GPS point for dispatch geofence checks (body → parcel → warehouse dispatch zone)
+ */
+const resolveDispatchPoint = async (parcel, options = {}) => {
+  if (options.lat != null && options.lng != null) {
+    return { lat: Number(options.lat), lng: Number(options.lng) };
+  }
+
+  const obj = typeof parcel.toObject === 'function' ? parcel.toObject() : parcel;
+  if (obj.lat != null && obj.lng != null) {
+    return { lat: Number(obj.lat), lng: Number(obj.lng) };
+  }
+
+  const warehouseName = obj.warehouse;
+  let zone = null;
+  if (warehouseName) {
+    zone = await WarehouseZone.findOne({ type: 'dispatch', warehouse: warehouseName, active: true });
+  }
+  if (!zone) {
+    zone = await WarehouseZone.findOne({ type: 'dispatch', active: true });
+  }
+  if (zone) {
+    const z = zone.toObject ? zone.toObject() : zone;
+    if (z.lat != null && z.lng != null) {
+      return { lat: Number(z.lat), lng: Number(z.lng) };
+    }
+  }
+  return null;
 };
 
 const applySuggestionToParcel = async (parcelCode) => {
@@ -633,6 +681,53 @@ const autoAssignRoutes = async () => {
   return toJsonList(await WarehouseRoute.find());
 };
 
+const EARTH_RADIUS_M = 6371000;
+
+const haversineM = (lat1, lng1, lat2, lng2) => {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(a));
+};
+
+/**
+ * Evaluate a GPS point against warehouse zone radius + exclusion rules
+ * @param {{ lat: number, lng: number }} point
+ */
+const evaluateZones = async ({ lat, lng }) => {
+  await ensureSeed();
+  const zones = await WarehouseZone.find({ active: true });
+  const matched = [];
+  const exclusions = new Set();
+
+  for (const zone of zones) {
+    const json = zone.toJSON();
+    if (zone.lat == null || zone.lng == null) continue;
+    const distanceM = haversineM(lat, lng, zone.lat, zone.lng);
+    const radiusM = zone.radiusM == null ? 5000 : zone.radiusM;
+    if (distanceM <= radiusM) {
+      matched.push({
+        ...json,
+        distanceM: Math.round(distanceM),
+        inside: true,
+      });
+      (zone.exclusions || []).forEach((e) => exclusions.add(e));
+    }
+  }
+
+  const exclusionList = [...exclusions];
+  return {
+    lat,
+    lng,
+    matchedZones: matched,
+    exclusions: exclusionList,
+    allowed: exclusionList.length === 0,
+  };
+};
+
 module.exports = {
   ensureSeed,
   ingestBooking,
@@ -647,4 +742,5 @@ module.exports = {
   addParcelToBatch,
   closeBatch,
   dispatchParcel,
+  evaluateZones,
 };

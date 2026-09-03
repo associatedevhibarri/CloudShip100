@@ -6,6 +6,16 @@ const parcelIdParam = {
   }),
 };
 
+const parcelAction = {
+  ...parcelIdParam,
+  body: Joi.object()
+    .keys({
+      lat: Joi.number().min(-90).max(90),
+      lng: Joi.number().min(-180).max(180),
+    })
+    .default({}),
+};
+
 const assignParcel = {
   ...parcelIdParam,
   body: Joi.object().keys({
@@ -32,10 +42,18 @@ const optimizeRoute = {
   }),
 };
 
+const evaluateZones = {
+  body: Joi.object().keys({
+    lat: Joi.number().min(-90).max(90).required(),
+    lng: Joi.number().min(-180).max(180).required(),
+  }),
+};
+
 module.exports = {
   assignParcel,
-  parcelAction: parcelIdParam,
+  parcelAction,
   addToBatch,
   closeBatch,
   optimizeRoute,
+  evaluateZones,
 };
