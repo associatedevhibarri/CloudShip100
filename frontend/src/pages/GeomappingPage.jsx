@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { api } from '../services/api'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
@@ -10,6 +11,11 @@ export default function GeomappingPage() {
       <PageHeader
         title="Geomapping"
         subtitle="Coverage by country, province/state, radius, and exclusions."
+        actions={
+          <Link to="/app/warehouse/zones" className="text-sm font-bold text-brand hover:underline">
+            Yard geofences & zones →
+          </Link>
+        }
       />
       <div className="mb-4 grid gap-3 sm:grid-cols-4">
         {['country', 'province', 'radius'].map((scope) => (

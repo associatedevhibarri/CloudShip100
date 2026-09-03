@@ -37,10 +37,10 @@ export const operatorNav = [
       { label: 'Receive orders', path: '/app/warehouse/receiving' },
       { label: 'Labelling & Batching', path: '/app/warehouse/labelling' },
       { label: 'Smart Assignment', path: '/app/warehouse/assignment' },
-      { label: 'Geofences & Zones', path: '/app/warehouse/zones' },
+      { label: 'Trip Geofencing & Zones', path: '/app/warehouse/zones' },
       { label: 'Dispatch & Tracking', path: '/app/warehouse/dispatch' },
       { label: 'Route Optimisation', path: '/app/warehouse/routes' },
-      { label: 'Driver Board', path: '/app/warehouse/drivers' },
+      { label: 'Driver Management', path: '/app/warehouse/drivers' },
     ],
   },
   {

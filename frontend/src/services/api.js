@@ -183,12 +183,27 @@ export const api = {
     }
     return postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/receive`)
   },
-  assignParcel: async (parcelId, employeeId) => {
+  assignParcel: async (parcelId, employeeId, extra = {}) => {
     if (!isLiveSession()) {
       applyLocalParcelAssign(parcelId)
+      if (extra.driver) {
+        const parcel = parcels.find((p) => p.id === parcelId)
+        if (parcel) {
+          Object.assign(parcel, {
+            status: 'assigned',
+            fleetType: extra.fleetType || parcel.fleetType,
+            truck: extra.truck || parcel.truck,
+            driver: extra.driver,
+            partner: extra.partner ?? parcel.partner,
+          })
+        }
+      }
       return localWarehouseSnapshot()
     }
-    return postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/assign`, employeeId ? { employeeId } : {})
+    return postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/assign`, {
+      ...(employeeId ? { employeeId } : {}),
+      ...extra,
+    })
   },
   autoAssignParcels: async () => {
     if (!isLiveSession()) {
@@ -200,7 +215,11 @@ export const api = {
   autoAssignRoutes: async () => {
     if (!isLiveSession()) {
       warehouseRoutes.forEach((r) => {
-        if (r.status === 'suggested') r.status = 'assigned'
+        if (r.status === 'suggested' || r.status === 'assigned') {
+          r.status = 'assigned'
+          r.optimizedHrs = Math.round((r.baselineHrs || r.optimizedHrs || 8) * 0.85 * 10) / 10
+          r.fuelSavePct = Math.max(r.fuelSavePct || 0, 15)
+        }
       })
       return localWarehouseSnapshot()
     }
@@ -252,5 +271,41 @@ export const api = {
       return localWarehouseSnapshot()
     }
     return postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/dispatch`)
+  },
+  createBatch: async ({ name, warehouse, destination }) => {
+    if (!isLiveSession()) {
+      const id = `BAT-${String(batches.length + 1).padStart(3, '0')}`
+      batches.push({
+        id,
+        name,
+        warehouse,
+        destination,
+        parcelIds: [],
+        status: 'open',
+        createdAt: new Date().toISOString(),
+      })
+      return localWarehouseSnapshot()
+    }
+    return postWarehouse('/warehouse/batches', { name, warehouse, destination })
+  },
+  optimizeRoute: async (routeId) => {
+    if (!isLiveSession()) {
+      const route = warehouseRoutes.find((r) => r.id === routeId)
+      if (route) {
+        route.status = 'assigned'
+        route.optimizedHrs = Math.round((route.baselineHrs || 8) * 0.85 * 10) / 10
+        route.fuelSavePct = 15
+      }
+      return localWarehouseSnapshot()
+    }
+    return postWarehouse(`/warehouse/routes/${encodeURIComponent(routeId)}/optimize`)
+  },
+  toggleZone: async (zoneId, active) => {
+    if (!isLiveSession()) {
+      const zone = warehouseZones.find((z) => z.id === zoneId)
+      if (zone) zone.active = active
+      return localWarehouseSnapshot()
+    }
+    return postWarehouse(`/warehouse/zones/${encodeURIComponent(zoneId)}/toggle`, { active })
   },
 }

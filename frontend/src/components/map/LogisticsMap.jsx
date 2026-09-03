@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Popup, useMapEvents } from 'react-leaflet'
+import { Circle, CircleMarker, MapContainer, Popup, TileLayer, useMapEvents } from 'react-leaflet'
 
 function MapClickClear({ onClear }) {
   useMapEvents({
@@ -14,10 +14,12 @@ const typeColors = {
   ship: '#0EA5E9',
   airplane: '#2563EB',
   cargo: '#94A3B8',
+  zone: '#0EA5E9',
 }
 
 export function LogisticsMap({
   assets,
+  zones = [],
   height = '420px',
   center = [-26.2, 28.0],
   zoom = 5,
@@ -35,7 +37,30 @@ export function LogisticsMap({
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <MapClickClear onClear={() => setSelected(null)} />
-          {markers.map((asset) => (
+          {zones
+            .filter((zone) => Number.isFinite(zone.lat) && Number.isFinite(zone.lng))
+            .map((zone) => (
+              <Circle
+                key={zone.id}
+                center={[zone.lat, zone.lng]}
+                radius={zone.radiusM || 25000}
+                pathOptions={{
+                  color: zone.active === false ? '#94A3B8' : '#007BFF',
+                  fillColor: zone.active === false ? '#94A3B8' : '#007BFF',
+                  fillOpacity: zone.active === false ? 0.04 : 0.12,
+                  weight: 1.5,
+                }}
+              >
+                <Popup>
+                  <strong>{zone.name}</strong>
+                  <div className="text-xs capitalize">{zone.type} geofence</div>
+                  {zone.rule ? <div className="text-xs">{zone.rule}</div> : null}
+                </Popup>
+              </Circle>
+            ))}
+          {markers
+            .filter((asset) => Number.isFinite(asset.lat) && Number.isFinite(asset.lng))
+            .map((asset) => (
             <CircleMarker
               key={asset.id}
               center={[asset.lat, asset.lng]}
@@ -96,6 +121,10 @@ export function LogisticsMap({
           <div className="mb-1 flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-full border-2 border-brand bg-transparent" />
             Dispatched
+          </div>
+          <div className="mb-1 flex items-center gap-2">
+            <span className="inline-block h-3 w-3 rounded-full border border-brand bg-brand/20" />
+            Geofence
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-full bg-sky-300" />

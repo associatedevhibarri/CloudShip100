@@ -1,18 +1,49 @@
 import { api } from '../services/api'
+import { Link } from 'react-router-dom'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { WarehouseGate, useWarehouse } from '../hooks/useWarehouse'
 
 export default function DriversPage() {
   const drivers = api.getDrivers()
   const shifts = api.getDriverShifts()
+  const { data, loading, error } = useWarehouse()
+  const liveDrivers = data?.registeredDrivers || []
 
   return (
     <div>
       <PageHeader
         title="Drivers"
         subtitle="Licences, training, shifts, performance, and GPS-ready profiles."
+        actions={
+          <Link to="/app/warehouse/drivers" className="text-sm font-bold text-brand hover:underline">
+            Warehouse driver board →
+          </Link>
+        }
       />
+
+      <WarehouseGate loading={loading} error={error}>
+        {liveDrivers.length ? (
+          <div className="mb-6">
+            <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wide text-muted">Portal drivers</h3>
+            <div className="mb-2 grid gap-3 md:grid-cols-3">
+              {liveDrivers.map((d) => (
+                <Card key={d.employeeId} className="p-4">
+                  <p className="text-xs font-extrabold uppercase tracking-wide text-brand">{d.employeeId}</p>
+                  <p className="mt-1 font-extrabold">{d.name}</p>
+                  <p className="text-xs text-muted">{d.email}</p>
+                  <p className="mt-2 text-sm font-semibold">{d.vehicle || 'No vehicle yet'}</p>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="mb-6 rounded-xl border border-line bg-surface px-4 py-3 text-sm text-muted">
+            Register a driver at /login?role=driver, then assign parcels from Warehouse → Smart Assignment.
+          </p>
+        )}
+      </WarehouseGate>
 
       <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {drivers.map((driver) => (

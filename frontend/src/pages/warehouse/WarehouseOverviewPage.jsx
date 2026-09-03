@@ -25,7 +25,7 @@ const links = [
   },
   {
     to: '/app/warehouse/zones',
-    title: 'Geofences & Zones',
+    title: 'Trip Geofencing & Zones',
     desc: 'Dock, staging, dispatch, and delivery radii',
     icon: MapPinned,
   },
@@ -43,8 +43,8 @@ const links = [
   },
   {
     to: '/app/warehouse/drivers',
-    title: 'Driver Board',
-    desc: 'Own crew and subcontracted partners',
+    title: 'Driver Management',
+    desc: 'Own crew, portal drivers, and subcontracted partners',
     icon: Users,
   },
 ]
@@ -52,7 +52,10 @@ const links = [
 export default function WarehouseOverviewPage() {
   const { data, loading, error } = useWarehouse()
   const kpis = data?.kpis
-  const rice = data?.parcels?.find((p) => p.id === 'PCL-1001')
+  const rice =
+    data?.parcels?.find((p) => p.id === 'PCL-1001') ||
+    data?.parcels?.find((p) => p.status === 'assigned' || p.status === 'dispatched') ||
+    data?.parcels?.[0]
 
   return (
     <div>
@@ -88,17 +91,24 @@ export default function WarehouseOverviewPage() {
 
             <div className="mb-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
               <Card className="border-brand/20 bg-brand-soft-gradient p-5">
-                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-brand">Demo story</p>
-                <h3 className="mt-1 text-lg font-extrabold text-ink">PCL-1001 · 100kg rice</h3>
+                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-brand">Live yard story</p>
+                <h3 className="mt-1 text-lg font-extrabold text-ink">
+                  {rice?.id || 'No parcels'} · {rice?.cargo || 'Awaiting inbound'}
+                </h3>
                 <p className="mt-2 text-sm text-muted">
-                  {rice?.shipper} → {rice?.consignee}. Collected, labelled, batched, assigned to own fleet,
-                  then dispatched from Durban Central Yard.
+                  {rice?.shipper || 'Shipper'} → {rice?.consignee || 'Consignee'}. Status {rice?.status || 'expected'} at{' '}
+                  {rice?.warehouse || 'the yard'}
+                  {rice?.zone ? ` · ${rice.zone}` : ''}.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
-                  <span className="rounded-full bg-white px-3 py-1 text-ink">{rice?.labelCode}</span>
-                  <span className="rounded-full bg-white px-3 py-1 text-ink">{rice?.batchId}</span>
+                  {rice?.labelCode ? (
+                    <span className="rounded-full bg-white px-3 py-1 text-ink">{rice.labelCode}</span>
+                  ) : null}
+                  {rice?.batchId ? (
+                    <span className="rounded-full bg-white px-3 py-1 text-ink">{rice.batchId}</span>
+                  ) : null}
                   <span className="rounded-full bg-white px-3 py-1 text-ink">
-                    {rice?.truck} · {rice?.driver}
+                    {rice?.truck || 'No truck'} · {rice?.driver || 'Unassigned'}
                   </span>
                 </div>
                 <Link

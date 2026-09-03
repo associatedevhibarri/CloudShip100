@@ -19,8 +19,8 @@ export default function WarehouseDriversPage() {
   return (
     <div>
       <PageHeader
-        title="Warehouse Driver Board"
-        subtitle="Who is on the dock, loading, or on route — Cloud Ship drivers and 4PL partner crews."
+        title="Driver Management"
+        subtitle="Portal drivers and 4PL partner crews on the dock, loading, or on route."
         actions={
           <Link to="/app/drivers" className="text-sm font-bold text-brand hover:underline">
             Full driver profiles →
@@ -28,22 +28,6 @@ export default function WarehouseDriversPage() {
         }
       />
       <WarehouseGate loading={loading} error={error}>
-      {(data?.registeredDrivers || []).length ? (
-        <div className="mb-6">
-          <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wide text-muted">Portal drivers</h3>
-          <div className="mb-4 grid gap-3 md:grid-cols-3">
-            {data.registeredDrivers.map((d) => (
-              <Card key={d.employeeId} className="p-4">
-                <p className="text-xs font-extrabold uppercase tracking-wide text-brand">{d.employeeId}</p>
-                <p className="mt-1 font-extrabold">{d.name}</p>
-                <p className="text-xs text-muted">{d.email}</p>
-                <p className="mt-2 text-sm">{d.vehicle || 'No vehicle yet'}</p>
-              </Card>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Card className="p-4">
           <p className="text-xs font-semibold uppercase text-muted">Available</p>
@@ -84,12 +68,13 @@ export default function WarehouseDriversPage() {
               <div>
                 <h3 className="text-lg font-extrabold">{d.name}</h3>
                 <p className="text-sm text-muted">{d.partner}</p>
+                {d.employeeId ? <p className="mt-1 text-xs font-semibold text-brand">{d.employeeId}</p> : null}
               </div>
               <StatusBadge status={d.status} />
             </div>
-            <div className="mt-3">
-              <StatusBadge status={d.fleetType} />
-            </div>
+                {d.source === 'portal' ? (
+                  <p className="mt-2 text-xs font-semibold text-brand">{d.employeeId}</p>
+                ) : null}
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
               <div>
                 <dt className="text-xs text-muted">Yard</dt>
@@ -106,7 +91,7 @@ export default function WarehouseDriversPage() {
               <div>
                 <dt className="text-xs text-muted">Parcels</dt>
                 <dd className="font-semibold">
-                  {d.assignedParcels.length ? d.assignedParcels.join(', ') : 'None'}
+                  {d.assignedParcels?.length ? d.assignedParcels.join(', ') : 'None'}
                 </dd>
               </div>
             </dl>

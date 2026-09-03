@@ -11,10 +11,14 @@ export default function DispatchPage() {
   const { data, loading, error, reload } = useWarehouse()
   const parcels = (data?.parcels || []).filter((p) => p.status !== 'expected')
   const mapAssets = data?.mapAssets || []
-  const [selectedId, setSelectedId] = useState('PCL-1001')
+  const zones = data?.zones || []
+  const [selectedId, setSelectedId] = useState('')
   const [flash, setFlash] = useState('')
   const [busyId, setBusyId] = useState('')
-  const selected = parcels.find((p) => p.id === selectedId) || parcels[0]
+  const selected =
+    parcels.find((p) => p.id === selectedId) ||
+    parcels.find((p) => p.status === 'assigned' || p.status === 'dispatched') ||
+    parcels[0]
   const events = (data?.events || []).filter((e) => e.parcelId === selected?.id)
 
   const dispatchSelected = async (parcelId) => {
@@ -68,7 +72,7 @@ export default function DispatchPage() {
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
-              <LogisticsMap assets={mapAssets} height="480px" center={[-27.8, 29.2]} zoom={6} />
+              <LogisticsMap assets={mapAssets} zones={zones} height="480px" center={[-27.8, 29.2]} zoom={6} />
 
               <Card className="p-5">
                 <p className="text-xs font-extrabold uppercase tracking-wide text-brand">Timeline</p>
