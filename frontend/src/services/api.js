@@ -217,6 +217,7 @@ export const api = {
       warehouseRoutes.forEach((r) => {
         if (r.status === 'suggested' || r.status === 'assigned') {
           r.status = 'assigned'
+          r.optimized = true
           r.optimizedHrs = Math.round((r.baselineHrs || r.optimizedHrs || 8) * 0.85 * 10) / 10
           r.fuelSavePct = Math.max(r.fuelSavePct || 0, 15)
         }
@@ -293,6 +294,7 @@ export const api = {
       const route = warehouseRoutes.find((r) => r.id === routeId)
       if (route) {
         route.status = 'assigned'
+        route.optimized = true
         route.optimizedHrs = Math.round((route.baselineHrs || 8) * 0.85 * 10) / 10
         route.fuelSavePct = 15
       }

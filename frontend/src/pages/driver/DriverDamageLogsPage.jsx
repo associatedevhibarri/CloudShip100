@@ -5,11 +5,13 @@ import { driverService, getDocumentUrl } from '../../services/driverService'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/StatusBadge'
+import { useToast } from '../../context/ToastContext'
 
 const severityOptions = ['minor', 'major']
 
 export default function DriverDamageLogsPage() {
   const { damageLogs, parcels, trips, loading, error, reload, token } = useDriverData()
+  const toast = useToast()
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState({
     parcelId: '',
@@ -18,7 +20,6 @@ export default function DriverDamageLogsPage() {
     description: '',
     location: '',
   })
-  const [notice, setNotice] = useState('')
   const [formError, setFormError] = useState('')
   const [photo, setPhoto] = useState(null)
   const fileInputRef = useRef(null)
@@ -47,9 +48,8 @@ export default function DriverDamageLogsPage() {
       setForm({ ...form, description: '', location: '' })
       setPhoto(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
-      setNotice('Damage report submitted successfully.')
+      toast.success('Damage report submitted successfully.')
       await reload()
-      setTimeout(() => setNotice(''), 3000)
     } catch (err) {
       setFormError(err.message || 'Failed to submit damage report')
     } finally {
@@ -76,10 +76,6 @@ export default function DriverDamageLogsPage() {
           </button>
         }
       />
-
-      {notice ? (
-        <Card className="mb-4 border-brand/20 bg-brand-light/30 p-3 text-sm font-semibold text-brand-dark">{notice}</Card>
-      ) : null}
 
       {error ? (
         <Card className="mb-4 border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</Card>

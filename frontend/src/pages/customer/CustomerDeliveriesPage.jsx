@@ -7,6 +7,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge'
 import { Card } from '../../components/ui/Card'
 import { FormField, formInputClass } from '../../components/ui/FormField'
 import { LoadingState, ErrorState } from '../../components/ui/LoadingState'
+import { useToast } from '../../context/ToastContext'
 
 const emptyForm = {
   cargo: '',
@@ -20,9 +21,9 @@ export default function CustomerDeliveriesPage() {
   const { tokens } = useAuth()
   const token = tokens?.access?.token
   const { data: bookings, loading, error, refetch } = usePortalFetch(portalService.getMyBookings)
+  const toast = useToast()
   const [form, setForm] = useState(emptyForm)
   const [busy, setBusy] = useState(false)
-  const [flash, setFlash] = useState('')
 
   const deliveries = bookings || []
 
@@ -32,7 +33,6 @@ export default function CustomerDeliveriesPage() {
     e.preventDefault()
     if (!token) return
     setBusy(true)
-    setFlash('')
     try {
       const created = await portalService.createBooking(token, {
         cargo: form.cargo,
@@ -43,9 +43,9 @@ export default function CustomerDeliveriesPage() {
       })
       setForm(emptyForm)
       await refetch()
-      setFlash(`${created.code || created.id} booked. Warehouse will see it as awaiting receive.`)
+      toast.success(`${created.code || created.id} booked. Warehouse will see it as awaiting receive.`)
     } catch (err) {
-      setFlash(err.message || 'Could not book shipment')
+      toast.error(err.message || 'Could not book shipment')
     } finally {
       setBusy(false)
     }
@@ -60,12 +60,6 @@ export default function CustomerDeliveriesPage() {
         title="My Deliveries"
         subtitle="Book a shipment, then warehouse confirms when it arrives at the dock."
       />
-
-      {flash ? (
-        <p className="mb-4 rounded-xl border border-brand/20 bg-brand-light px-4 py-2 text-sm font-semibold text-brand-dark">
-          {flash}
-        </p>
-      ) : null}
 
       <Card className="mb-6 p-5">
         <h3 className="text-lg font-extrabold text-ink">Book a shipment</h3>

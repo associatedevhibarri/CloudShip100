@@ -6,14 +6,15 @@ import { StatusBadge } from '../../components/ui/StatusBadge'
 import { DataTable } from '../../components/ui/DataTable'
 import { LogisticsMap } from '../../components/map/LogisticsMap'
 import { WarehouseGate, useWarehouse } from '../../hooks/useWarehouse'
+import { useToast } from '../../context/ToastContext'
 
 export default function DispatchPage() {
   const { data, loading, error, reload } = useWarehouse()
+  const toast = useToast()
   const parcels = (data?.parcels || []).filter((p) => p.status !== 'expected')
   const mapAssets = data?.mapAssets || []
   const zones = data?.zones || []
   const [selectedId, setSelectedId] = useState('')
-  const [flash, setFlash] = useState('')
   const [busyId, setBusyId] = useState('')
   const selected =
     parcels.find((p) => p.id === selectedId) ||
@@ -27,9 +28,9 @@ export default function DispatchPage() {
       await api.dispatchParcel(parcelId)
       await reload()
       setSelectedId(parcelId)
-      setFlash(`${parcelId} left the dispatch bay geofence.`)
+      toast.success(`${parcelId} left the dispatch bay geofence.`)
     } catch (err) {
-      setFlash(err.message || 'Dispatch failed')
+      toast.error(err.message || 'Dispatch failed')
     } finally {
       setBusyId('')
     }
@@ -44,12 +45,6 @@ export default function DispatchPage() {
       <WarehouseGate loading={loading} error={error}>
         {selected ? (
           <>
-            {flash ? (
-              <p className="mb-4 rounded-xl border border-brand/20 bg-brand-light px-4 py-2 text-sm font-semibold text-brand-dark">
-                {flash}
-              </p>
-            ) : null}
-
             <div className="mb-4 grid gap-3 sm:grid-cols-3">
               <Card className="p-4">
                 <p className="text-xs font-semibold uppercase text-muted">In warehouse</p>

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSelector } from 'react-redux'
 import {
-  BadgeCheck,
   Car,
   ExternalLink,
   FileText,
@@ -17,6 +16,7 @@ import {
   Users,
 } from 'lucide-react'
 import { driverService, getDocumentUrl } from '../../services/driverService'
+import { useToast } from '../../context/ToastContext'
 import {
   validateDriverDocument,
   validateDriverProfileField,
@@ -166,6 +166,7 @@ function DocumentUploadCard({
 export default function DriverProfilePage() {
   const { tokens } = useSelector((state) => state.auth)
   const token = tokens?.access?.token
+  const toast = useToast()
 
   const fieldRefs = useRef({})
   const [profile, setProfile] = useState(null)
@@ -176,13 +177,7 @@ export default function DriverProfilePage() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
-  const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
-
-  const showNotice = (msg) => {
-    setNotice(msg)
-    setTimeout(() => setNotice(''), 3500)
-  }
 
   const loadProfile = useCallback(async () => {
     if (!token) return
@@ -304,7 +299,7 @@ export default function DriverProfilePage() {
       setProfile(data)
       setForm(toForm(data))
       setErrors({})
-      showNotice('Profile saved successfully.')
+      toast.success('Profile saved successfully.')
     } catch (err) {
       setError(err.message || 'Failed to update profile')
     } finally {
@@ -321,7 +316,7 @@ export default function DriverProfilePage() {
       const data = await driverService.uploadDocument(token, file, type)
       setProfile(data)
       setForm(toForm(data))
-      showNotice('Document uploaded successfully.')
+      toast.success('Document uploaded successfully.')
     } catch (err) {
       setUploadError(err.message || 'Failed to upload document')
     } finally {
@@ -337,7 +332,7 @@ export default function DriverProfilePage() {
     try {
       const data = await driverService.deleteDocument(token, documentId)
       setProfile(data)
-      showNotice('Document removed.')
+      toast.success('Document removed.')
     } catch (err) {
       setError(err.message || 'Failed to remove document')
     } finally {
@@ -385,13 +380,6 @@ export default function DriverProfilePage() {
           </button>
         }
       />
-
-      {notice ? (
-        <div className="mb-4 flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
-          <BadgeCheck size={18} />
-          {notice}
-        </div>
-      ) : null}
 
       {error ? (
         <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700" role="alert">

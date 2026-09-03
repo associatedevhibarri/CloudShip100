@@ -6,11 +6,12 @@ import { Card } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { DataTable } from '../../components/ui/DataTable'
 import { WarehouseGate, useWarehouse } from '../../hooks/useWarehouse'
+import { useToast } from '../../context/ToastContext'
 
 export default function WarehouseRoutesPage() {
   const { data, loading, error, reload } = useWarehouse()
+  const toast = useToast()
   const routes = data?.routes || []
-  const [note, setNote] = useState('')
   const [busy, setBusy] = useState('')
 
   const run = async (key, work, okMessage) => {
@@ -18,9 +19,9 @@ export default function WarehouseRoutesPage() {
     try {
       await work()
       await reload()
-      setNote(okMessage)
+      toast.success(okMessage)
     } catch (err) {
-      setNote(err.message || 'Route action failed')
+      toast.error(err.message || 'Route action failed')
     } finally {
       setBusy('')
     }
@@ -50,12 +51,6 @@ export default function WarehouseRoutesPage() {
         }
       />
       <WarehouseGate loading={loading} error={error}>
-        {note ? (
-          <p className="mb-4 rounded-xl border border-brand/20 bg-brand-light px-4 py-2 text-sm font-semibold text-brand-dark">
-            {note}
-          </p>
-        ) : null}
-
         <div className="mb-6 grid gap-4 lg:grid-cols-2">
           {routes.map((r) => (
             <Card key={r.id} className="p-5">
@@ -102,11 +97,15 @@ export default function WarehouseRoutesPage() {
               <p className="mt-3 text-xs text-muted">Parcels: {(r.parcelIds || []).join(', ') || 'None yet'}</p>
               <button
                 type="button"
-                disabled={busy === r.id}
+                disabled={busy === r.id || r.optimized}
                 onClick={() => run(r.id, () => api.optimizeRoute(r.id), `Optimised ${r.name}`)}
-                className="mt-4 w-full rounded-full border border-line py-2 text-sm font-bold text-ink disabled:opacity-50"
+                className={`mt-4 w-full rounded-full py-2 text-sm font-bold disabled:opacity-50 ${
+                  r.optimized
+                    ? 'cursor-default border border-emerald-100 bg-emerald-50 text-emerald-800'
+                    : 'border border-line text-ink'
+                }`}
               >
-                Optimise this lane
+                {r.optimized ? 'Optimised' : busy === r.id ? 'Optimising…' : 'Optimise this lane'}
               </button>
             </Card>
           ))}

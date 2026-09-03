@@ -6,14 +6,15 @@ import { Card } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { DataTable } from '../../components/ui/DataTable'
 import { WarehouseGate, useWarehouse } from '../../hooks/useWarehouse'
+import { useToast } from '../../context/ToastContext'
 
 export default function AssignmentPage() {
   const { data, loading, error, reload } = useWarehouse()
+  const toast = useToast()
   const suggestions = data?.suggestions || []
   const parcels = (data?.parcels || []).filter((p) => p.status !== 'expected')
   const registeredDrivers = data?.registeredDrivers || []
   const [fleet, setFleet] = useState('all')
-  const [flash, setFlash] = useState('')
   const [picks, setPicks] = useState({})
   const [busyId, setBusyId] = useState('')
 
@@ -37,12 +38,12 @@ export default function AssignmentPage() {
         : {})
       await reload()
       if (hint) {
-        setFlash(
+        toast.success(
           `Assigned ${parcelId} → ${hint.driver} (${hint.fleetType === 'own' ? 'own fleet' : hint.partner})`,
         )
       }
     } catch (err) {
-      setFlash(err.message || 'Assignment failed')
+      toast.error(err.message || 'Assignment failed')
     } finally {
       setBusyId('')
     }
@@ -51,7 +52,7 @@ export default function AssignmentPage() {
   const assignToDriver = async (parcelId) => {
     const employeeId = picks[parcelId] || registeredDrivers[0]?.employeeId
     if (!employeeId) {
-      setFlash('Register a driver at /login?role=driver first, then assign using their employee ID.')
+      toast.info('Register a driver at /login?role=driver first, then assign using their employee ID.')
       return
     }
     const driver = registeredDrivers.find((d) => d.employeeId === employeeId)
@@ -59,9 +60,9 @@ export default function AssignmentPage() {
     try {
       await api.assignParcel(parcelId, employeeId)
       await reload()
-      setFlash(`Assigned ${parcelId} → ${driver?.name || employeeId} (${employeeId}). Driver portal will show only this driver's parcels.`)
+      toast.success(`Assigned ${parcelId} → ${driver?.name || employeeId} (${employeeId}). Driver portal will show only this driver's parcels.`)
     } catch (err) {
-      setFlash(err.message || 'Assignment failed')
+      toast.error(err.message || 'Assignment failed')
     } finally {
       setBusyId('')
     }
@@ -72,9 +73,9 @@ export default function AssignmentPage() {
     try {
       await api.autoAssignParcels()
       await reload()
-      setFlash('Auto-assigned open parcels to own-fleet drivers first, then 4PL partners.')
+      toast.success('Auto-assigned open parcels to own-fleet drivers first, then 4PL partners.')
     } catch (err) {
-      setFlash(err.message || 'Auto-assign failed')
+      toast.error(err.message || 'Auto-assign failed')
     } finally {
       setBusyId('')
     }
@@ -102,12 +103,6 @@ export default function AssignmentPage() {
         }
       />
       <WarehouseGate loading={loading} error={error}>
-        {flash ? (
-          <p className="mb-4 rounded-xl border border-brand/20 bg-brand-light px-4 py-2 text-sm font-semibold text-brand-dark">
-            {flash}
-          </p>
-        ) : null}
-
         <div className="mb-6">
           <h3 className="mb-3 text-lg font-extrabold">Registered drivers</h3>
           {registeredDrivers.length ? (
