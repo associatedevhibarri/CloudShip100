@@ -61,9 +61,15 @@ export default function WarehouseZonesPage() {
             {
               key: 'radiusM',
               label: 'Radius',
-              render: (r) => (r.radiusM ? `${r.radiusM >= 1000 ? `${r.radiusM / 1000} km` : `${r.radiusM} m`}` : 'Corridor'),
+              render: (r) =>
+                r.radiusM ? `${r.radiusM >= 1000 ? `${r.radiusM / 1000} km` : `${r.radiusM} m`}` : 'Corridor',
             },
             { key: 'rule', label: 'Rule' },
+            {
+              key: 'exclusions',
+              label: 'Exclusions',
+              render: (r) => (r.exclusions?.length ? r.exclusions.join(', ') : 'None'),
+            },
             {
               key: 'active',
               label: 'Active',

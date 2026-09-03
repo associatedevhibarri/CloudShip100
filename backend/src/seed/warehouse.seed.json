@@ -260,6 +260,7 @@
       "type": "dock",
       "radiusM": 40,
       "rule": "Auto-receive on scanner + GPS",
+      "exclusions": [],
       "active": true,
       "lat": -29.8587,
       "lng": 31.0218
@@ -271,6 +272,7 @@
       "type": "staging",
       "radiusM": 80,
       "rule": "Print label before batch close",
+      "exclusions": ["Unlabelled hazardous goods"],
       "active": true,
       "lat": -29.8591,
       "lng": 31.0224
@@ -282,6 +284,7 @@
       "type": "dispatch",
       "radiusM": 60,
       "rule": "Geofence exit starts trip tracking",
+      "exclusions": [],
       "active": true,
       "lat": -29.8579,
       "lng": 31.0209
@@ -293,6 +296,7 @@
       "type": "delivery",
       "radiusM": 1500,
       "rule": "Arrival alert + POD window",
+      "exclusions": ["After-hours drop without appointment"],
       "active": true,
       "lat": -26.234,
       "lng": 28.15
@@ -304,6 +308,7 @@
       "type": "corridor",
       "radiusM": null,
       "rule": "Block dispatch if C-BRTA expired",
+      "exclusions": ["Night transit without escort", "Expired C-BRTA"],
       "active": true,
       "lat": -22.2167,
       "lng": 29.9869

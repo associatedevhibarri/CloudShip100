@@ -54,6 +54,12 @@ router.post(
   warehouseController.optimizeRoute
 );
 router.post(
+  '/zones/evaluate',
+  auth('manageWarehouse'),
+  validate(warehouseValidation.evaluateZones),
+  warehouseController.evaluateZones
+);
+router.post(
   '/zones/:zoneId/toggle',
   auth('manageWarehouse'),
   validate(warehouseValidation.toggleZone),

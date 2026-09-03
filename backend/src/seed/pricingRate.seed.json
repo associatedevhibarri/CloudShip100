@@ -1,0 +1,6 @@
+[
+  { "mode": "Road", "baseFee": 50, "perKm": 1.2, "perKg": 0.5, "active": true },
+  { "mode": "Air", "baseFee": 200, "perKm": 3.5, "perKg": 2, "active": true },
+  { "mode": "Maritime", "baseFee": 150, "perKm": 0.3, "perKg": 0.8, "active": true },
+  { "mode": "Rail", "baseFee": 80, "perKm": 0.6, "perKg": 0.6, "active": true }
+]

@@ -7,6 +7,9 @@ export const geofences = [
     radiusKm: null,
     rule: 'Deliver everywhere',
     exclusions: [],
+    lat: -28.4793,
+    lng: 24.6727,
+    active: true,
   },
   {
     id: 'GEO-02',
@@ -16,6 +19,9 @@ export const geofences = [
     radiusKm: null,
     rule: 'Same-day eligible',
     exclusions: ['Restricted mining zones'],
+    lat: -26.2041,
+    lng: 28.0473,
+    active: true,
   },
   {
     id: 'GEO-03',
@@ -25,6 +31,9 @@ export const geofences = [
     radiusKm: 3,
     rule: 'Auto check-in on entry',
     exclusions: [],
+    lat: -29.8587,
+    lng: 31.0218,
+    active: true,
   },
   {
     id: 'GEO-04',
@@ -34,6 +43,9 @@ export const geofences = [
     radiusKm: 1.5,
     rule: 'Arrival alert',
     exclusions: [],
+    lat: -15.4167,
+    lng: 28.2833,
+    active: true,
   },
   {
     id: 'GEO-05',
@@ -43,6 +55,9 @@ export const geofences = [
     radiusKm: null,
     rule: 'Permit required',
     exclusions: ['Night transit without escort'],
+    lat: -22.4167,
+    lng: 29.9833,
+    active: true,
   },
 ]
 

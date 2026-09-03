@@ -12,6 +12,8 @@ import {
   MapPinned,
   ChartSpline,
   Bell,
+  ClipboardList,
+  Calculator,
   Plane,
   Ship,
   TrainFront,
@@ -77,6 +79,7 @@ export const operatorNav = [
   },
   { label: 'Wallet', path: '/app/wallet', icon: Wallet },
   { label: 'Customers', path: '/app/customers', icon: Building2 },
+  { label: 'Leads', path: '/app/leads', icon: ClipboardList },
   {
     label: 'Expenses',
     icon: Receipt,
@@ -88,6 +91,7 @@ export const operatorNav = [
     ],
   },
   { label: 'Geomapping', path: '/app/geomapping', icon: MapPinned },
+  { label: 'Pricing', path: '/app/pricing', icon: Calculator },
   { label: 'Geo Analytics', path: '/app/geo-analytics', icon: ChartSpline },
   { label: 'Notifications', path: '/app/notifications', icon: Bell },
 ]

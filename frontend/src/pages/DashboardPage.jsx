@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import {
   Area,
   AreaChart,
@@ -18,11 +19,34 @@ import { Card } from '../components/ui/Card'
 import { LogisticsMap } from '../components/map/LogisticsMap'
 import { Logo } from '../components/Logo'
 
+function formatWhen(value) {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleString()
+}
+
 export default function DashboardPage() {
   const kpis = api.getKpis()
   const activity = api.getActivity()
   const lost = api.getLostBookings()
   const mapAssets = api.getMapAssets()
+  const [leads, setLeads] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const rows = await api.getLeads()
+        if (!cancelled) setLeads(Array.isArray(rows) ? rows.slice(0, 5) : [])
+      } catch {
+        if (!cancelled) setLeads([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <div>
@@ -190,6 +214,44 @@ export default function DashboardPage() {
           </ul>
         </Card>
       </div>
+
+      <Card className="mt-4 p-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-extrabold">Recent leads</h2>
+            <p className="text-sm text-muted">From the landing page enquiry form</p>
+          </div>
+          <Link to="/app/leads" className="text-sm font-semibold text-brand hover:underline">
+            View all
+          </Link>
+        </div>
+        {leads.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-line bg-surface px-4 py-6 text-center text-sm text-muted">
+            No leads yet. Submit the Home page form to populate this list.
+          </p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {leads.map((lead) => (
+              <li key={lead.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <p className="font-extrabold text-ink">
+                    {lead.name}
+                    <span className="ml-2 text-sm font-semibold text-muted">· {lead.company}</span>
+                  </p>
+                  <p className="mt-0.5 text-sm text-muted">{lead.email}</p>
+                  <p className="mt-1 line-clamp-1 text-sm text-ink/80">{lead.message}</p>
+                </div>
+                <div className="text-right">
+                  <span className="rounded-full bg-brand-light px-2 py-0.5 text-[10px] font-bold uppercase text-brand">
+                    {lead.status || 'new'}
+                  </span>
+                  <p className="mt-1 text-xs text-muted">{formatWhen(lead.createdAt)}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   )
 }

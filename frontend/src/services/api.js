@@ -147,11 +147,108 @@ export const api = {
     return orders.filter((o) => o.status === status)
   },
   getInvoices: () => invoices,
+  getLeads: async () => {
+    if (!isLiveSession()) return []
+    return apiFetch('/leads')
+  },
+  getPricingRates: async () => {
+    if (!isLiveSession()) {
+      return [
+        { mode: 'Road', baseFee: 50, perKm: 1.2, perKg: 0.5, active: true },
+        { mode: 'Air', baseFee: 200, perKm: 3.5, perKg: 2, active: true },
+        { mode: 'Maritime', baseFee: 150, perKm: 0.3, perKg: 0.8, active: true },
+        { mode: 'Rail', baseFee: 80, perKm: 0.6, perKg: 0.6, active: true },
+      ]
+    }
+    return apiFetch('/pricing/rates')
+  },
+  savePricingRates: async (body) => {
+    if (!isLiveSession()) return body.rates || []
+    return apiFetch('/pricing/rates', { method: 'PUT', body: JSON.stringify(body) })
+  },
   getFuelLogs: () => fuelLogs,
   getYardFees: () => yardFees,
   getAirportFees: () => airportFees,
   getSalaries: () => salaries,
-  getGeofences: () => geofences,
+  getGeofences: async () => {
+    if (!isLiveSession()) return geofences.map((g) => ({ ...g, exclusions: [...(g.exclusions || [])] }))
+    try {
+      return await apiFetch('/geofences')
+    } catch {
+      return geofences.map((g) => ({ ...g, exclusions: [...(g.exclusions || [])] }))
+    }
+  },
+  createGeofence: async (body) => {
+    if (!isLiveSession()) {
+      const row = {
+        id: `GEO-L-${Date.now()}`,
+        exclusions: [],
+        active: true,
+        radiusKm: null,
+        lat: null,
+        lng: null,
+        ...body,
+      }
+      geofences.push(row)
+      return { ...row }
+    }
+    return apiFetch('/geofences', { method: 'POST', body: JSON.stringify(body) })
+  },
+  deleteGeofence: async (id) => {
+    if (!isLiveSession()) {
+      const idx = geofences.findIndex((g) => g.id === id)
+      if (idx >= 0) geofences.splice(idx, 1)
+      return null
+    }
+    return apiFetch(`/geofences/${id}`, { method: 'DELETE' })
+  },
+  evaluateGeofence: async ({ lat, lng }) => {
+    if (!isLiveSession()) {
+      const toRad = (d) => (d * Math.PI) / 180
+      const dist = (aLat, aLng, bLat, bLng) => {
+        const dLat = toRad(bLat - aLat)
+        const dLng = toRad(bLng - aLng)
+        const x =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2
+        return 2 * 6371 * Math.asin(Math.sqrt(x))
+      }
+      const matchedRules = []
+      const exclusions = new Set()
+      const exceptions = []
+      for (const rule of geofences) {
+        if (rule.active === false) continue
+        if (rule.scope === 'radius' && rule.lat != null && rule.lng != null && rule.radiusKm != null) {
+          const distanceKm = dist(lat, lng, rule.lat, rule.lng)
+          if (distanceKm <= rule.radiusKm) {
+            matchedRules.push({ ...rule, distanceKm: Math.round(distanceKm * 1000) / 1000, inside: true })
+            ;(rule.exclusions || []).forEach((e) => {
+              exclusions.add(e)
+              exceptions.push({ ruleId: rule.id, exclusion: e, rule: rule.rule })
+            })
+          }
+        } else if (rule.lat != null && rule.lng != null) {
+          const distanceKm = dist(lat, lng, rule.lat, rule.lng)
+          if (distanceKm <= 100) {
+            matchedRules.push({ ...rule, distanceKm: Math.round(distanceKm * 1000) / 1000, inside: true })
+            ;(rule.exclusions || []).forEach((e) => {
+              exclusions.add(e)
+              exceptions.push({ ruleId: rule.id, exclusion: e, rule: rule.rule })
+            })
+          }
+        }
+      }
+      return {
+        lat,
+        lng,
+        matchedRules,
+        exclusions: [...exclusions],
+        exceptions,
+        allowed: exceptions.length === 0,
+      }
+    }
+    return apiFetch('/geofences/evaluate', { method: 'POST', body: JSON.stringify({ lat, lng }) })
+  },
   getRouteOptimization: () => routeOptimization,
   getWeatherAnalytics: () => weatherAnalytics,
   getMapAssets: () => mapAssets,

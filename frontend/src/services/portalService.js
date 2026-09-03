@@ -31,4 +31,5 @@ export const portalService = {
   getMyNotifications: (token) => request('/notifications/mine', { token }),
   getPromotions: (token) => request('/promotions', { token }),
   getQuote: (body) => request('/pricing/quote', { method: 'POST', body }),
+  submitLead: (body) => request('/leads', { method: 'POST', body }),
 }

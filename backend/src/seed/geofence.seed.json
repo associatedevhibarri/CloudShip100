@@ -1,0 +1,62 @@
+[
+  {
+    "id": "GEO-01",
+    "name": "South Africa Coverage",
+    "scope": "country",
+    "region": "South Africa",
+    "radiusKm": null,
+    "rule": "Deliver everywhere",
+    "exclusions": [],
+    "lat": -28.4793,
+    "lng": 24.6727,
+    "active": true
+  },
+  {
+    "id": "GEO-02",
+    "name": "Gauteng Priority",
+    "scope": "province",
+    "region": "Gauteng",
+    "radiusKm": null,
+    "rule": "Same-day eligible",
+    "exclusions": ["Restricted mining zones"],
+    "lat": -26.2041,
+    "lng": 28.0473,
+    "active": true
+  },
+  {
+    "id": "GEO-03",
+    "name": "Durban Yard Geofence",
+    "scope": "radius",
+    "region": "Durban Central Yard",
+    "radiusKm": 3,
+    "rule": "Auto check-in on entry",
+    "exclusions": [],
+    "lat": -29.8587,
+    "lng": 31.0218,
+    "active": true
+  },
+  {
+    "id": "GEO-04",
+    "name": "Customer Site — AfriMetals",
+    "scope": "radius",
+    "region": "Lusaka Industrial",
+    "radiusKm": 1.5,
+    "rule": "Arrival alert",
+    "exclusions": [],
+    "lat": -15.4167,
+    "lng": 28.2833,
+    "active": true
+  },
+  {
+    "id": "GEO-05",
+    "name": "Restricted Border Corridor",
+    "scope": "province",
+    "region": "Limpopo border strip",
+    "radiusKm": null,
+    "rule": "Permit required",
+    "exclusions": ["Night transit without escort"],
+    "lat": -22.4167,
+    "lng": 29.9833,
+    "active": true
+  }
+]
