@@ -416,6 +416,11 @@ export default function DriverProfilePage() {
                 <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-brand shadow-sm ring-1 ring-brand/10">
                   {profile.employeeId || 'ID pending'}
                 </span>
+                {profile.employeeId ? (
+                  <span className="text-xs font-semibold text-muted">
+                    Share this ID with warehouse for parcel assignment
+                  </span>
+                ) : null}
                 <StatusBadge status={docStatusBadge(profile.idDocumentStatus)} />
               </div>
             </div>

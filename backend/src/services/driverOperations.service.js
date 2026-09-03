@@ -65,172 +65,41 @@ const getDriverProfile = async (user) => {
   return profile;
 };
 
-const ensureDriverSeedData = async (profile) => {
-  const [existingTrips, existingParcels] = await Promise.all([
-    Trip.countDocuments({ driverProfile: profile.id }),
-    Parcel.countDocuments({ driverProfile: profile.id }),
-  ]);
-  if (existingTrips > 0 || existingParcels > 0) return;
+const DRIVER_TO_TRIP_STATUS = {
+  assigned: 'starting_soon',
+  picked_up: 'in_progress',
+  in_transit: 'in_progress',
+  delivered: 'completed',
+};
 
-  if (!profile.assignedVehicle) {
-    profile.assignedVehicle = 'XYX 767 GP';
-    await profile.save();
+const syncTripFromParcelStatus = async (parcel, status) => {
+  const tripId = parcel.trip?.id || parcel.trip;
+  if (!tripId) return;
+
+  const trip = parcel.trip?.code ? parcel.trip : await Trip.findById(tripId);
+  if (!trip || trip.status === 'completed') return;
+
+  if (status === 'delivered') {
+    const remaining = await Parcel.countDocuments({
+      trip: trip.id,
+      _id: { $ne: parcel.id },
+      status: { $ne: 'delivered' },
+    });
+    if (remaining === 0) {
+      trip.status = 'completed';
+      trip.endAt = new Date();
+      await trip.save();
+    }
+    return;
   }
 
-  const activeTrip = await Trip.create({
-    code: 'TRP-1001',
-    driverProfile: profile.id,
-    vehicle: profile.assignedVehicle,
-    cargo: 'Steel coils — 34 Tons',
-    pickup: '8 Merr Road, Durban, SA',
-    dropoff: '71 Shika Uwada, Lusaka, Zambia',
-    status: 'in_progress',
-    distanceKm: 4781,
-    eta: new Date('2026-08-28T14:00:00'),
-    startAt: new Date('2026-08-24T06:00:00'),
-    endAt: new Date('2026-08-28T18:00:00'),
-    mode: 'road',
-    onTime: true,
-  });
-
-  const completedTrip1 = await Trip.create({
-    code: 'TRP-1009',
-    driverProfile: profile.id,
-    vehicle: profile.assignedVehicle,
-    cargo: 'Mining spare parts — 12 Tons',
-    pickup: 'Johannesburg Yard',
-    dropoff: 'Rustenburg Depot',
-    status: 'completed',
-    distanceKm: 180,
-    endAt: new Date('2026-08-20T15:45:00'),
-    startAt: new Date('2026-08-20T08:00:00'),
-    mode: 'road',
-    onTime: true,
-  });
-
-  const completedTrip2 = await Trip.create({
-    code: 'TRP-1010',
-    driverProfile: profile.id,
-    vehicle: profile.assignedVehicle,
-    cargo: 'Pharma pallets — 8 Tons',
-    pickup: 'Cape Town Port',
-    dropoff: 'Bloemfontein Clinic Hub',
-    status: 'completed',
-    distanceKm: 990,
-    endAt: new Date('2026-08-15T13:30:00'),
-    startAt: new Date('2026-08-14T06:00:00'),
-    mode: 'road',
-    onTime: true,
-  });
-
-  const parcelDefs = [
-    {
-      code: 'PRATIK1',
-      trip: activeTrip.id,
-      status: 'in_transit',
-      weight: '100 kg',
-      cargo: '100kg rice — AfriMetals order',
-      pickup: 'Vasanth Warehouse, Durban',
-      dropoff: 'Pratik Mane, Johannesburg',
-      recipientName: 'Pratik Mane',
-      recipientPhone: '+27 82 441 2201',
-      clientName: 'AfriMetals Pty',
-      clientOrderId: 'ORD-8801',
-      barcode: 'CS-PRATIK1-2026',
-      instructions: 'Call recipient 30 min before arrival. Gate code: 4421.',
-    },
-    {
-      code: 'DEEPAK2',
-      trip: activeTrip.id,
-      status: 'assigned',
-      weight: '45 kg',
-      cargo: 'Electronics accessories',
-      pickup: 'Durban Hub, Zone B',
-      dropoff: 'Deepak Singh, Pietermaritzburg',
-      recipientName: 'Deepak Singh',
-      recipientPhone: '+27 71 882 1093',
-      clientName: 'Zambezi Retail Group',
-      clientOrderId: 'ORD-8802',
-      barcode: 'CS-DEEPAK2-2026',
-      instructions: 'Same zone as PRATIK1 — bundled delivery.',
-    },
-    {
-      code: 'PKG-8803',
-      trip: activeTrip.id,
-      status: 'picked_up',
-      weight: '34 Tons',
-      cargo: 'Steel coils',
-      pickup: '8 Merr Road, Durban, SA',
-      dropoff: '71 Shika Uwada, Lusaka, Zambia',
-      recipientName: 'Lebo Khumalo',
-      recipientPhone: '+27 11 555 0101',
-      clientName: 'AfriMetals Pty',
-      clientOrderId: 'ORD-8803',
-      barcode: 'CS-PKG8803-2026',
-      instructions: 'Cross-border docs verified. Hazmat certified driver required.',
-    },
-    {
-      code: 'PKG-8804',
-      trip: completedTrip1.id,
-      status: 'delivered',
-      weight: '12 Tons',
-      cargo: 'Mining spare parts',
-      pickup: 'Johannesburg Yard',
-      dropoff: 'Rustenburg Depot',
-      recipientName: 'Johan Steyn',
-      recipientPhone: '+27 83 220 7711',
-      clientName: 'AfriMetals Pty',
-      clientOrderId: 'ORD-8804',
-      barcode: 'CS-PKG8804-2026',
-      instructions: 'Delivered 2026-08-20. POD signed.',
-    },
-    {
-      code: 'PKG-8805',
-      trip: completedTrip2.id,
-      status: 'delivered',
-      weight: '8 Tons',
-      cargo: 'Pharma pallets',
-      pickup: 'Cape Town Port',
-      dropoff: 'Bloemfontein Clinic Hub',
-      recipientName: 'Dr. Naledi Mokoena',
-      recipientPhone: '+27 51 555 0199',
-      clientName: 'Cape Pharma Distributors',
-      clientOrderId: 'ORD-8805',
-      barcode: 'CS-PKG8805-2026',
-      instructions: 'Cold chain maintained. Delivered on time.',
-    },
-  ];
-
-  await Parcel.insertMany(
-    parcelDefs.map((parcel) => ({
-      ...parcel,
-      driverProfile: profile.id,
-    }))
-  );
-
-  await DamageLog.create({
-    code: 'DMG-001',
-    driverProfile: profile.id,
-    parcel: (await Parcel.findOne({ code: 'PKG-8804', driverProfile: profile.id }))?.id,
-    trip: completedTrip1.id,
-    severity: 'minor',
-    description: 'Outer carton dented during yard loading. Contents intact.',
-    location: 'Johannesburg Yard, Bay 3',
-    reportedAt: new Date('2026-08-20T09:15:00'),
-    status: 'resolved',
-  });
-
-  await DamageLog.create({
-    code: 'DMG-002',
-    driverProfile: profile.id,
-    parcel: (await Parcel.findOne({ code: 'PRATIK1', driverProfile: profile.id }))?.id,
-    trip: activeTrip.id,
-    severity: 'minor',
-    description: 'Pallet wrap torn — re-wrapped at checkpoint.',
-    location: 'N3 Highway Rest Stop, Harrismith',
-    reportedAt: new Date('2026-08-25T14:30:00'),
-    status: 'open',
-  });
+  const nextStatus = DRIVER_TO_TRIP_STATUS[status];
+  if (!nextStatus) return;
+  trip.status = nextStatus;
+  if (status === 'picked_up' || status === 'in_transit') {
+    trip.startAt = trip.startAt || new Date();
+  }
+  await trip.save();
 };
 
 const getParcelCodesForTrip = async (tripId) => {
@@ -254,7 +123,6 @@ const filterTripsByBucket = (trips, bucket) => {
 
 const getMyTrips = async (user, bucket) => {
   const profile = await getDriverProfile(user);
-  await ensureDriverSeedData(profile);
 
   const trips = await Trip.find({ driverProfile: profile.id }).sort({ startAt: -1 });
   const filtered = filterTripsByBucket(trips, bucket);
@@ -271,7 +139,6 @@ const getMyTrips = async (user, bucket) => {
 
 const getMyParcels = async (user, status) => {
   const profile = await getDriverProfile(user);
-  await ensureDriverSeedData(profile);
 
   const query = { driverProfile: profile.id };
   if (status) query.status = status;
@@ -290,6 +157,7 @@ const updateMyParcelStatus = async (user, parcelCode, status) => {
 
   parcel.status = status;
   await parcel.save();
+  await syncTripFromParcelStatus(parcel, status);
   await bookingSyncService.syncBookingFromParcelStatus(parcel.clientOrderId, status);
 
   return formatParcel(parcel.toJSON());
@@ -297,7 +165,6 @@ const updateMyParcelStatus = async (user, parcelCode, status) => {
 
 const getMyDamageLogs = async (user) => {
   const profile = await getDriverProfile(user);
-  await ensureDriverSeedData(profile);
 
   const logs = await DamageLog.find({ driverProfile: profile.id })
     .populate('parcel')
@@ -348,7 +215,6 @@ const createDamageLog = async (user, body, file) => {
 
 const getMyHistory = async (user) => {
   const profile = await getDriverProfile(user);
-  await ensureDriverSeedData(profile);
 
   const completedTrips = await Trip.find({ driverProfile: profile.id, status: 'completed' }).sort({ endAt: -1 });
   const deliveredParcels = await Parcel.find({ driverProfile: profile.id, status: 'delivered' }).populate('trip');
@@ -373,7 +239,6 @@ const getMyHistory = async (user) => {
 
 const getMyDashboard = async (user) => {
   const profile = await getDriverProfile(user);
-  await ensureDriverSeedData(profile);
 
   const tripsRaw = await Trip.find({ driverProfile: profile.id }).sort({ startAt: -1 });
   const formattedTrips = await Promise.all(
