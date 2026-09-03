@@ -113,7 +113,19 @@ export default function DriverParcelsPage() {
             </Card>
           ))
         ) : (
-          <Card className="p-5 text-sm text-muted">No parcels in this filter.</Card>
+          <Card className="p-5 text-sm text-muted">
+            {filter === 'all' && !parcels.length ? (
+              <div className="space-y-2">
+                <p className="font-semibold text-ink">No parcels assigned yet.</p>
+                <p>
+                  Warehouse assigns parcels to your employee ID after receiving and labelling. Tap Refresh after
+                  assignment.
+                </p>
+              </div>
+            ) : (
+              'No parcels in this filter.'
+            )}
+          </Card>
         )}
       </div>
 
@@ -170,6 +182,16 @@ export default function DriverParcelsPage() {
                   onClick={() => updateStatus(selected.id, 'picked_up')}
                 >
                   Mark picked up
+                </button>
+              ) : null}
+              {selected.status === 'picked_up' ? (
+                <button
+                  type="button"
+                  disabled={updating}
+                  className="rounded-full border border-brand px-4 py-2 text-sm font-bold text-brand disabled:opacity-50"
+                  onClick={() => updateStatus(selected.id, 'in_transit')}
+                >
+                  Mark in transit
                 </button>
               ) : null}
               {['picked_up', 'in_transit', 'assigned'].includes(selected.status) ? (

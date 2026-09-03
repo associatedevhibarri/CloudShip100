@@ -10,7 +10,7 @@ const {
   WarehouseMapAsset,
 } = require('../models/warehouse.model');
 const mongoose = require('mongoose');
-const { DriverProfile, Parcel: DriverParcel, Booking } = require('../models');
+const { DriverProfile, Parcel: DriverParcel, Booking, Trip } = require('../models');
 const ApiError = require('../utils/ApiError');
 const httpStatus = require('http-status');
 const bookingSyncService = require('./bookingSync.service');
@@ -191,10 +191,61 @@ const listRegisteredDrivers = async () => {
     });
 };
 
+const toTripMode = (mode) => {
+  const value = String(mode || 'road').toLowerCase();
+  return ['road', 'air', 'maritime', 'rail'].includes(value) ? value : 'road';
+};
+
+const nextTripCode = async (profileId) => {
+  const count = await Trip.countDocuments({ driverProfile: profileId });
+  return `TRP-${String(count + 1).padStart(4, '0')}`;
+};
+
+const syncDriverPortalTrip = async (warehouseParcel, profile) => {
+  const wp = warehouseParcel.toObject ? warehouseParcel.toObject() : warehouseParcel;
+  const orderId = wp.orderId || '';
+  const pickup = wp.pickup || wp.warehouse || 'Warehouse';
+  const dropoff = wp.dropoff || 'Destination';
+
+  let trip = orderId ? await Trip.findOne({ driverProfile: profile._id, clientOrderId: orderId }) : null;
+  if (!trip) {
+    trip = await Trip.findOne({
+      driverProfile: profile._id,
+      pickup,
+      dropoff,
+      status: { $in: ['starting_soon', 'in_progress'] },
+    });
+  }
+  if (trip) return trip;
+
+  const booking = orderId ? await Booking.findOne({ code: orderId }) : null;
+  return Trip.create({
+    code: await nextTripCode(profile._id),
+    driverProfile: profile._id,
+    vehicle: profile.assignedVehicle || wp.truck || '',
+    cargo: wp.cargo || 'Cargo',
+    pickup,
+    dropoff,
+    status: 'starting_soon',
+    distanceKm: booking?.distanceKm || 0,
+    eta: booking?.durationMinutes ? new Date(Date.now() + booking.durationMinutes * 60000) : undefined,
+    startAt: new Date(),
+    mode: toTripMode(wp.mode || booking?.mode),
+    clientOrderId: orderId,
+  });
+};
+
 const syncDriverPortalParcel = async (warehouseParcel, profile) => {
   const wp = warehouseParcel.toObject ? warehouseParcel.toObject() : warehouseParcel;
+  if (!profile.assignedVehicle && wp.truck && wp.truck !== '—') {
+    profile.assignedVehicle = wp.truck;
+    await profile.save();
+  }
+
+  const trip = await syncDriverPortalTrip(warehouseParcel, profile);
   const payload = {
     driverProfile: profile._id,
+    trip: trip.id,
     status: 'assigned',
     cargo: wp.cargo || 'Cargo',
     pickup: wp.pickup || wp.warehouse || 'Warehouse',
@@ -301,6 +352,27 @@ const syncDriverPortalStatus = async (parcel, status) => {
   existing.status = status;
   if (parcel.labelCode) existing.barcode = parcel.labelCode;
   await existing.save();
+
+  if (!existing.trip) return;
+  const trip = await Trip.findById(existing.trip);
+  if (!trip || trip.status === 'completed') return;
+  if (status === 'in_transit' || status === 'picked_up') {
+    trip.status = 'in_progress';
+    trip.startAt = trip.startAt || new Date();
+    await trip.save();
+  }
+  if (status === 'delivered') {
+    const remaining = await DriverParcel.countDocuments({
+      trip: trip.id,
+      _id: { $ne: existing.id },
+      status: { $ne: 'delivered' },
+    });
+    if (remaining === 0) {
+      trip.status = 'completed';
+      trip.endAt = new Date();
+      await trip.save();
+    }
+  }
 };
 
 const receiveParcel = async (parcelCode) => {

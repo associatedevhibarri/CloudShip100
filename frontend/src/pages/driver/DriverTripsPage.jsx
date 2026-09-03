@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Phone, Package, Route, Navigation } from 'lucide-react'
 import { useDriverData } from '../../hooks/useDriverData'
 import { PageHeader } from '../../components/ui/PageHeader'
@@ -37,10 +38,8 @@ export default function DriverTripsPage() {
 
   const bundledHint = useMemo(() => {
     const active = activeTrips[0]
-    if (!active?.parcelIds?.length) return null
-    const bundled = active.parcelIds.filter((id) => id.startsWith('PRATIK') || id.startsWith('DEEPAK'))
-    if (bundled.length >= 2) return `${bundled.length} parcels bundled — ${bundled.join(' + ')} same zone`
-    return null
+    if (!active?.parcelIds || active.parcelIds.length < 2) return null
+    return `${active.parcelIds.length} parcels on this trip — ${active.parcelIds.join(' + ')}`
   }, [activeTrips])
 
   const selectedParcels = selected
@@ -73,7 +72,20 @@ export default function DriverTripsPage() {
 
       {bundledHint ? (
         <Card className="mb-4 border-brand/20 bg-brand-light/30 p-4">
-          <p className="text-sm font-semibold text-brand-dark">Route optimization: {bundledHint}</p>
+          <p className="text-sm font-semibold text-brand-dark">Route: {bundledHint}</p>
+        </Card>
+      ) : null}
+
+      {!activeTrips.length && !upcomingTrips.length && parcels.length ? (
+        <Card className="mb-4 border-brand/20 bg-brand-light/30 p-4 text-sm">
+          <p className="font-semibold text-ink">Warehouse-assigned parcels are ready.</p>
+          <p className="mt-1 text-muted">
+            Open{' '}
+            <Link to="/driver/parcels" className="font-bold text-brand underline">
+              Parcels
+            </Link>{' '}
+            to view pickup details and update delivery status.
+          </p>
         </Card>
       ) : null}
 
@@ -141,7 +153,16 @@ export default function DriverTripsPage() {
                 <Navigation size={16} className="mt-0.5 shrink-0 text-brand" />
                 <div>
                   <p className="font-semibold">Navigation</p>
-                  <p className="text-muted">Start navigation (demo placeholder)</p>
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+                      selected.pickup,
+                    )}&destination=${encodeURIComponent(selected.dropoff)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-brand underline"
+                  >
+                    Open route in Google Maps
+                  </a>
                 </div>
               </div>
               {selectedParcels.length ? (

@@ -46,7 +46,16 @@ const syncBookingFromParcelStatus = async (clientOrderId, driverParcelStatus) =>
   booking.status = STATUS_TO_BOOKING_STATUS[driverParcelStatus] || booking.status;
   await booking.save();
 
-  await WarehouseParcel.findOneAndUpdate({ orderId: clientOrderId }, { status: driverParcelStatus });
+  const warehouseStatus = {
+    assigned: 'assigned',
+    picked_up: 'dispatched',
+    in_transit: 'dispatched',
+    delivered: 'delivered',
+  }[driverParcelStatus];
+
+  if (warehouseStatus) {
+    await WarehouseParcel.findOneAndUpdate({ orderId: clientOrderId }, { status: warehouseStatus });
+  }
 };
 
 module.exports = {
