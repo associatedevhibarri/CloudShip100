@@ -51,10 +51,7 @@ if (config.env === 'production') {
   app.use('/v1/auth', authLimiter);
 }
 
-// uploaded driver documents
-app.use('/v1/uploads/drivers', express.static(path.join(__dirname, '../uploads/drivers')));
-
-// uploaded damage-log photos
+// uploaded damage-log photos (legacy local; new driver damage photos use Cloudinary)
 app.use('/v1/uploads/damage-logs', express.static(path.join(__dirname, '../uploads/damage-logs')));
 
 // v1 api routes

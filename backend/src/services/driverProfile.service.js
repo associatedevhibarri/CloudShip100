@@ -1,9 +1,8 @@
 const httpStatus = require('http-status');
-const fs = require('fs');
-const path = require('path');
 const { DriverProfile } = require('../models');
 const ApiError = require('../utils/ApiError');
 const { getProfileCompleteness } = require('../utils/driverProfileCompleteness');
+const cloudinaryService = require('./cloudinary.service');
 
 const formatProfileResponse = (profile, user) => {
   const plain = profile.toJSON();
@@ -59,15 +58,27 @@ const addDocument = async (user, file, type) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Driver profile not found');
   }
 
+  if (!file?.buffer) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Document file is required');
+  }
+
+  const existing = profile.documents.filter((doc) => doc.type === type);
+  await Promise.all(existing.map((doc) => cloudinaryService.destroy(doc.filename)));
+
+  const uploaded = await cloudinaryService.uploadBuffer(file.buffer, {
+    folder: cloudinaryService.FOLDERS.drivers,
+    resourceType: 'auto',
+  });
+
   profile.documents = profile.documents.filter((doc) => doc.type !== type);
 
   profile.documents.push({
     type,
-    filename: file.filename,
+    filename: uploaded.publicId,
     originalName: file.originalname,
     mimeType: file.mimetype,
-    size: file.size,
-    url: `/v1/uploads/drivers/${file.filename}`,
+    size: uploaded.bytes || file.size,
+    url: uploaded.url,
     status: 'pending',
   });
 
@@ -91,10 +102,7 @@ const deleteDocument = async (user, documentId) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Document not found');
   }
 
-  const filePath = path.join(__dirname, '../../uploads/drivers', document.filename);
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
+  await cloudinaryService.destroy(document.filename);
 
   profile.documents.pull(documentId);
   await profile.save();

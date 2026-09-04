@@ -1,7 +1,8 @@
 const httpStatus = require('http-status');
 const { DriverProfile, Trip, Parcel, DamageLog } = require('../models');
 const ApiError = require('../utils/ApiError');
-const { driverProfileService } = require('./driverProfile.service');
+const driverProfileService = require('./driverProfile.service');
+const cloudinaryService = require('./cloudinary.service');
 const bookingSyncService = require('./bookingSync.service');
 
 const formatTrip = (trip, parcelCodes = []) => ({
@@ -189,6 +190,18 @@ const createDamageLog = async (user, body, file) => {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid trip for this driver');
   }
 
+  let photoFields = {};
+  if (file?.buffer) {
+    const uploaded = await cloudinaryService.uploadBuffer(file.buffer, {
+      folder: cloudinaryService.FOLDERS.damageLogs,
+      resourceType: 'image',
+    });
+    photoFields = {
+      photoUrl: uploaded.url,
+      photoFilename: uploaded.publicId,
+    };
+  }
+
   const count = await DamageLog.countDocuments({ driverProfile: profile.id });
   const log = await DamageLog.create({
     code: `DMG-${String(count + 1).padStart(3, '0')}`,
@@ -200,12 +213,7 @@ const createDamageLog = async (user, body, file) => {
     location: body.location || 'Current location',
     status: 'open',
     reportedAt: new Date(),
-    ...(file
-      ? {
-          photoUrl: `/v1/uploads/damage-logs/${file.filename}`,
-          photoFilename: file.filename,
-        }
-      : {}),
+    ...photoFields,
   });
 
   await log.populate('parcel');
