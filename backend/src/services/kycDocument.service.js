@@ -1,4 +1,7 @@
+const httpStatus = require('http-status');
 const { KycDocument, Notification } = require('../models');
+const ApiError = require('../utils/ApiError');
+const cloudinaryService = require('./cloudinary.service');
 
 const RENEWAL_WINDOW_DAYS = 30;
 
@@ -67,22 +70,31 @@ const queryDocumentsByCompany = async (companyId) => {
 };
 
 /**
- * Store a newly uploaded compliance document and run it through automated classification.
+ * Store a newly uploaded compliance document on Cloudinary and run automated classification.
  * @param {ObjectId} companyId
  * @param {Object} body - { type, expiresAt? }
  * @param {Express.Multer.File} file
  * @returns {Promise<KycDocument>}
  */
 const createDocument = async (companyId, body, file) => {
+  if (!file?.buffer) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Document file is required');
+  }
+
+  const uploaded = await cloudinaryService.uploadBuffer(file.buffer, {
+    folder: cloudinaryService.FOLDERS.kycDocuments,
+    resourceType: 'auto',
+  });
+
   const expiresAt = body.expiresAt || null;
   const status = computeStatus(expiresAt);
   const doc = await KycDocument.create({
     company: companyId,
     type: body.type,
     fileName: file.originalname,
-    fileUrl: `/v1/uploads/kyc-documents/${file.filename}`,
+    fileUrl: uploaded.url,
     mimeType: file.mimetype,
-    size: file.size,
+    size: uploaded.bytes || file.size,
     expiresAt,
     status,
   });

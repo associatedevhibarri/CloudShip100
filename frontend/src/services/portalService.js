@@ -36,5 +36,9 @@ export const portalService = {
   createPromotion: (token, body) => request('/promotions', { token, method: 'POST', body }),
   getQuote: (body) => request('/pricing/quote', { method: 'POST', body }),
   submitLead: (body) => request('/leads', { method: 'POST', body }),
-  resolveFileUrl: (relativeUrl) => (relativeUrl ? `${API_ORIGIN}${relativeUrl}` : null),
+  resolveFileUrl: (fileUrl) => {
+    if (!fileUrl) return null
+    if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) return fileUrl
+    return `${API_ORIGIN}${fileUrl}`
+  },
 }
