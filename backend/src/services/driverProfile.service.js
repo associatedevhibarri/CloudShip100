@@ -22,11 +22,12 @@ const generateEmployeeId = async () => {
 };
 
 const getOrCreateProfileByUserId = async (user) => {
-  let profile = await DriverProfile.findOne({ user: user.id });
+  const userId = user.id || user._id;
+  let profile = await DriverProfile.findOne({ user: userId });
 
   if (!profile) {
     profile = await DriverProfile.create({
-      user: user.id,
+      user: userId,
       employeeId: await generateEmployeeId(),
     });
   }
@@ -35,11 +36,12 @@ const getOrCreateProfileByUserId = async (user) => {
 };
 
 const updateProfileByUserId = async (user, updateBody) => {
-  let profile = await DriverProfile.findOne({ user: user.id });
+  const userId = user.id || user._id;
+  let profile = await DriverProfile.findOne({ user: userId });
 
   if (!profile) {
     profile = await DriverProfile.create({
-      user: user.id,
+      user: userId,
       employeeId: await generateEmployeeId(),
       ...updateBody,
     });
@@ -52,7 +54,8 @@ const updateProfileByUserId = async (user, updateBody) => {
 };
 
 const addDocument = async (user, file, type) => {
-  const profile = await DriverProfile.findOne({ user: user.id });
+  const userId = user.id || user._id;
+  const profile = await DriverProfile.findOne({ user: userId });
 
   if (!profile) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Driver profile not found');
@@ -91,7 +94,8 @@ const addDocument = async (user, file, type) => {
 };
 
 const deleteDocument = async (user, documentId) => {
-  const profile = await DriverProfile.findOne({ user: user.id });
+  const userId = user.id || user._id;
+  const profile = await DriverProfile.findOne({ user: userId });
 
   if (!profile) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Driver profile not found');
@@ -116,3 +120,7 @@ module.exports = {
   addDocument,
   deleteDocument,
 };
+
+// Support both: require('./driverProfile.service') and { driverProfileService } = require(...)
+module.exports.driverProfileService = module.exports;
+

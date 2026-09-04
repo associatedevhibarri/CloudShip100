@@ -2,7 +2,6 @@ const httpStatus = require('http-status');
 const { DriverProfile, Trip, Parcel, DamageLog } = require('../models');
 const ApiError = require('../utils/ApiError');
 const driverProfileService = require('./driverProfile.service');
-const cloudinaryService = require('./cloudinary.service');
 const bookingSyncService = require('./bookingSync.service');
 
 const formatTrip = (trip, parcelCodes = []) => ({
@@ -54,11 +53,14 @@ const formatDamageLog = (log) => ({
   photoUrl: log.photoUrl || null,
 });
 
+const getUserId = (user) => user.id || user._id;
+
 const getDriverProfile = async (user) => {
-  let profile = await DriverProfile.findOne({ user: user.id });
+  const userId = getUserId(user);
+  let profile = await DriverProfile.findOne({ user: userId });
   if (!profile) {
     await driverProfileService.getOrCreateProfileByUserId(user);
-    profile = await DriverProfile.findOne({ user: user.id });
+    profile = await DriverProfile.findOne({ user: userId });
   }
   if (!profile) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Driver profile not found');
@@ -192,6 +194,7 @@ const createDamageLog = async (user, body, file) => {
 
   let photoFields = {};
   if (file?.buffer) {
+    const cloudinaryService = require('./cloudinary.service');
     const uploaded = await cloudinaryService.uploadBuffer(file.buffer, {
       folder: cloudinaryService.FOLDERS.damageLogs,
       resourceType: 'image',
