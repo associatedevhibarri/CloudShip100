@@ -13,6 +13,7 @@ import {
   ChartSpline,
   Bell,
   ClipboardList,
+  Megaphone,
   Calculator,
   Plane,
   Ship,
@@ -94,6 +95,7 @@ export const operatorNav = [
   { label: 'Pricing', path: '/app/pricing', icon: Calculator },
   { label: 'Geo Analytics', path: '/app/geo-analytics', icon: ChartSpline },
   { label: 'Notifications', path: '/app/notifications', icon: Bell },
+  { label: 'Promotions', path: '/app/promotions', icon: Megaphone },
 ]
 
 export const customerNav = [

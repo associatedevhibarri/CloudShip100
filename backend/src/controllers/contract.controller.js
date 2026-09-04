@@ -7,6 +7,13 @@ const getMyContracts = catchAsync(async (req, res) => {
   res.send(contracts);
 });
 
+const signMyContract = catchAsync(async (req, res) => {
+  const company = await companyService.getOrCreateCompanyForUser(req.user);
+  const contract = await contractService.signContract(company.id, req.params.contractId);
+  res.send(contract);
+});
+
 module.exports = {
   getMyContracts,
+  signMyContract,
 };
