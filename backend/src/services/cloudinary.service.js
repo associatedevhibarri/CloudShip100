@@ -6,6 +6,7 @@ const ApiError = require('../utils/ApiError');
 const FOLDERS = {
   drivers: 'cloudship/drivers',
   damageLogs: 'cloudship/damage-logs',
+  kycDocuments: 'cloudship/kyc-documents',
 };
 
 let configured = false;
