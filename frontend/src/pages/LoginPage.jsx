@@ -89,7 +89,7 @@ export default function LoginPage() {
           <div className="mb-6 flex border-b border-line">
             <button
               type="button"
-              onClick={() => { setMode('login'); setErrorMsg(''); }}
+              onClick={() => setMode('login')}
               className={`pb-3 text-sm font-bold transition-colors ${
                 mode === 'login'
                   ? 'border-b-2 border-brand text-brand'
@@ -100,7 +100,7 @@ export default function LoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => { setMode('register'); setErrorMsg(''); }}
+              onClick={() => setMode('register')}
               className={`ml-6 pb-3 text-sm font-bold transition-colors ${
                 mode === 'register'
                   ? 'border-b-2 border-brand text-brand'
@@ -230,33 +230,6 @@ export default function LoginPage() {
                 : 'Create Account'}
             </button>
           </form>
-
-          {mode === 'login' ? (
-            <button
-              type="button"
-              onClick={() => {
-                localStorage.setItem(
-                  'cloudship_user',
-                  JSON.stringify({
-                    name: 'Ops Manager',
-                    email: 'ops@cloudship.demo',
-                    role: 'operator',
-                  }),
-                )
-                localStorage.setItem(
-                  'cloudship_tokens',
-                  JSON.stringify({
-                    access: { token: 'demo-operator' },
-                    refresh: { token: 'demo-operator' },
-                  }),
-                )
-                window.location.assign('/app/warehouse')
-              }}
-              className="mt-3 w-full rounded-full border border-line bg-white py-3 text-sm font-bold text-ink hover:border-brand"
-            >
-              Open warehouse demo (no server)
-            </button>
-          ) : null}
 
           <p className="mt-6 text-center text-sm text-muted md:text-left">
             <Link to="/" className="font-semibold text-brand">
