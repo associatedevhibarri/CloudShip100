@@ -57,6 +57,9 @@ app.use('/v1/uploads/drivers', express.static(path.join(__dirname, '../uploads/d
 // uploaded damage-log photos
 app.use('/v1/uploads/damage-logs', express.static(path.join(__dirname, '../uploads/damage-logs')));
 
+// uploaded KYC/FICA/AML compliance documents
+app.use('/v1/uploads/kyc-documents', express.static(path.join(__dirname, '../uploads/kyc-documents')));
+
 // v1 api routes
 app.use('/v1', routes);
 

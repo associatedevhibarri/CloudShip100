@@ -1,17 +1,34 @@
 import { useState } from 'react'
 import { portalService } from '../../services/portalService'
 import { usePortalFetch } from '../../hooks/usePortalFetch'
+import { useAuth } from '../../context/AuthContext'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { LoadingState, ErrorState } from '../../components/ui/LoadingState'
 
 export default function CustomerContractsPage() {
-  const { data: contracts, loading, error } = usePortalFetch(portalService.getMyContracts)
+  const { tokens } = useAuth()
+  const { data: contracts, loading, error, refetch } = usePortalFetch(portalService.getMyContracts)
   const [expandedId, setExpandedId] = useState(null)
+  const [signingId, setSigningId] = useState(null)
+  const [signError, setSignError] = useState('')
 
   if (loading) return <LoadingState label="Loading your contracts..." />
   if (error) return <ErrorState message={error} />
+
+  const handleSign = async (id) => {
+    setSigningId(id)
+    setSignError('')
+    try {
+      await portalService.signContract(tokens?.access?.token, id)
+      refetch()
+    } catch (err) {
+      setSignError(err.message || 'Failed to sign contract')
+    } finally {
+      setSigningId(null)
+    }
+  }
 
   const contractList = contracts || []
 
@@ -42,13 +59,26 @@ export default function CustomerContractsPage() {
                     {c.startDate?.slice(0, 10)} → {c.endDate?.slice(0, 10)}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setExpandedId(expanded ? null : c.id)}
-                  className="mt-3 text-sm font-semibold text-brand hover:underline"
-                >
-                  {expanded ? 'Hide terms' : 'View contract terms'}
-                </button>
+                <div className="mt-3 flex flex-wrap items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(expanded ? null : c.id)}
+                    className="text-sm font-semibold text-brand hover:underline"
+                  >
+                    {expanded ? 'Hide terms' : 'View contract terms'}
+                  </button>
+                  {c.status === 'pending_signature' ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSign(c.id)}
+                      disabled={signingId === c.id}
+                      className="rounded-full bg-brand-gradient px-4 py-1.5 text-sm font-semibold text-white shadow-sm hover:brightness-105 disabled:opacity-60"
+                    >
+                      {signingId === c.id ? 'Signing...' : 'Sign contract'}
+                    </button>
+                  ) : null}
+                </div>
+                {signError && signingId === null ? <p className="mt-2 text-sm font-semibold text-rose-600">{signError}</p> : null}
                 {expanded ? (
                   <p className="mt-3 rounded-xl bg-surface p-3 text-sm text-muted">{c.terms}</p>
                 ) : null}
