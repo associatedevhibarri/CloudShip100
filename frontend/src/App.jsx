@@ -20,6 +20,7 @@ import CustomersPage from './pages/CustomersPage'
 import GeomappingPage from './pages/GeomappingPage'
 import GeoAnalyticsPage from './pages/GeoAnalyticsPage'
 import NotificationsPage from './pages/NotificationsPage'
+import PromotionsPage from './pages/PromotionsPage'
 import LeadsPage from './pages/LeadsPage'
 import PricingRatesPage from './pages/PricingRatesPage'
 import {
@@ -122,6 +123,7 @@ export default function App() {
             <Route path="geomapping" element={<GeomappingPage />} />
             <Route path="geo-analytics" element={<GeoAnalyticsPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="promotions" element={<PromotionsPage />} />
           </Route>
 
           <Route

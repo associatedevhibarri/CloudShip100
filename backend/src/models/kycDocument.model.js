@@ -18,6 +18,18 @@ const kycDocumentSchema = mongoose.Schema(
       required: true,
       trim: true,
     },
+    fileUrl: {
+      type: String,
+      default: null,
+    },
+    mimeType: {
+      type: String,
+      default: null,
+    },
+    size: {
+      type: Number,
+      default: null,
+    },
     status: {
       type: String,
       enum: ['compliant', 'expiring', 'pending', 'non_compliant'],

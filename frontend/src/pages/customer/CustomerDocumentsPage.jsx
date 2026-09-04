@@ -20,7 +20,8 @@ export default function CustomerDocumentsPage() {
   const { data: documents, loading, error, refetch } = usePortalFetch(portalService.getMyKycDocuments)
   const [showUpload, setShowUpload] = useState(false)
   const [docType, setDocType] = useState(DOC_TYPES[0])
-  const [fileName, setFileName] = useState('')
+  const [file, setFile] = useState(null)
+  const [expiresAt, setExpiresAt] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
 
@@ -32,15 +33,17 @@ export default function CustomerDocumentsPage() {
 
   const handleUpload = async (e) => {
     e.preventDefault()
-    if (!fileName.trim()) return
+    if (!file) return
     setSubmitting(true)
     setSubmitError('')
     try {
-      await portalService.uploadKycDocument(tokens?.access?.token, {
-        type: docType,
-        fileName: fileName.trim(),
-      })
-      setFileName('')
+      const formData = new FormData()
+      formData.append('type', docType)
+      formData.append('file', file)
+      if (expiresAt) formData.append('expiresAt', expiresAt)
+      await portalService.uploadKycDocument(tokens?.access?.token, formData)
+      setFile(null)
+      setExpiresAt('')
       setShowUpload(false)
       refetch()
     } catch (err) {
@@ -85,7 +88,7 @@ export default function CustomerDocumentsPage() {
 
       {showUpload ? (
         <Card className="mb-4 p-5">
-          <form onSubmit={handleUpload} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <form onSubmit={handleUpload} className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
             <label className="text-sm">
               <span className="mb-1 block font-semibold text-ink">Document type</span>
               <select
@@ -99,21 +102,29 @@ export default function CustomerDocumentsPage() {
               </select>
             </label>
             <label className="text-sm">
-              <span className="mb-1 block font-semibold text-ink">File name</span>
+              <span className="mb-1 block font-semibold text-ink">File</span>
               <input
-                type="text"
-                value={fileName}
-                onChange={(e) => setFileName(e.target.value)}
-                placeholder="e.g. company-coreg.pdf"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                className="w-full rounded-lg border border-line px-3 py-2"
+              />
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block font-semibold text-ink">Expiry date (optional)</span>
+              <input
+                type="date"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
                 className="w-full rounded-lg border border-line px-3 py-2"
               />
             </label>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !file}
               className="rounded-full bg-brand-gradient px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105 disabled:opacity-60"
             >
-              {submitting ? 'Submitting...' : 'Submit for review'}
+              {submitting ? 'Uploading...' : 'Submit for review'}
             </button>
           </form>
           {submitError ? <p className="mt-2 text-sm font-semibold text-rose-600">{submitError}</p> : null}
@@ -126,7 +137,23 @@ export default function CustomerDocumentsPage() {
         <DataTable
           columns={[
             { key: 'type', label: 'Document' },
-            { key: 'fileName', label: 'File' },
+            {
+              key: 'fileName',
+              label: 'File',
+              render: (row) =>
+                row.fileUrl ? (
+                  <a
+                    href={portalService.resolveFileUrl(row.fileUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-brand hover:underline"
+                  >
+                    {row.fileName}
+                  </a>
+                ) : (
+                  row.fileName
+                ),
+            },
             { key: 'uploadedAt', label: 'Uploaded', render: (row) => row.uploadedAt?.slice(0, 10) },
             { key: 'expiresAt', label: 'Expires', render: (row) => (row.expiresAt ? row.expiresAt.slice(0, 10) : '—') },
             { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
