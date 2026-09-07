@@ -5,7 +5,17 @@ const getQuote = {
     pickup: Joi.string().required(),
     dropoff: Joi.string().required(),
     weightKg: Joi.number().positive().required(),
-    mode: Joi.string().valid('Road', 'Air', 'Maritime', 'Rail').required(),
+    mode: Joi.string().valid('Road', 'Air', 'Maritime', 'Rail'),
+    cargo: Joi.string().allow(''),
+    lengthCm: Joi.number().positive(),
+    widthCm: Joi.number().positive(),
+    heightCm: Joi.number().positive(),
+    declaredValue: Joi.number().min(0),
+    pickupPhone: Joi.string().allow(''),
+    dropoffPhone: Joi.string().allow(''),
+    pickupName: Joi.string().allow(''),
+    dropoffName: Joi.string().allow(''),
+    pickupDate: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/),
   }),
 };
 

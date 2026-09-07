@@ -1,7 +1,9 @@
 const httpStatus = require('http-status');
 const { Booking, Contract, Invoice, PaymentRequest, Notification } = require('../models');
 const pricingService = require('./pricing.service');
+const carriers = require('./carriers');
 const ApiError = require('../utils/ApiError');
+const logger = require('../config/logger');
 
 const TIMELINE_STAGE_ORDER = ['booked', 'warehouse', 'in_transit', 'out_for_delivery', 'delivered'];
 
@@ -36,15 +38,41 @@ const generateBookingCode = async () => {
  * @returns {Promise<Booking>}
  */
 const createBooking = async (company, body) => {
-  const { pickup, dropoff, cargo, weightKg, mode, value } = body;
+  const { pickup, dropoff, cargo, weightKg, mode, value, quoteId } = body;
 
   let quotedPickup = pickup;
   let quotedDropoff = dropoff;
   let price = value;
   let distanceKm = null;
   let durationMinutes = null;
+  let partnerFields = {};
 
-  if (weightKg) {
+  if (quoteId) {
+    try {
+      const booked = await carriers.bookStoredQuote(quoteId, {
+        pickupPhone: company.phone,
+        dropoffPhone: company.phone,
+        pickupName: company.name,
+        dropoffName: cargo,
+      });
+      price = booked.sellPrice;
+      partnerFields = {
+        partnerId: booked.partnerId,
+        partnerName: booked.partnerName,
+        quoteId,
+        partnerPrice: booked.partnerPrice,
+        marginAmount: booked.marginAmount,
+        trackingNumber: booked.trackingNumber || null,
+        trackingUrl: booked.trackingUrl || null,
+        carrierShipmentId: booked.carrierShipmentId || null,
+        labelUrl: booked.labelUrl || null,
+        serviceName: booked.serviceName || null,
+      };
+    } catch (err) {
+      logger.error(err);
+      throw new ApiError(httpStatus.BAD_REQUEST, carriers.friendlyBookMessage(err.message));
+    }
+  } else if (weightKg) {
     const quote = await pricingService.getQuote({ pickup, dropoff, weightKg, mode });
     quotedPickup = quote.pickup;
     quotedDropoff = quote.dropoff;
@@ -54,7 +82,7 @@ const createBooking = async (company, body) => {
   }
 
   if (price == null) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'weightKg or value is required');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'quoteId, weightKg or value is required');
   }
 
   const code = await generateBookingCode();
@@ -78,6 +106,7 @@ const createBooking = async (company, body) => {
     durationMinutes,
     timeline,
     bookedAt: now,
+    ...partnerFields,
   });
 
   const dueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -114,9 +143,9 @@ const createBooking = async (company, body) => {
   await Notification.create({
     company: company.id,
     title: `Booking ${code} confirmed`,
-    body: `Your shipment from ${quotedPickup} to ${quotedDropoff} has been booked. Estimated price $${Number(price).toFixed(
-      2
-    )}.`,
+    body: `Your shipment from ${quotedPickup} to ${quotedDropoff} has been booked${
+      partnerFields.partnerName ? ` with ${partnerFields.partnerName}` : ''
+    }. Price ${Number(price).toFixed(2)}.`,
     type: 'booking',
     unread: true,
   });
