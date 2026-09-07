@@ -18,3 +18,4 @@ module.exports.userService = require('./user.service');
 module.exports.driverProfileService = require('./driverProfile.service');
 module.exports.driverOperationsService = require('./driverOperations.service');
 module.exports.warehouseService = require('./warehouse.service');
+module.exports.storeConnectionService = require('./storeConnection.service');

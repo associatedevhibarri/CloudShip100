@@ -16,3 +16,6 @@ module.exports.DamageLog = require('./damageLog.model');
 module.exports.Geofence = require('./geofence.model');
 module.exports.PricingRate = require('./pricingRate.model');
 module.exports.warehouse = require('./warehouse.model');
+module.exports.StoreConnection = require('./storeConnection.model');
+module.exports.IntegrationEvent = require('./integrationEvent.model');
+module.exports.ShipmentQuote = require('./shipmentQuote.model');

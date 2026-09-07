@@ -27,6 +27,15 @@ const envVarsSchema = Joi.object()
     CLOUDINARY_CLOUD_NAME: Joi.string().allow('').description('Cloudinary cloud name'),
     CLOUDINARY_API_KEY: Joi.string().allow('').description('Cloudinary API key'),
     CLOUDINARY_API_SECRET: Joi.string().allow('').description('Cloudinary API secret'),
+    // E-commerce marketplace (Pratik Stage 1)
+    ECOM_MARGIN_PERCENT: Joi.number().min(0).default(15),
+    ECOM_MARGIN_FIXED: Joi.number().min(0).default(0),
+    ECOM_QUOTE_TTL_MINUTES: Joi.number().min(1).default(30),
+    PAYMENT_MODE: Joi.string().valid('mock', 'stripe').default('mock'),
+    STRIPE_SECRET_KEY: Joi.string().allow('').description('Stripe secret key when PAYMENT_MODE=stripe'),
+    LOGISTICS_API_URL: Joi.string().allow('').description('Vasanth internal logistics API base URL'),
+    LOGISTICS_API_KEY: Joi.string().allow('').description('Bearer token for logistics API'),
+    ECOM_CREDENTIALS_SECRET: Joi.string().allow('').description('AES key material for store credentials'),
   })
   .unknown();
 
@@ -72,5 +81,15 @@ module.exports = {
     cloudName: envVars.CLOUDINARY_CLOUD_NAME || '',
     apiKey: envVars.CLOUDINARY_API_KEY || '',
     apiSecret: envVars.CLOUDINARY_API_SECRET || '',
+  },
+  ecommerce: {
+    marginPercent: envVars.ECOM_MARGIN_PERCENT,
+    marginFixed: envVars.ECOM_MARGIN_FIXED,
+    quoteTtlMinutes: envVars.ECOM_QUOTE_TTL_MINUTES,
+    paymentMode: envVars.PAYMENT_MODE,
+    stripeSecretKey: envVars.STRIPE_SECRET_KEY || '',
+    logisticsApiUrl: envVars.LOGISTICS_API_URL || '',
+    logisticsApiKey: envVars.LOGISTICS_API_KEY || '',
+    credentialsSecret: envVars.ECOM_CREDENTIALS_SECRET || '',
   },
 };

@@ -25,8 +25,14 @@ if (config.env !== 'test') {
 // set security HTTP headers
 app.use(helmet());
 
-// parse json request body
-app.use(express.json());
+// parse json — keep rawBody for Shopify / WooCommerce webhook HMAC verification
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 
 // parse urlencoded request body
 app.use(express.urlencoded({ extended: true }));
@@ -53,6 +59,9 @@ if (config.env === 'production') {
 
 // uploaded damage-log photos (legacy local; new driver damage photos use Cloudinary)
 app.use('/v1/uploads/damage-logs', express.static(path.join(__dirname, '../uploads/damage-logs')));
+
+// Lovable / universal embed SDK
+app.use('/v1/public', express.static(path.join(__dirname, 'public')));
 
 // v1 api routes
 app.use('/v1', routes);
