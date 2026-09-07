@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState('login') // 'login' | 'register'
   const [role, setRole] = useState(
     params.get('role') === 'customer'
-      ? 'customer/'
+      ? 'customer'
       : params.get('role') === 'driver'
         ? 'driver'
         : 'operator',
