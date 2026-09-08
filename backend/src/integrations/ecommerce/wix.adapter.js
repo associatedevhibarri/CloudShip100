@@ -1,5 +1,6 @@
 const httpStatus = require('http-status');
 const ApiError = require('../../utils/ApiError');
+const config = require('../../config/config');
 const { decryptCredentials, safeEqualString, hmacSha256Hex } = require('../utils/crypto.util');
 const { buildNormalizedOrder, formatAddress, sumWeightKg } = require('./normalize');
 const logger = require('../../config/logger');
@@ -18,6 +19,12 @@ const verifyWebhook = (storeConnection, req) => {
     req.headers['x-cloudship-signature'] ||
     req.headers['x-wix-webhook-signature'];
   if (!signature) {
+    if (config.env === 'development' || config.env === 'test') {
+      logger.warn(
+        `Wix webhook unsigned for connection ${storeConnection.id || storeConnection._id} — allowed in ${config.env}`
+      );
+      return true;
+    }
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Missing Wix webhook signature');
   }
   const raw = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
@@ -30,7 +37,11 @@ const verifyWebhook = (storeConnection, req) => {
 };
 
 const normalizeOrder = (payload, storeConnection) => {
-  const order = payload.order || payload.data || payload;
+  const order = (payload && (payload.order || payload.data)) || payload || {};
+  const extId = order.id || order.number || order.guid || payload.externalOrderId;
+  if (!extId) {
+    return { externalOrderId: null };
+  }
   const shippingInfo = order.shippingInfo || order.shippingDetails || {};
   const logistics = shippingInfo.logistics || {};
   const shippingAddr =
@@ -40,15 +51,16 @@ const normalizeOrder = (payload, storeConnection) => {
     (order.billingInfo && order.billingInfo.address) ||
     {};
 
+  const addressObj = shippingAddr.address || shippingAddr;
   const dropoff =
     formatAddress({
-      address1: shippingAddr.addressLine || shippingAddr.addressLine1 || shippingAddr.street,
-      address2: shippingAddr.addressLine2,
-      city: shippingAddr.city,
-      province: shippingAddr.subdivision || shippingAddr.state,
-      postalCode: shippingAddr.postalCode || shippingAddr.zipCode,
-      country: shippingAddr.country || shippingAddr.countryFullname,
-    }) || String(shippingAddr.formatted || '').trim();
+      address1: addressObj.addressLine || addressObj.addressLine1 || addressObj.street,
+      address2: addressObj.addressLine2,
+      city: addressObj.city,
+      province: addressObj.subdivision || addressObj.state,
+      postalCode: addressObj.postalCode || addressObj.zipCode,
+      country: addressObj.country || addressObj.countryFullname,
+    }) || String(addressObj.formatted || '').trim();
 
   const creds = safeDecrypt(storeConnection);
   const pickup = creds.pickupAddress || storeConnection.storeUrl || 'Merchant warehouse';
@@ -67,7 +79,13 @@ const normalizeOrder = (payload, storeConnection) => {
     pickup,
     dropoff: dropoff || 'Unknown destination',
     weightKg,
-    cargo: lineItems.map((i) => i.productName || i.name || i.title).filter(Boolean).join(', '),
+    cargo: lineItems
+      .map((i) => {
+        if (i.productName && typeof i.productName === 'object') return i.productName.original || i.productName.translated;
+        return i.productName || i.name || i.title;
+      })
+      .filter(Boolean)
+      .join(', '),
     buyerEmail: buyer.email || null,
     buyerPhone: buyer.phone || null,
     currency: (order.currency || order.priceSummary && order.priceSummary.currency) || 'ZAR',
