@@ -62,6 +62,8 @@ export function PartnerQuoteCard({
   booking = false,
   bookDisabled = false,
   showAction = true,
+  actionLabel = 'Book now',
+  bookingLabel = 'Booking...',
 }) {
   const kind = PARTNER_KIND[partner.partnerId] || { hint: partner.serviceName || 'Delivery' }
   const speedLabel = partner.speedLabel || kind.hint
@@ -135,7 +137,7 @@ export function PartnerQuoteCard({
                 }}
                 className="mt-1 rounded-full bg-brand-gradient px-5 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105 disabled:opacity-50"
               >
-                {booking && selected ? 'Booking...' : 'Book now'}
+                {booking && selected ? bookingLabel : actionLabel}
               </button>
             ) : (
               <button

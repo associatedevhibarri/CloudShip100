@@ -58,6 +58,28 @@ const storeConnectionSchema = mongoose.Schema(
       },
       currency: { type: String, default: 'ZAR', uppercase: true },
       pickupAddress: { type: String, trim: true, default: '' },
+      extraMarginPercent: { type: Number, default: 0, min: 0 },
+      pickupStrategy: { type: String, enum: ['fixed', 'closest'], default: 'fixed' },
+      pickupLocations: [
+        {
+          name: { type: String, trim: true, default: 'Warehouse' },
+          address: { type: String, trim: true, required: true },
+          isDefault: { type: Boolean, default: false },
+        },
+      ],
+      tableRates: [
+        {
+          label: { type: String, trim: true, default: 'Standard shipping' },
+          minWeightKg: { type: Number, default: 0 },
+          maxWeightKg: { type: Number, default: null },
+          country: { type: String, trim: true, uppercase: true, default: '' },
+          price: { type: Number, required: true },
+        },
+      ],
+      paymentRules: {
+        collectAtCheckout: { type: Boolean, default: true },
+        autoBookOnPaid: { type: Boolean, default: true },
+      },
     },
     lastWebhookAt: {
       type: Date,

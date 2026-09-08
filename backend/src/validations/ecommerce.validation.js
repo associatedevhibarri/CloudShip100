@@ -14,6 +14,28 @@ const connectStore = {
         defaultMode: Joi.string().valid('Road', 'Air', 'Maritime', 'Rail'),
         currency: Joi.string().length(3),
         pickupAddress: Joi.string().allow(''),
+        extraMarginPercent: Joi.number().min(0).max(200),
+        pickupStrategy: Joi.string().valid('fixed', 'closest'),
+        pickupLocations: Joi.array().items(
+          Joi.object().keys({
+            name: Joi.string().allow(''),
+            address: Joi.string().required(),
+            isDefault: Joi.boolean(),
+          })
+        ),
+        tableRates: Joi.array().items(
+          Joi.object().keys({
+            label: Joi.string().allow(''),
+            minWeightKg: Joi.number().min(0),
+            maxWeightKg: Joi.number().min(0).allow(null),
+            country: Joi.string().allow(''),
+            price: Joi.number().min(0).required(),
+          })
+        ),
+        paymentRules: Joi.object().keys({
+          collectAtCheckout: Joi.boolean(),
+          autoBookOnPaid: Joi.boolean(),
+        }),
       })
       .optional(),
   }),
@@ -59,10 +81,22 @@ const confirmPayment = {
   }),
 };
 
+const createPayment = {
+  params: Joi.object().keys({
+    bookingId: Joi.string().custom(objectId).required(),
+  }),
+  body: Joi.object().keys({
+    quoteId: Joi.string(),
+    partner: Joi.string(),
+    service: Joi.string(),
+  }),
+};
+
 module.exports = {
   connectStore,
   updateStore,
   connectionIdParam,
   marketplaceQuote,
   confirmPayment,
+  createPayment,
 };

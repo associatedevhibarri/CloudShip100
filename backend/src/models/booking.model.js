@@ -122,6 +122,10 @@ const bookingSchema = mongoose.Schema(
       trim: true,
       default: null,
     },
+    postBookNotifiedAt: {
+      type: Date,
+      default: null,
+    },
     logisticsBookingRef: {
       type: String,
       trim: true,
@@ -157,6 +161,9 @@ const bookingSchema = mongoose.Schema(
       trim: true,
       default: null,
     },
+    logisticsQuoteId: { type: String, default: null, trim: true },
+    shopMarginAmount: { type: Number, default: 0 },
+    pickupName: { type: String, default: null, trim: true },
     // Carrier partner fields (Vasanth logistics integrations)
     partnerId: { type: String, default: null, trim: true },
     partnerName: { type: String, default: null, trim: true },
@@ -178,6 +185,8 @@ bookingSchema.index(
     partialFilterExpression: { externalOrderId: { $type: 'string' } },
   }
 );
+
+bookingSchema.index({ paymentIntentId: 1 }, { sparse: true });
 
 bookingSchema.plugin(toJSON);
 bookingSchema.plugin(paginate);

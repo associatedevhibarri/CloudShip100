@@ -94,11 +94,17 @@ const parseRateRequest = (body, storeConnection) => {
 /** Format CloudShip quote options into Shopify CarrierService rates array */
 const formatShopifyRates = (quoteResult) => {
   const rates = (quoteResult.options || []).map((opt) => ({
-    service_name: `CloudShip ${opt.partner} ${opt.service}`,
-    service_code: `${opt.partner}_${opt.service}`,
+    service_name:
+      opt.partner === 'shop_table'
+        ? `CloudShip ${opt.service}`
+        : `CloudShip ${opt.partner} ${opt.service}`,
+    service_code: `${opt.partner}_${String(opt.service || 'rate').replace(/\s+/g, '_')}`,
     total_price: String(Math.round(Number(opt.quotedPrice) * 100)),
     currency: opt.currency || quoteResult.currency || 'ZAR',
-    description: opt.etaHours != null ? `ETA ~${opt.etaHours}h` : 'CloudShip marketplace rate',
+    description:
+      opt.etaHours != null
+        ? `From ${quoteResult.pickupName || 'your warehouse'} · ETA ~${opt.etaHours}h`
+        : `From ${quoteResult.pickupName || 'your warehouse'}`,
   }));
   return { rates };
 };

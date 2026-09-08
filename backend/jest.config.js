@@ -1,3 +1,5 @@
+process.env.PAYMENT_MODE = 'mock';
+
 module.exports = {
   testEnvironment: 'node',
   testEnvironmentOptions: {

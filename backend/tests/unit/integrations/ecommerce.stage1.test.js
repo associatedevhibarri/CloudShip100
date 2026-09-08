@@ -50,8 +50,8 @@ describe('E-commerce Stage 1 (Pratik)', () => {
     });
   });
 
-  describe('logistics stub (Vasanth contract — not implementing partners)', () => {
-    test('returns multiple partners without LOGISTICS_API_URL', async () => {
+  describe('logistics quotes for shop plugins', () => {
+    test('returns stub partners in test without hitting live couriers', async () => {
       const quotes = await logisticsClient.getQuotes({
         pickup: 'Cape Town',
         dropoff: 'Johannesburg',
@@ -61,6 +61,35 @@ describe('E-commerce Stage 1 (Pratik)', () => {
       expect(quotes.options[0]).toEqual(
         expect.objectContaining({ partner: expect.any(String), price: expect.any(Number) })
       );
+    });
+
+    test('maps live courier rows to plugin options using partner cost not sell price', () => {
+      const mapped = logisticsClient.toLogisticsOptions({
+        partners: [
+          {
+            partnerId: 'courier_guy',
+            available: true,
+            partnerPrice: 95,
+            sellPrice: 104.5,
+            serviceName: 'Economy',
+            serviceCode: 'ECO',
+            currency: 'ZAR',
+            quoteId: 'csq_abc',
+            transitDays: 2,
+          },
+          { partnerId: 'fedex', available: false, error: 'Not configured' },
+        ],
+      });
+      expect(mapped.options).toEqual([
+        {
+          partner: 'courier_guy',
+          service: 'Economy',
+          price: 95,
+          currency: 'ZAR',
+          etaHours: 48,
+          quoteId: 'csq_abc',
+        },
+      ]);
     });
   });
 
@@ -375,6 +404,65 @@ describe('E-commerce Stage 1 (Pratik)', () => {
       expect(booking.logisticsBookingRef).toBeTruthy();
       // unused conn var silence
       expect(conn.platform).toBe('lovable');
+    });
+
+    test('pay applies a selected courier option before booking', async () => {
+      const conn = await StoreConnection.create({
+        company: company._id,
+        platform: 'lovable',
+        storeName: 'Pick Partner',
+        storeUrl: '',
+        credentialsEncrypted: encryptCredentials({ pickupAddress: 'Cape Town' }),
+        webhookSecret: 'wh_pick',
+        publicApiKey: 'cs_live_pick',
+        status: 'active',
+        settings: { pickupAddress: 'Cape Town', currency: 'ZAR', defaultMode: 'Road' },
+      });
+      await User.findByIdAndUpdate(customer._id, { company: company._id });
+      const ingested = await orderBridge.ingestNormalizedOrder({
+        storeConnection: conn,
+        normalized: {
+          externalOrderId: 'PICK-1',
+          pickup: 'Cape Town',
+          dropoff: 'Pretoria',
+          weightKg: 2,
+        },
+      });
+      const quote = await quoteBridge.createMarketplaceQuote({
+        pickup: 'Cape Town',
+        dropoff: 'Pretoria',
+        weightKg: 2,
+        storeConnection: conn,
+        storeConnectionId: conn._id,
+        companyId: company._id,
+      });
+      const other =
+        quote.options.find((o) => o.partner !== ingested.booking.selectedPartner) || quote.options[0];
+      await request(app)
+        .post(`/v1/ecommerce/bookings/${ingested.booking.id || ingested.booking._id}/pay`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ quoteId: quote.quoteId, partner: other.partner, service: other.service })
+        .expect(httpStatus.OK);
+
+      const updated = await Booking.findById(ingested.booking.id || ingested.booking._id);
+      expect(updated.selectedPartner).toBe(other.partner);
+      expect(updated.quotedPrice).toBe(other.quotedPrice);
+      expect(updated.paymentStatus).toBe('awaiting');
+      expect(updated.logisticsBookingRef).toBeFalsy();
+    });
+
+    test('payment config is mock by default', async () => {
+      const res = await request(app)
+        .get('/v1/ecommerce/payments/config')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(httpStatus.OK);
+      expect(res.body.mode).toBe(config.ecommerce.paymentMode);
+      expect(res.body).toHaveProperty('publishableKey');
+      expect(res.body).toHaveProperty('ready');
+    });
+
+    test('stripe webhook is unavailable until secrets are set', async () => {
+      await request(app).post('/v1/webhooks/stripe').send({ type: 'ping' }).expect(httpStatus.SERVICE_UNAVAILABLE);
     });
 
     test('marketplace quote via authenticated ecommerce API', async () => {

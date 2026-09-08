@@ -42,11 +42,13 @@ const disconnectStore = catchAsync(async (req, res) => {
 const createQuote = catchAsync(async (req, res) => {
   const company = await companyService.getOrCreateCompanyForUser(req.user);
   let storeConnectionId = req.body.connectionId || null;
+  let storeConnection = null;
   if (storeConnectionId) {
-    await storeConnectionService.getStoreConnectionForCompany(company.id, storeConnectionId);
+    storeConnection = await storeConnectionService.getStoreConnectionForCompany(company.id, storeConnectionId);
   }
   const quote = await quoteBridge.createMarketplaceQuote({
     ...req.body,
+    storeConnection,
     storeConnectionId,
     companyId: company.id,
   });
@@ -63,19 +65,24 @@ const createPayment = catchAsync(async (req, res) => {
   if (!booking) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
   }
+  if (req.body && req.body.quoteId && req.body.partner) {
+    await quoteBridge.applySelectedQuoteToBooking(booking, {
+      quoteId: req.body.quoteId,
+      partner: req.body.partner,
+      service: req.body.service,
+    });
+  }
   const payment = await paymentBridge.createPaymentForBooking(booking);
   res.send(payment);
 });
 
+const getPaymentConfig = catchAsync(async (req, res) => {
+  res.send(paymentBridge.paymentConfig());
+});
+
 const confirmPayment = catchAsync(async (req, res) => {
   const booking = await paymentBridge.confirmPaymentAndBook(req.params.paymentIntentId);
-  // Best-effort shop status push after book
-  if (booking.logisticsBookingRef) {
-    await orderBridge.pushStatusToShop(booking, {
-      status: 'in_transit',
-      trackingNumber: booking.trackingNumber,
-    });
-  }
+  await orderBridge.afterSuccessfulBook(booking);
   res.send(booking);
 });
 
@@ -136,6 +143,7 @@ module.exports = {
   createQuote,
   createPayment,
   confirmPayment,
+  getPaymentConfig,
   ingestOrder,
   publicTrack,
 };

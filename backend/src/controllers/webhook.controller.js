@@ -1,10 +1,13 @@
 const httpStatus = require('http-status');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
+const config = require('../config/config');
 const storeConnectionService = require('../services/storeConnection.service');
 const quoteBridge = require('../integrations/bridge/quoteBridge.service');
 const orderBridge = require('../integrations/bridge/orderBridge.service');
+const paymentBridge = require('../integrations/bridge/paymentBridge.service');
 const { getAdapter } = require('../integrations/ecommerce');
+const { getStripe } = require('../integrations/bridge/stripeClient');
 
 const resolveConnection = async (platform, req) => {
   const connectionId =
@@ -147,6 +150,7 @@ const handleRates = (platform) =>
       weightKg: parsed.weightKg,
       currency: parsed.currency || (conn.settings && conn.settings.currency) || 'ZAR',
       mode: (conn.settings && conn.settings.defaultMode) || 'Road',
+      storeConnection: conn,
       storeConnectionId: conn.id || conn._id,
       companyId: conn.company,
     });
@@ -160,6 +164,26 @@ const handleRates = (platform) =>
     return res.send(quote);
   });
 
+const stripeWebhook = catchAsync(async (req, res) => {
+  const secret = config.ecommerce.stripeWebhookSecret;
+  if (!secret || !config.ecommerce.stripeSecretKey) {
+    throw new ApiError(httpStatus.SERVICE_UNAVAILABLE, 'Stripe webhook is not configured');
+  }
+  const signature = req.headers['stripe-signature'];
+  let event;
+  try {
+    event = getStripe().webhooks.constructEvent(req.rawBody, signature, secret);
+  } catch (err) {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Invalid Stripe signature: ${err.message}`);
+  }
+  if (event.type === 'payment_intent.succeeded') {
+    const intent = event.data.object;
+    const booking = await paymentBridge.confirmPaymentAndBook(intent.id);
+    await orderBridge.afterSuccessfulBook(booking);
+  }
+  res.send({ received: true });
+});
+
 module.exports = {
   wooOrder: handleOrderWebhook('woocommerce'),
   wooRates: handleRates('woocommerce'),
@@ -169,4 +193,5 @@ module.exports = {
   wixRates: handleRates('wix'),
   lovableOrder: handleOrderWebhook('lovable'),
   lovableRates: handleRates('lovable'),
+  stripeWebhook,
 };

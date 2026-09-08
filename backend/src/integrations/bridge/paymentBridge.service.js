@@ -5,12 +5,9 @@ const ApiError = require('../../utils/ApiError');
 const { Booking } = require('../../models');
 const logisticsClient = require('./logisticsClient.service');
 const logger = require('../../config/logger');
+const { getStripe } = require('./stripeClient');
 
-/**
- * Payment bridge: capture shop money into CloudShip, then (and only then) book logistics.
- * PAYMENT_MODE=mock  → confirm endpoint flips status (dev / Stage 1 without Stripe keys)
- * PAYMENT_MODE=stripe → create PaymentIntent (requires STRIPE_SECRET_KEY)
- */
+const OPEN_INTENT = new Set(['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing']);
 
 const createPaymentForBooking = async (booking) => {
   if (!booking) {
@@ -34,16 +31,33 @@ const createPaymentForBooking = async (booking) => {
     if (!config.ecommerce.stripeSecretKey) {
       throw new ApiError(httpStatus.SERVICE_UNAVAILABLE, 'STRIPE_SECRET_KEY not configured');
     }
-    // Lazy require so mock mode does not need the package installed hard-fail
-    let stripe;
-    try {
-      // eslint-disable-next-line global-require, import/no-extraneous-dependencies
-      stripe = require('stripe')(config.ecommerce.stripeSecretKey);
-    } catch (e) {
-      throw new ApiError(
-        httpStatus.SERVICE_UNAVAILABLE,
-        'stripe package not installed — run npm i stripe or use PAYMENT_MODE=mock'
-      );
+    const stripe = getStripe();
+    if (booking.paymentIntentId && !String(booking.paymentIntentId).startsWith('mock_')) {
+      const existing = await stripe.paymentIntents.retrieve(booking.paymentIntentId);
+      if (existing.status === 'succeeded') {
+        return {
+          mode: 'stripe',
+          status: 'paid',
+          paymentIntentId: existing.id,
+          amount,
+          currency: currency.toUpperCase(),
+        };
+      }
+      if (
+        OPEN_INTENT.has(existing.status) &&
+        existing.client_secret &&
+        existing.amount === Math.round(amount * 100)
+      ) {
+        return {
+          mode: 'stripe',
+          status: 'awaiting',
+          paymentIntentId: existing.id,
+          clientSecret: existing.client_secret,
+          publishableKey: config.ecommerce.stripePublishableKey,
+          amount,
+          currency: currency.toUpperCase(),
+        };
+      }
     }
     const intent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100),
@@ -63,12 +77,12 @@ const createPaymentForBooking = async (booking) => {
       status: 'awaiting',
       paymentIntentId: intent.id,
       clientSecret: intent.client_secret,
+      publishableKey: config.ecommerce.stripePublishableKey,
       amount,
       currency: currency.toUpperCase(),
     };
   }
 
-  // mock
   const paymentIntentId = `mock_pi_${crypto.randomBytes(10).toString('hex')}`;
   await Booking.updateOne(
     { _id: booking.id || booking._id },
@@ -84,10 +98,6 @@ const createPaymentForBooking = async (booking) => {
   };
 };
 
-/**
- * Confirm payment then book logistics exactly once.
- * @param {string} paymentIntentId
- */
 const confirmPaymentAndBook = async (paymentIntentId) => {
   const booking = await Booking.findOne({ paymentIntentId });
   if (!booking) {
@@ -101,9 +111,7 @@ const confirmPaymentAndBook = async (paymentIntentId) => {
     if (!config.ecommerce.stripeSecretKey) {
       throw new ApiError(httpStatus.SERVICE_UNAVAILABLE, 'STRIPE_SECRET_KEY not configured');
     }
-    // eslint-disable-next-line global-require, import/no-extraneous-dependencies
-    const stripe = require('stripe')(config.ecommerce.stripeSecretKey);
-    const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const intent = await getStripe().paymentIntents.retrieve(paymentIntentId);
     if (intent.status !== 'succeeded') {
       await Booking.updateOne({ _id: booking._id }, { paymentStatus: 'failed' });
       throw new ApiError(httpStatus.PAYMENT_REQUIRED, `Payment not succeeded (${intent.status})`);
@@ -121,7 +129,11 @@ const confirmPaymentAndBook = async (paymentIntentId) => {
         pickup: booking.pickup,
         dropoff: booking.dropoff,
         weightKg: booking.weightKg,
+        mode: booking.mode,
+        cargo: booking.cargo,
         externalOrderId: booking.externalOrderId,
+        buyerPhone: booking.buyerPhone,
+        logisticsQuoteId: booking.logisticsQuoteId,
         quoteSnapshot: {
           carrierCost: booking.carrierCost,
           marginAmount: booking.marginAmount,
@@ -130,15 +142,19 @@ const confirmPaymentAndBook = async (paymentIntentId) => {
       });
       booking.logisticsBookingRef = booked.bookingRef;
       booking.trackingNumber = booked.trackingNumber || null;
+      booking.trackingUrl = booked.trackingUrl || booking.trackingUrl || null;
+      booking.labelUrl = booked.labelUrl || null;
+      booking.carrierShipmentId = booked.bookingRef || null;
+      booking.partnerId = booked.partner || booking.selectedPartner;
+      booking.serviceName = booked.service || booking.selectedService;
       await booking.save();
     } catch (err) {
       logger.error(`Logistics book failed after payment for ${booking.code}: ${err.message}`);
-      // Payment succeeded — do NOT silently pretend book worked. Flag for ops.
       booking.status = 'pending';
       await booking.save();
       throw new ApiError(
         httpStatus.BAD_GATEWAY,
-        'Payment captured but courier booking failed — ops must retry book'
+        'Payment captured but courier booking failed. Ops must retry book'
       );
     }
   }
@@ -146,7 +162,14 @@ const confirmPaymentAndBook = async (paymentIntentId) => {
   return booking;
 };
 
+const paymentConfig = () => ({
+  mode: config.ecommerce.paymentMode,
+  publishableKey: config.ecommerce.stripePublishableKey || '',
+  ready: config.ecommerce.paymentMode !== 'stripe' || Boolean(config.ecommerce.stripeSecretKey && config.ecommerce.stripePublishableKey),
+});
+
 module.exports = {
   createPaymentForBooking,
   confirmPaymentAndBook,
+  paymentConfig,
 };
