@@ -8,6 +8,8 @@ import {
   Copy,
   Check,
   Unplug,
+  ExternalLink,
+  BookOpen,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -24,24 +26,92 @@ const PLATFORMS = [
   {
     id: 'woocommerce',
     label: 'WooCommerce',
-    hint: 'Paste Consumer Key + Secret from Woo → Settings → Advanced → REST API',
+    hint: 'Free. Keys come from your WordPress / Woo admin — not from CloudShip .env.',
+    docsUrl: null,
+    steps: [
+      'Open your Woo store WP Admin (Local or live).',
+      'Go to WooCommerce → Settings → Advanced → REST API → Add key.',
+      'Permissions: Read/Write → Generate API key.',
+      'Copy Consumer key (ck_…) and Consumer secret (cs_…) into the form below.',
+      'Store URL = your site URL (e.g. http://woocommerse.local).',
+    ],
+    fieldsNeeded: 'Store URL + Consumer key + Consumer secret + Pickup address',
   },
   {
     id: 'shopify',
     label: 'Shopify',
-    hint: 'Use a development store: shop domain + Admin API access token',
+    hint: 'Free with a Partner development store. You need shop domain + shpat_ token.',
+    docsUrl: 'https://partners.shopify.com',
+    steps: [
+      'Create a free Partner account at partners.shopify.com → create a Development store.',
+      'In that store: Settings → Apps and sales channels → Develop apps → Create an app (CloudShip).',
+      'Configure Admin API scopes: read/write orders, read/write shipping, fulfillments → Save → Install app.',
+      'API credentials → Reveal Admin API access token (shpat_…) — copy it once.',
+      'Paste shop domain (store.myshopify.com) + access token below. Do not put shpat_ in .env.',
+    ],
+    fieldsNeeded: 'Shop domain + Access token (shpat_…) + Pickup address',
   },
   {
     id: 'wix',
     label: 'Wix',
-    hint: 'Wix app access token from Wix Dev Center',
+    hint: 'Get an access token from Wix Dev Center for your eCommerce site.',
+    docsUrl: 'https://dev.wix.com',
+    steps: [
+      'Go to Wix Dev Center (dev.wix.com) and create / open your app.',
+      'Connect a test site that has Wix eCommerce enabled.',
+      'Generate or copy an access token with eCommerce permissions.',
+      'Paste the access token below with your pickup address.',
+    ],
+    fieldsNeeded: 'Access token + Pickup address',
   },
   {
     id: 'lovable',
     label: 'Lovable / Universal',
-    hint: 'No platform keys — CloudShip creates a public API key for your embed',
+    hint: 'No keys from Lovable. CloudShip creates publicApiKey + webhookSecret after connect.',
+    docsUrl: null,
+    steps: [
+      'Choose this for Lovable apps or any custom store that can call our webhooks.',
+      'Enter store name + pickup only — no external API key needed.',
+      'After Connect, copy publicApiKey and webhookSecret (shown once).',
+      'Your app sends rates/orders to /v1/webhooks/lovable/* with header X-CloudShip-Key.',
+    ],
+    fieldsNeeded: 'Store name + Pickup address only',
   },
 ]
+
+function PlatformKeyGuide({ platform }) {
+  if (!platform) return null
+  return (
+    <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50/80 p-4 text-sm text-sky-950">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <BookOpen size={16} className="text-sky-700" />
+        <p className="font-extrabold text-ink">Where to get your keys — {platform.label}</p>
+        {platform.docsUrl ? (
+          <a
+            href={platform.docsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-brand underline"
+          >
+            Open site <ExternalLink size={12} />
+          </a>
+        ) : null}
+      </div>
+      <p className="mb-2 text-xs text-muted">{platform.hint}</p>
+      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-sky-800">
+        You will paste: {platform.fieldsNeeded}
+      </p>
+      <ol className="list-decimal space-y-1.5 pl-5 text-xs leading-relaxed text-ink">
+        {platform.steps.map((step) => (
+          <li key={step}>{step}</li>
+        ))}
+      </ol>
+      <p className="mt-3 text-[11px] font-semibold text-amber-800">
+        Tip: Shop keys go in this form only. CloudShip .env is for server settings (Mongo, JWT, margin) — not Woo/Shopify tokens.
+      </p>
+    </div>
+  )
+}
 
 const emptyForm = {
   platform: 'woocommerce',
@@ -312,8 +382,9 @@ export default function CustomerEcommercePage() {
         <SectionHeader
           icon={ShoppingBag}
           title="Connect a store"
-          description={PLATFORMS.find((p) => p.id === form.platform)?.hint}
+          description="Pick a platform — we show exactly where to copy keys from. Paste them here (not in .env)."
         />
+        <PlatformKeyGuide platform={PLATFORMS.find((p) => p.id === form.platform)} />
         <form onSubmit={connectStore} className="grid gap-4 md:grid-cols-2">
           <FormField id="platform" label="Platform" required>
             <select
@@ -391,7 +462,16 @@ export default function CustomerEcommercePage() {
           ) : null}
 
           {form.platform === 'shopify' || form.platform === 'wix' ? (
-            <FormField id="accessToken" label="Access token" required>
+            <FormField
+              id="accessToken"
+              label={form.platform === 'shopify' ? 'Admin API access token (shpat_…)' : 'Wix access token'}
+              required
+              hint={
+                form.platform === 'shopify'
+                  ? 'From Develop apps → API credentials → Reveal token'
+                  : 'From Wix Dev Center app credentials'
+              }
+            >
               <input
                 id="accessToken"
                 type="password"
@@ -399,6 +479,7 @@ export default function CustomerEcommercePage() {
                 value={form.accessToken}
                 onChange={(e) => setField('accessToken', e.target.value)}
                 autoComplete="off"
+                placeholder={form.platform === 'shopify' ? 'shpat_…' : 'Access token'}
               />
             </FormField>
           ) : null}
