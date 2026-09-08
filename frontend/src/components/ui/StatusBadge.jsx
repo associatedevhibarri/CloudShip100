@@ -44,6 +44,11 @@ const styles = {
   due: 'bg-amber-50 text-amber-700 border-amber-100',
   overdue: 'bg-rose-50 text-rose-700 border-rose-100',
   paid: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  awaiting: 'bg-amber-50 text-amber-700 border-amber-100',
+  not_required: 'bg-slate-100 text-slate-600 border-slate-200',
+  failed: 'bg-rose-50 text-rose-700 border-rose-100',
+  disconnected: 'bg-slate-100 text-slate-600 border-slate-200',
+  paused: 'bg-amber-50 text-amber-700 border-amber-100',
   default: 'bg-slate-100 text-slate-600 border-slate-200',
 }
 

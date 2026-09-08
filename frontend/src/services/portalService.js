@@ -36,9 +36,27 @@ export const portalService = {
   createPromotion: (token, body) => request('/promotions', { token, method: 'POST', body }),
   getQuote: (body) => request('/pricing/quote', { method: 'POST', body }),
   submitLead: (body) => request('/leads', { method: 'POST', body }),
+  // Stage 2 — e-commerce marketplace
+  listEcommerceStores: (token) => request('/ecommerce/stores', { token }),
+  connectEcommerceStore: (token, body) =>
+    request('/ecommerce/stores', { token, method: 'POST', body }),
+  updateEcommerceStore: (token, connectionId, body) =>
+    request(`/ecommerce/stores/${connectionId}`, { token, method: 'PATCH', body }),
+  disconnectEcommerceStore: (token, connectionId) =>
+    request(`/ecommerce/stores/${connectionId}`, { token, method: 'DELETE' }),
+  createMarketplaceQuote: (token, body) =>
+    request('/ecommerce/quotes', { token, method: 'POST', body }),
+  createMarketplacePayment: (token, bookingId) =>
+    request(`/ecommerce/bookings/${bookingId}/pay`, { token, method: 'POST' }),
+  confirmMarketplacePayment: (token, paymentIntentId) =>
+    request(`/ecommerce/payments/${paymentIntentId}/confirm`, { token, method: 'POST' }),
+  ingestStoreOrder: (token, connectionId, body) =>
+    request(`/ecommerce/stores/${connectionId}/orders`, { token, method: 'POST', body }),
   resolveFileUrl: (fileUrl) => {
     if (!fileUrl) return null
     if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) return fileUrl
     return `${API_ORIGIN}${fileUrl}`
   },
+  apiBaseUrl: API_BASE_URL,
+  apiOrigin: API_ORIGIN,
 }

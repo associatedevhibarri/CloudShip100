@@ -14,6 +14,8 @@ const allRoles = {
     'manageOwnPayments',
     'viewPromotions',
     'viewOwnNotifications',
+    'viewOwnEcommerce',
+    'manageOwnEcommerce',
   ],
   driver: [],
   operator: [
@@ -35,6 +37,8 @@ const allRoles = {
     'managePricing',
     'viewPromotions',
     'managePromotions',
+    'viewOwnEcommerce',
+    'manageOwnEcommerce',
   ],
 };
 

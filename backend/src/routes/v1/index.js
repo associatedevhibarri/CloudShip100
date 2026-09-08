@@ -15,6 +15,8 @@ const promotionRoute = require('./promotion.route');
 const pricingRoute = require('./pricing.route');
 const leadRoute = require('./lead.route');
 const geofenceRoute = require('./geofence.route');
+const ecommerceRoute = require('./ecommerce.route');
+const webhooksRoute = require('./webhooks.route');
 const config = require('../../config/config');
 
 const router = express.Router();
@@ -79,6 +81,14 @@ const defaultRoutes = [
   {
     path: '/geofences',
     route: geofenceRoute,
+  },
+  {
+    path: '/ecommerce',
+    route: ecommerceRoute,
+  },
+  {
+    path: '/webhooks',
+    route: webhooksRoute,
   },
 ];
 
