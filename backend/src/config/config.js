@@ -36,6 +36,28 @@ const envVarsSchema = Joi.object()
     LOGISTICS_API_URL: Joi.string().allow('').description('Vasanth internal logistics API base URL'),
     LOGISTICS_API_KEY: Joi.string().allow('').description('Bearer token for logistics API'),
     ECOM_CREDENTIALS_SECRET: Joi.string().allow('').description('AES key material for store credentials'),
+    // Carrier marketplace margin + partner credentials (Vasanth)
+    CLOUDSHIP_MARGIN_PERCENT: Joi.number().min(0).default(10),
+    CLOUDSHIP_MARGIN_FLAT: Joi.number().min(0).default(0),
+    COURIER_GUY_API_TOKEN: Joi.string().allow('').default(''),
+    COURIER_GUY_API_URL: Joi.string().allow('').default('https://api.shiplogic.com'),
+    UBER_DIRECT_CLIENT_ID: Joi.string().allow('').default(''),
+    UBER_DIRECT_CLIENT_SECRET: Joi.string().allow('').default(''),
+    UBER_DIRECT_CUSTOMER_ID: Joi.string().allow('').default(''),
+    DHL_EXPRESS_API_KEY: Joi.string().allow('').default(''),
+    DHL_EXPRESS_API_SECRET: Joi.string().allow('').default(''),
+    DHL_EXPRESS_ACCOUNT: Joi.string().allow('').default(''),
+    DHL_EXPRESS_BASE_URL: Joi.string().allow('').default('https://express.api.dhl.com/mydhlapi/test'),
+    FEDEX_CLIENT_ID: Joi.string().allow('').default(''),
+    FEDEX_CLIENT_SECRET: Joi.string().allow('').default(''),
+    FEDEX_ACCOUNT_NUMBER: Joi.string().allow('').default(''),
+    FEDEX_BASE_URL: Joi.string().allow('').default('https://apis-sandbox.fedex.com'),
+    DSV_SUBSCRIPTION_KEY: Joi.string().allow('').default(''),
+    DSV_CLIENT_ID: Joi.string().allow('').default(''),
+    DSV_CLIENT_SECRET: Joi.string().allow('').default(''),
+    DSV_SERVICE_AUTH: Joi.string().allow('').default(''),
+    DSV_PAT: Joi.string().allow('').default(''),
+    DSV_BASE_URL: Joi.string().allow('').default('https://api.dsv.com/my-demo'),
   })
   .unknown();
 
@@ -91,5 +113,40 @@ module.exports = {
     logisticsApiUrl: envVars.LOGISTICS_API_URL || '',
     logisticsApiKey: envVars.LOGISTICS_API_KEY || '',
     credentialsSecret: envVars.ECOM_CREDENTIALS_SECRET || '',
+  },
+  margin: {
+    percent: envVars.CLOUDSHIP_MARGIN_PERCENT,
+    flat: envVars.CLOUDSHIP_MARGIN_FLAT,
+  },
+  carriers: {
+    courierGuy: {
+      token: envVars.COURIER_GUY_API_TOKEN || '',
+      baseUrl: envVars.COURIER_GUY_API_URL || 'https://api.shiplogic.com',
+    },
+    uberDirect: {
+      clientId: envVars.UBER_DIRECT_CLIENT_ID || '',
+      clientSecret: envVars.UBER_DIRECT_CLIENT_SECRET || '',
+      customerId: envVars.UBER_DIRECT_CUSTOMER_ID || '',
+    },
+    dhlExpress: {
+      apiKey: envVars.DHL_EXPRESS_API_KEY || '',
+      apiSecret: envVars.DHL_EXPRESS_API_SECRET || '',
+      account: envVars.DHL_EXPRESS_ACCOUNT || '',
+      baseUrl: envVars.DHL_EXPRESS_BASE_URL || 'https://express.api.dhl.com/mydhlapi/test',
+    },
+    fedex: {
+      clientId: envVars.FEDEX_CLIENT_ID || '',
+      clientSecret: envVars.FEDEX_CLIENT_SECRET || '',
+      accountNumber: envVars.FEDEX_ACCOUNT_NUMBER || '',
+      baseUrl: envVars.FEDEX_BASE_URL || 'https://apis-sandbox.fedex.com',
+    },
+    dsv: {
+      subscriptionKey: envVars.DSV_SUBSCRIPTION_KEY || '',
+      clientId: envVars.DSV_CLIENT_ID || '',
+      clientSecret: envVars.DSV_CLIENT_SECRET || '',
+      serviceAuth: envVars.DSV_SERVICE_AUTH || '',
+      pat: envVars.DSV_PAT || '',
+      baseUrl: envVars.DSV_BASE_URL || 'https://api.dsv.com/my-demo',
+    },
   },
 };

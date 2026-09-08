@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
@@ -21,17 +21,37 @@ import {
 import { Logo } from '../components/Logo'
 import { portalService } from '../services/portalService'
 import { ErrorState } from '../components/ui/LoadingState'
-
-const MODES = ['Road', 'Air', 'Maritime', 'Rail']
+import { PartnerQuoteCard } from '../components/quotes/PartnerQuoteCard'
+import { QuoteToolbar } from '../components/quotes/QuoteToolbar'
+import { filterAndSortPartners } from '../components/quotes/quoteFilters'
+import { MODES, quoteFieldClass, todayIsoDate, toQuotePayload } from '../components/quotes/quoteForm'
 
 function LivePricingWidget() {
   const [pickup, setPickup] = useState('')
   const [dropoff, setDropoff] = useState('')
   const [weightKg, setWeightKg] = useState('')
+  const [lengthCm, setLengthCm] = useState('20')
+  const [widthCm, setWidthCm] = useState('20')
+  const [heightCm, setHeightCm] = useState('20')
+  const [declaredValue, setDeclaredValue] = useState('')
+  const [pickupDate, setPickupDate] = useState(todayIsoDate())
   const [mode, setMode] = useState('Road')
   const [quote, setQuote] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [speedFilter, setSpeedFilter] = useState('all')
+  const [partnerFilter, setPartnerFilter] = useState('all')
+  const [sort, setSort] = useState('price')
+
+  const visiblePartners = useMemo(
+    () =>
+      filterAndSortPartners(quote?.partners || [], {
+        speed: speedFilter,
+        partnerId: partnerFilter,
+        sort,
+      }),
+    [quote, speedFilter, partnerFilter, sort],
+  )
 
   const handleQuote = async (e) => {
     e.preventDefault()
@@ -39,12 +59,19 @@ function LivePricingWidget() {
     setError('')
     setQuote(null)
     try {
-      const result = await portalService.getQuote({
-        pickup: pickup.trim(),
-        dropoff: dropoff.trim(),
-        weightKg: Number(weightKg),
-        mode,
-      })
+      const result = await portalService.getQuote(
+        toQuotePayload({
+          pickup,
+          dropoff,
+          weightKg,
+          lengthCm,
+          widthCm,
+          heightCm,
+          declaredValue,
+          pickupDate,
+          mode,
+        }),
+      )
       setQuote(result)
     } catch (err) {
       setError(err.message || 'Could not calculate a price')
@@ -54,49 +81,79 @@ function LivePricingWidget() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl rounded-[1.75rem] border border-line bg-white p-6 shadow-[var(--shadow-card)] sm:p-8">
-      <form onSubmit={handleQuote} className="grid gap-4 sm:grid-cols-2">
-        <label className="text-sm">
+    <div className="mx-auto max-w-5xl rounded-[1.75rem] border border-line bg-white p-6 shadow-[var(--shadow-card)] sm:p-8">
+      <form onSubmit={handleQuote} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <label className="text-sm sm:col-span-2">
           <span className="mb-1 block font-semibold text-ink">Pickup</span>
           <input
             type="text"
             required
             value={pickup}
             onChange={(e) => setPickup(e.target.value)}
-            placeholder="e.g. Durban, South Africa"
-            className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+            placeholder="Street, city, postal code, country"
+            className={quoteFieldClass}
           />
         </label>
-        <label className="text-sm">
+        <label className="text-sm sm:col-span-2">
           <span className="mb-1 block font-semibold text-ink">Dropoff</span>
           <input
             type="text"
             required
             value={dropoff}
             onChange={(e) => setDropoff(e.target.value)}
-            placeholder="e.g. Johannesburg, South Africa"
-            className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+            placeholder="Street, city, postal code, country"
+            className={quoteFieldClass}
+          />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block font-semibold text-ink">When</span>
+          <input
+            type="date"
+            value={pickupDate}
+            min={todayIsoDate()}
+            onChange={(e) => setPickupDate(e.target.value)}
+            className={quoteFieldClass}
           />
         </label>
         <label className="text-sm">
           <span className="mb-1 block font-semibold text-ink">Weight (kg)</span>
           <input
             type="number"
-            min="1"
+            min="0.1"
+            step="0.1"
             required
             value={weightKg}
             onChange={(e) => setWeightKg(e.target.value)}
-            placeholder="100"
-            className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+            placeholder="10"
+            className={quoteFieldClass}
+          />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block font-semibold text-ink">Length (cm)</span>
+          <input type="number" min="1" value={lengthCm} onChange={(e) => setLengthCm(e.target.value)} className={quoteFieldClass} />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block font-semibold text-ink">Width (cm)</span>
+          <input type="number" min="1" value={widthCm} onChange={(e) => setWidthCm(e.target.value)} className={quoteFieldClass} />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block font-semibold text-ink">Height (cm)</span>
+          <input type="number" min="1" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} className={quoteFieldClass} />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block font-semibold text-ink">Declared value</span>
+          <input
+            type="number"
+            min="0"
+            value={declaredValue}
+            onChange={(e) => setDeclaredValue(e.target.value)}
+            placeholder="Optional"
+            className={quoteFieldClass}
           />
         </label>
         <label className="text-sm">
           <span className="mb-1 block font-semibold text-ink">Mode</span>
-          <select
-            value={mode}
-            onChange={(e) => setMode(e.target.value)}
-            className="w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-          >
+          <select value={mode} onChange={(e) => setMode(e.target.value)} className={quoteFieldClass}>
             {MODES.map((m) => (
               <option key={m}>{m}</option>
             ))}
@@ -118,14 +175,51 @@ function LivePricingWidget() {
         </div>
       ) : null}
       {quote ? (
-        <div className="mt-6 rounded-2xl border border-brand/15 bg-brand-light/40 p-5 text-center">
-          <p className="text-3xl font-extrabold text-ink">${quote.price.toLocaleString()}</p>
-          <p className="mt-1 text-sm text-muted">
-            {quote.distanceKm.toLocaleString()} km · ~{Math.round(quote.durationMinutes / 60)} hr transit
-          </p>
+        <div className="mt-6 space-y-4">
+          <div className="flex items-end justify-between gap-3">
+            <p className="text-sm font-semibold text-ink">Available services</p>
+            {visiblePartners.length ? (
+              <p className="text-xs font-semibold text-muted">
+                {visiblePartners.length} option{visiblePartners.length === 1 ? '' : 's'}
+              </p>
+            ) : null}
+          </div>
+          {quote.partners?.length ? (
+            <QuoteToolbar
+              partners={quote.partners}
+              speed={speedFilter}
+              onSpeed={setSpeedFilter}
+              partnerId={partnerFilter}
+              onPartner={setPartnerFilter}
+              sort={sort}
+              onSort={setSort}
+            />
+          ) : null}
+          {visiblePartners.length ? (
+            <ul className="grid gap-4">
+              {visiblePartners.map((partner) => (
+                <li key={partner.quoteId || `${partner.partnerId}-${partner.serviceCode}`}>
+                  <PartnerQuoteCard
+                    partner={partner}
+                    cheapest={partner.quoteId === quote.selected?.quoteId}
+                    fastest={partner.quoteId === quote.fastest?.quoteId}
+                    distanceKm={quote.distanceKm}
+                    routeDurationMinutes={quote.durationMinutes}
+                    showAction={false}
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted">
+              {quote.partners?.length
+                ? 'No services match those filters. Try All speeds or another partner.'
+                : 'No couriers are available for this route yet. Try a full street address with city, postal code, and country.'}
+            </p>
+          )}
           <Link
             to="/login?role=customer"
-            className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-gradient px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:brightness-105"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-gradient px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:brightness-105"
           >
             Sign up to book this shipment
             <ArrowRight size={16} />

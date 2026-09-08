@@ -69,7 +69,7 @@ const bookingSchema = mongoose.Schema(
       type: Date,
       default: Date.now,
     },
-    // Marketplace / e-commerce bridge fields (Stage 1)
+    // Marketplace / e-commerce bridge fields (Pratik Stage 1)
     source: {
       type: String,
       enum: ['portal', 'woocommerce', 'shopify', 'wix', 'lovable', 'api'],
@@ -157,6 +157,14 @@ const bookingSchema = mongoose.Schema(
       trim: true,
       default: null,
     },
+    // Carrier partner fields (Vasanth logistics integrations)
+    partnerId: { type: String, default: null, trim: true },
+    partnerName: { type: String, default: null, trim: true },
+    partnerPrice: { type: Number, default: null },
+    trackingUrl: { type: String, default: null, trim: true },
+    carrierShipmentId: { type: String, default: null, trim: true },
+    labelUrl: { type: String, default: null, trim: true },
+    serviceName: { type: String, default: null, trim: true },
   },
   {
     timestamps: true,
