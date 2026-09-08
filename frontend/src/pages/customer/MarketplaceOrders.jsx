@@ -74,9 +74,13 @@ export function MarketplaceOrders({
             <th className="px-4 py-3 font-semibold">Booking</th>
             <th className="px-4 py-3 font-semibold">Source</th>
             <th className="px-4 py-3 font-semibold">Shop order</th>
+            <th className="px-4 py-3 font-semibold">Cargo</th>
+            <th className="px-4 py-3 font-semibold">Buyer</th>
             <th className="px-4 py-3 font-semibold">Price</th>
             <th className="px-4 py-3 font-semibold">Payment</th>
+            <th className="px-4 py-3 font-semibold">Status</th>
             <th className="px-4 py-3 font-semibold">Courier ref</th>
+            <th className="px-4 py-3 font-semibold">Date</th>
           </tr>
         </thead>
         <tbody>
@@ -104,15 +108,23 @@ export function MarketplaceOrders({
                   <td className="px-4 py-3 font-semibold text-ink">{row.code}</td>
                   <td className="px-4 py-3 text-ink">{row.source}</td>
                   <td className="px-4 py-3 text-ink">{row.externalOrderId || '—'}</td>
+                  <td className="px-4 py-3 text-ink">{row.cargo || '—'}</td>
+                  <td className="px-4 py-3 text-ink">{row.buyerEmail || '—'}</td>
                   <td className="px-4 py-3 text-ink">R {row.quotedPrice ?? row.value}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={row.paymentStatus || 'not_required'} />
                   </td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={row.status || 'pending'} />
+                  </td>
                   <td className="px-4 py-3 text-ink">{row.logisticsBookingRef || '—'}</td>
+                  <td className="px-4 py-3 text-ink">
+                    {row.bookedAt ? new Date(row.bookedAt).toLocaleDateString() : '—'}
+                  </td>
                 </tr>
                 {open ? (
                   <tr className="border-t border-line bg-surface/50">
-                    <td colSpan={7} className="px-4 py-4">
+                    <td colSpan={11} className="px-4 py-4">
                       <p className="mb-3 text-sm text-muted">
                         {row.pickup} → {row.dropoff}
                         {row.weightKg ? ` · ${row.weightKg} kg` : ''}

@@ -44,31 +44,79 @@ const resolveConnection = async (platform, req) => {
   );
 };
 
+/**
+ * Wix sends webhooks as a signed JWT (text/plain) with 3 levels of JSON nesting:
+ * Level 1: JWT base64 decode → { data: "JSON string", iat, exp }
+ * Level 2: parse → { data: "JSON string again" }
+ * Level 3: parse → { id, slug, createdEvent: { entity: { ...order... } } }
+ */
+const decodeWixJwt = (rawBody) => {
+  try {
+    const token = typeof rawBody === 'string' ? rawBody.trim() : rawBody.toString('utf8').trim();
+    if (!token.startsWith('eyJ')) return null;
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+
+    // Level 1: decode JWT payload
+    const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8');
+    const level1 = JSON.parse(payloadJson);
+
+    // Level 2: parse outer data string
+    if (!level1.data) return null;
+    const level2 = typeof level1.data === 'string' ? JSON.parse(level1.data) : level1.data;
+
+    // Level 3: parse inner data string (this is the actual event object)
+    const level3Raw = level2.data || level2;
+    const level3 = typeof level3Raw === 'string' ? JSON.parse(level3Raw) : level3Raw;
+
+    // Extract order entity from createdEvent
+    const entity = level3.createdEvent && level3.createdEvent.entity;
+    if (entity) {
+      return { order: entity, eventType: level3.slug || 'created', rawData: level3 };
+    }
+    return level3;
+  } catch (e) {
+    return null;
+  }
+};
+
 const handleOrderWebhook = (platform) =>
   catchAsync(async (req, res) => {
     const conn = await resolveConnection(platform, req);
     const adapter = getAdapter(platform);
     adapter.verifyWebhook(conn, req);
 
+    // Wix sends JWT text/plain body — decode it first
+    let body = req.body;
+    if (platform === 'wix') {
+      const rawBody = req.rawBody || (typeof req.body === 'string' ? req.body : null);
+      const decoded = rawBody ? decodeWixJwt(rawBody) : null;
+      if (decoded) body = decoded;
+    }
+
     // Ignore non-create topics softly
     const topic = String(
       req.headers['x-wc-webhook-topic'] ||
         req.headers['x-shopify-topic'] ||
-        req.body.eventType ||
-        req.body.event ||
+        body.eventType ||
+        body.event ||
+        (body.rawData && body.rawData.slug) ||
         'order.created'
     ).toLowerCase();
     if (topic.includes('delete') || topic.includes('cancelled') || topic.includes('canceled')) {
       return res.status(httpStatus.OK).send({ ignored: true, reason: topic });
     }
 
-    const normalized = adapter.normalizeOrder(req.body, conn);
+    const normalized = adapter.normalizeOrder(body, conn);
+    if (!normalized || !normalized.externalOrderId) {
+      return res.status(httpStatus.OK).send({ ok: true, message: 'CloudShip webhook listener active' });
+    }
     const result = await orderBridge.ingestNormalizedOrder({
       storeConnection: conn,
       normalized,
-      quoteId: req.body.quoteId || req.query.quoteId,
-      partner: req.body.partner,
-      service: req.body.service,
+      quoteId: body.quoteId || req.query.quoteId,
+      partner: body.partner,
+      service: body.service,
     });
     return res.status(result.duplicate ? httpStatus.OK : httpStatus.CREATED).send({
       duplicate: result.duplicate,
