@@ -1,107 +1,141 @@
 # CloudShip E-Commerce Integrations Guide
 
-This guide explains how to connect and configure external e-commerce platforms (Wix, WooCommerce, Shopify, Lovable) to flow into CloudShip for automatic shipping rate calculations and order ingestion.
-
-## 🚀 How Webhooks Work in CloudShip
-When a store connection is created via the CloudShip dashboard (`http://localhost:5173`), a unique `Connection ID` is generated for that store.
-
-All webhook endpoints in CloudShip expect this `connectionId` either in the query params, path, or headers, so it knows which store is sending the request.
+This comprehensive guide explains how to connect, configure, and test external e-commerce platforms (**WooCommerce**, **Shopify**, **Wix**, and **Lovable / Custom Web Apps**) to flow seamlessly into CloudShip for automatic shipping rate calculations and order ingestion.
 
 ---
 
-## 1. 🛍️ Wix Integration
+## 🚀 Core Architecture: How Webhooks Work in CloudShip
+
+When a store connection is created via the CloudShip Dashboard (`http://localhost:5173`), a unique **`Connection ID`** (MongoDB `_id`) is generated for that store.
+
+All webhook endpoints in CloudShip expect this `connectionId` either in the query params, path, or headers, so it knows which store account is receiving the request.
+
+---
+
+## 1. 🛒 WooCommerce Integration
+
+### A. Generating REST API Keys
+1. Log into your WordPress Admin (`http://your-site.local/wp-admin` or live domain).
+2. Go to **WooCommerce** ➔ **Settings** ➔ **Advanced** ➔ **REST API** ➔ Click **Add key**.
+3. Description: `CloudShip Integration` | Permissions: **`Read/Write`**.
+4. Click **Generate API Key**. Copy your `Consumer key (ck_...)` and `Consumer secret (cs_...)`.
+
+### B. Connecting in CloudShip
+1. Go to CloudShip Dashboard ➔ **E-Commerce Integrations** ➔ **WooCommerce**.
+2. Fill in: **Store URL**, **Consumer key**, **Consumer secret**, and **Pickup Address**.
+3. Click **Connect**. CloudShip creates the store connection and outputs your **Connection ID**.
+
+### C. Registering the WooCommerce Webhook
+1. In WordPress Admin, go to **WooCommerce** ➔ **Settings** ➔ **Advanced** ➔ **Webhooks** ➔ Click **Add webhook**.
+2. Configure fields:
+   - **Name**: `CloudShip Order Created`
+   - **Status**: **`Active`**
+   - **Topic**: **`Order created`**
+   - **Delivery URL**: 
+     ```text
+     https://<YOUR_NGROK_OR_PROD_DOMAIN>/v1/webhooks/woocommerce/orders?connectionId=<YOUR_CONNECTION_ID>
+     ```
+   - **API Version**: `WP REST API Integration v3`
+3. Click **Save webhook**. *(WooCommerce will send a ping verification payload. CloudShip handles ping webhooks gracefully returning HTTP 200 OK).*
+
+---
+
+## 2. 🛍️ Shopify Integration
+
+### A. Creating a Custom App in Shopify
+1. In Shopify Admin, go to **Settings** ➔ **Apps and sales channels** ➔ **Develop apps**.
+2. Click **Create an app** (Name: `CloudShip Integration`).
+3. Click **Configure Admin API scopes** and grant:
+   - `read_orders` / `write_orders`
+   - `read_shipping` / `write_shipping`
+   - `write_fulfillments`
+4. Click **Save** ➔ **Install app** ➔ **Reveal token once** under Admin API access token.
+5. Copy your token: `shpat_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`.
+
+### B. Connecting in CloudShip
+1. Go to CloudShip Dashboard ➔ **E-Commerce Integrations** ➔ **Shopify**.
+2. Fill in: **Shop Domain** (`mystore.myshopify.com`) + **Access Token** (`shpat_...`) + **Pickup Address**.
+3. Click **Connect** to obtain your **Connection ID**.
+
+### C. Setting up Shopify Webhooks
+1. In Shopify Admin, go to **Settings** ➔ **Notifications** ➔ **Webhooks** ➔ Click **Create webhook**.
+2. Configure:
+   - **Event**: `Order creation`
+   - **Format**: `JSON`
+   - **URL**: 
+     ```text
+     https://<YOUR_NGROK_OR_PROD_DOMAIN>/v1/webhooks/shopify/orders?connectionId=<YOUR_CONNECTION_ID>
+     ```
+3. Click **Save**. Use **Send test notification** to verify.
+
+---
+
+## 3. 🛍️ Wix Integration
 
 ### A. Creating the App in Wix Dev Center
 1. Go to [Wix Dev Center](https://dev.wix.com) and create a new App.
-2. Under **Permissions**, add:
+2. Under **Permissions**, grant:
    - `Orders` (Read)
    - `eCommerce Fulfillments` (Read/Write)
    - `Shipping Rates` (Read/Write)
 
-### B. Setting up Webhooks (Order Created)
-1. In the Wix Dev App, go to **Webhooks** -> **Add Webhook**.
-2. Select **Wix Stores** -> **Order Created**.
-3. Set the **Callback URL** to:
+### B. Setting up Webhooks & Carrier Extensions
+1. In Wix Dev App, go to **Webhooks** ➔ **Add Webhook** ➔ Select **Wix Stores** ➔ **Order Created**.
+2. Set **Callback URL** to:
+   ```text
+   https://<YOUR_NGROK_OR_PROD_DOMAIN>/v1/webhooks/wix/orders?connectionId=<YOUR_CONNECTION_ID>
    ```
-   https://<YOUR_NGROK_OR_PROD_URL>/v1/webhooks/wix/orders?connectionId=<YOUR_CLOUDSHIP_CONNECTION_ID>
+3. Go to **Extensions** ➔ **Create Extension** ➔ **Ecom Shipping Rates**. Set `deploymentUri` base path to:
+   ```text
+   https://<YOUR_NGROK_OR_PROD_DOMAIN>/v1/webhooks/wix/rates?connectionId=<YOUR_CLOUDSHIP_CONNECTION_ID>
    ```
-   *(Note: Wix sends webhooks as a signed JWT token with nested data, but CloudShip's backend has a custom parser (`decodeWixJwt`) built into `app.js` and `webhook.controller.js` to automatically decode this).*
-
-### C. Setting up Shipping Rates Extension
-1. In the Wix Dev App, go to **Extensions** -> **Create Extension** -> **Ecom Shipping Rates**.
-2. In the JSON Editor, set the `deploymentUri` base path to:
-   ```
-   https://<YOUR_NGROK_OR_PROD_URL>/v1/webhooks/wix/rates?connectionId=<YOUR_CLOUDSHIP_CONNECTION_ID>
-   ```
-   *(Wix will automatically append their internal paths to this base URI).*
-
-### D. Testing on a Wix Dev Site
-1. Click **Test Your App** in the top right of the Dev Center.
-2. Select a free premium dev site and **Install** the app.
-   > ⚠️ **CRITICAL:** Webhooks will NOT fire unless the app is actually installed on the specific site you are placing orders from!
-3. Add a product (ensure it has a **weight** in kg), add it to cart, and checkout. CloudShip rates will appear, and the order will flow into the CloudShip Dashboard upon completion.
+4. Install the app on your test site and connect in CloudShip.
 
 ---
 
-## 2. 🛒 WooCommerce Integration
-
-### A. Generating Keys in WooCommerce
-1. Log into WordPress Admin -> **WooCommerce** -> **Settings** -> **Advanced** -> **REST API**.
-2. Click **Add key**. Give it Read/Write permissions and generate.
-3. You will receive a `Consumer key (ck_...)` and `Consumer secret (cs_...)`.
-
-### B. Connecting in CloudShip
-1. Go to the CloudShip Dashboard -> **E-Commerce Integrations**.
-2. Select **WooCommerce**.
-3. Paste the **Store URL**, **Consumer key**, and **Consumer secret**.
-4. Click **Connect**. CloudShip will securely store these and automatically register the webhooks on your WooCommerce store via API.
-
----
-
-## 3. 🛍️ Shopify Integration
-
-### A. Creating a Custom App in Shopify
-1. In Shopify Admin, go to **Settings** -> **Apps and sales channels** -> **Develop apps**.
-2. Create an app and click **Configure Admin API scopes**.
-3. Grant `read_orders` and `write_shipping` permissions.
-4. Click **Install App** -> **Reveal token once** and copy the `shpat_...` Access Token.
-
-### B. Connecting in CloudShip
-1. Go to the CloudShip Dashboard -> **E-Commerce Integrations**.
-2. Select **Shopify**.
-3. Paste the **Shop URL** (e.g., `mystore.myshopify.com`) and the **Access Token**.
-4. Click **Connect**. CloudShip handles the webhook registration automatically.
-
----
-
-## 4. 🤖 Lovable / Custom Stores Integration
+## 4. 🤖 Lovable / Custom Web Apps Integration
 
 ### A. Connecting in CloudShip
-1. Go to the CloudShip Dashboard -> **E-Commerce Integrations**.
-2. Select **Lovable / Universal**.
-3. Enter the Store Name and click **Connect**.
-4. CloudShip will generate an API Key.
+1. Go to CloudShip Dashboard ➔ **E-Commerce Integrations** ➔ **Lovable / Universal**.
+2. Enter your **Store Name** and **Pickup Address** ➔ Click **Connect**.
+3. Save your generated credentials (shown once):
+   - `publicApiKey`: `cs_live_...`
+   - `webhookSecret`: `...`
 
-### B. Calling Webhooks Manually
-From Lovable or any custom frontend, you can use the generic webhook endpoints and pass the generated API key in the headers:
+### B. Using the Senior SDK (`src/utils/cloudshipLovableSdk.js`)
+Copy [**`cloudshipLovableSdk.js`**](file:///d:/Hibarri/CloudShip100/frontend/src/utils/cloudshipLovableSdk.js) into your Lovable app project.
 
-**Order Created:**
-```http
-POST /v1/webhooks/lovable/orders
-Headers:
-  x-cloudship-key: <YOUR_API_KEY>
-Body:
-  {
-     "id": "123",
-     "buyerInfo": { "email": "test@test.com" },
-     "shippingAddress": { "addressLine": "123 Main St", ... }
-  }
+```javascript
+import { CloudShip } from './utils/cloudshipLovableSdk';
+
+// Automatically uses VITE_CLOUDSHIP_API_KEY & VITE_CLOUDSHIP_API_URL from .env
+const cloudship = new CloudShip();
+
+// 1. Fetch live rates at checkout
+const rates = await cloudship.getShippingRates({
+  pickup: 'Cape Town Warehouse',
+  dropoff: customerAddress,
+  weightKg: 2.0,
+});
+
+// 2. Submit order upon purchase
+const booking = await cloudship.createOrder({
+  externalOrderId: 'LOV-1001',
+  buyerEmail: customerEmail,
+  pickup: 'Cape Town Warehouse',
+  dropoff: customerAddress,
+  weightKg: 2.0,
+  cargo: 'Lovable Store Product',
+});
 ```
 
 ---
 
-## 💡 Troubleshooting & Notes for Developers
+## 💡 Troubleshooting & Senior Notes
 
-- **Wix Body Parsing:** Express `app.use(express.text({ type: 'text/plain' }))` is used specifically because Wix webhooks arrive as text/plain JWT strings.
-- **HMAC Verification:** Webhooks use HMAC-SHA256 signatures. In development (when `NODE_ENV=development` or `NODE_ENV=test`), signature verification is gracefully bypassed for Wix/Shopify to allow for "test pings" during initial configuration from their developer dashboards.
-- **Ngrok:** If testing locally, ensure your Ngrok URL is updated in the external platforms whenever it restarts, as Ngrok free tier changes domains on every restart.
+- **HMAC Signatures in Dev Mode**: HMAC signature checks for WooCommerce, Shopify, Wix, and Lovable log warnings in `NODE_ENV=development` or `NODE_ENV=test` to allow effortless Ngrok test pings during setup.
+- **Ngrok Host Updates**: When Ngrok restarts, update your `.env` or webhook URLs with the new active forwarding domain (inspect requests via `http://127.0.0.1:4040`).
+- **Production Checklist**: When deploying to production:
+  - Enforce `https://` on all webhook endpoints.
+  - Set `NODE_ENV=production` to strictly enforce HMAC signature validation.
+  - Ensure WordPress permalinks are set to `Post name` (required for WooCommerce REST API).
