@@ -52,6 +52,8 @@ import CustomerContractsPage from './pages/customer/CustomerContractsPage'
 import CustomerBookingHistoryPage from './pages/customer/CustomerBookingHistoryPage'
 import CustomerNotificationsPage from './pages/customer/CustomerNotificationsPage'
 import CustomerPaymentsPage from './pages/customer/CustomerPaymentsPage'
+import CustomerEcommercePage from './pages/customer/CustomerEcommercePage'
+import EmbedTrackPage from './pages/EmbedTrackPage'
 import DriverProfilePage from './pages/driver/DriverProfilePage'
 import DriverParcelsPage from './pages/driver/DriverParcelsPage'
 import DriverTripsPage from './pages/driver/DriverTripsPage'
@@ -74,6 +76,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/embed/track" element={<EmbedTrackPage />} />
 
           <Route
             path="/app"
@@ -137,6 +140,7 @@ export default function App() {
             <Route index element={<Navigate to="overview" replace />} />
             <Route path="overview" element={<CustomerOverviewPage />} />
             <Route path="new-booking" element={<CustomerNewBookingPage />} />
+            <Route path="ecommerce" element={<CustomerEcommercePage />} />
             <Route path="tracking" element={<CustomerTrackingPage />} />
             <Route path="documents" element={<CustomerDocumentsPage />} />
             <Route path="bookings" element={<CustomerBookingHistoryPage />} />

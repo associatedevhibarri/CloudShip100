@@ -1,5 +1,6 @@
 const httpStatus = require('http-status');
 const ApiError = require('../../utils/ApiError');
+const config = require('../../config/config');
 const { decryptCredentials, safeEqualString, hmacSha256Base64 } = require('../utils/crypto.util');
 const { buildNormalizedOrder, formatAddress, sumWeightKg } = require('./normalize');
 const logger = require('../../config/logger');
@@ -13,11 +14,17 @@ const logger = require('../../config/logger');
 const verifyWebhook = (storeConnection, req) => {
   const secret = storeConnection.webhookSecret;
   if (!secret) {
-    // Allow unsigned in mock/dev only when secret not configured
     return true;
   }
   const signature = req.headers['x-wc-webhook-signature'];
+  // Postman / local QA: allow unsigned webhooks in development only
   if (!signature) {
+    if (config.env === 'development' || config.env === 'test') {
+      logger.warn(
+        `Woo webhook unsigned for connection ${storeConnection.id || storeConnection._id} — allowed in ${config.env}`
+      );
+      return true;
+    }
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Missing WooCommerce webhook signature');
   }
   const raw = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);

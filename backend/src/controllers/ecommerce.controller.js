@@ -80,6 +80,34 @@ const confirmPayment = catchAsync(async (req, res) => {
 });
 
 /**
+ * Public tracking widget lookup (Stage 2 shortcode / iframe). No auth.
+ * Returns only non-sensitive shipment fields.
+ */
+const publicTrack = catchAsync(async (req, res) => {
+  const { Booking } = require('../models');
+  const code = String(req.params.code || '').trim();
+  if (!code) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Booking code required');
+  }
+  const booking = await Booking.findOne({ code });
+  if (!booking) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Tracking not found');
+  }
+  res.send({
+    code: booking.code,
+    status: booking.status,
+    paymentStatus: booking.paymentStatus,
+    pickup: booking.pickup,
+    dropoff: booking.dropoff,
+    trackingNumber: booking.trackingNumber,
+    logisticsBookingRef: booking.logisticsBookingRef,
+    source: booking.source,
+    timeline: booking.timeline,
+    updatedAt: booking.updatedAt,
+  });
+});
+
+/**
  * Manual order ingest for a connected store (useful for Lovable SDK + QA).
  */
 const ingestOrder = catchAsync(async (req, res) => {
@@ -109,4 +137,5 @@ module.exports = {
   createPayment,
   confirmPayment,
   ingestOrder,
+  publicTrack,
 };

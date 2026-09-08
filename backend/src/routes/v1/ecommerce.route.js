@@ -50,4 +50,6 @@ router.post(
   ecommerceController.confirmPayment
 );
 
+router.get('/track/:code', ecommerceController.publicTrack);
+
 module.exports = router;
