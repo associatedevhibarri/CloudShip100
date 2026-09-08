@@ -600,6 +600,31 @@ export default function CustomerEcommercePage() {
               { key: 'source', label: 'Source' },
               { key: 'externalOrderId', label: 'Shop order' },
               {
+                key: 'cargo',
+                label: 'Cargo / Product',
+                render: (row) => row.cargo || '—',
+              },
+              {
+                key: 'pickup',
+                label: 'Pickup',
+                render: (row) => row.pickup || '—',
+              },
+              {
+                key: 'dropoff',
+                label: 'Dropoff',
+                render: (row) => row.dropoff || '—',
+              },
+              {
+                key: 'weightKg',
+                label: 'Weight',
+                render: (row) => row.weightKg ? `${row.weightKg} kg` : '—',
+              },
+              {
+                key: 'buyerEmail',
+                label: 'Buyer Email',
+                render: (row) => row.buyerEmail || '—',
+              },
+              {
                 key: 'quotedPrice',
                 label: 'Price',
                 render: (row) => `R ${row.quotedPrice ?? row.value}`,
@@ -610,9 +635,19 @@ export default function CustomerEcommercePage() {
                 render: (row) => <StatusBadge status={row.paymentStatus || 'not_required'} />,
               },
               {
+                key: 'status',
+                label: 'Status',
+                render: (row) => <StatusBadge status={row.status || 'pending'} />,
+              },
+              {
                 key: 'logisticsBookingRef',
                 label: 'Courier ref',
                 render: (row) => row.logisticsBookingRef || '—',
+              },
+              {
+                key: 'bookedAt',
+                label: 'Date',
+                render: (row) => row.bookedAt ? new Date(row.bookedAt).toLocaleDateString() : '—',
               },
               {
                 key: 'action',

@@ -34,6 +34,16 @@ app.use(
   })
 );
 
+// parse text/plain — Wix sends webhooks as JWT in text/plain body
+app.use(
+  express.text({
+    type: 'text/plain',
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
+
 // parse urlencoded request body
 app.use(express.urlencoded({ extended: true }));
 
