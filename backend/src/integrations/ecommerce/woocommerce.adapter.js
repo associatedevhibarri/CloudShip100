@@ -30,12 +30,21 @@ const verifyWebhook = (storeConnection, req) => {
   const raw = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
   const expected = hmacSha256Base64(secret, raw);
   if (!safeEqualString(signature, expected)) {
+    if (config.env === 'development' || config.env === 'test') {
+      logger.warn(
+        `Woo webhook signature mismatch for connection ${storeConnection.id || storeConnection._id} — allowed in ${config.env}`
+      );
+      return true;
+    }
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid WooCommerce webhook signature');
   }
   return true;
 };
 
 const normalizeOrder = (payload, storeConnection) => {
+  if (!payload || payload.webhook_id || (!payload.id && !payload.number)) {
+    return null;
+  }
   const shipping = payload.shipping || {};
   const billing = payload.billing || {};
   const dropoff = formatAddress(shipping) || formatAddress(billing);

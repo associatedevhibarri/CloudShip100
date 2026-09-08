@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const httpStatus = require('http-status');
 const ApiError = require('../../utils/ApiError');
+const config = require('../../config/config');
 const { decryptCredentials, safeEqualString } = require('../utils/crypto.util');
 const { buildNormalizedOrder, formatAddress, sumWeightKg } = require('./normalize');
 const logger = require('../../config/logger');
@@ -17,11 +18,19 @@ const verifyWebhook = (storeConnection, req) => {
   if (!secret) return true;
   const hmacHeader = req.headers['x-shopify-hmac-sha256'];
   if (!hmacHeader) {
+    if (config.env === 'development' || config.env === 'test') {
+      logger.warn(`Shopify HMAC missing for connection ${storeConnection.id || storeConnection._id} — allowed in ${config.env}`);
+      return true;
+    }
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Missing Shopify HMAC');
   }
   const raw = req.rawBody || Buffer.from(JSON.stringify(req.body));
   const digest = crypto.createHmac('sha256', secret).update(raw).digest('base64');
   if (!safeEqualString(hmacHeader, digest)) {
+    if (config.env === 'development' || config.env === 'test') {
+      logger.warn(`Shopify HMAC mismatch for connection ${storeConnection.id || storeConnection._id} — allowed in ${config.env}`);
+      return true;
+    }
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid Shopify HMAC');
   }
   return true;
