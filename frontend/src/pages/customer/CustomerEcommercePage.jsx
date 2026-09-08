@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ShoppingBag,
   Plug,
@@ -21,6 +21,9 @@ import { FormField, formInputClass, SectionHeader } from '../../components/ui/Fo
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { LoadingState, ErrorState } from '../../components/ui/LoadingState'
 import { DataTable } from '../../components/ui/DataTable'
+import { ShopCheckoutSettings } from './ShopCheckoutSettings'
+import { StripePayModal } from './StripePayModal'
+import { MarketplaceOrders } from './MarketplaceOrders'
 
 const PLATFORMS = [
   {
@@ -190,6 +193,29 @@ export default function CustomerEcommercePage() {
 
   const [payingId, setPayingId] = useState(null)
   const [copied, setCopied] = useState('')
+  const [payConfig, setPayConfig] = useState({ mode: 'mock', ready: true, publishableKey: '' })
+  const [stripeCheckout, setStripeCheckout] = useState(null)
+
+  useEffect(() => {
+    if (!token) return undefined
+    portalService.getPaymentConfig(token).then(setPayConfig).catch(() => {})
+    const params = new URLSearchParams(window.location.search)
+    const intent = params.get('payment_intent')
+    if (!intent) return undefined
+    let cancelled = false
+    portalService
+      .confirmMarketplacePayment(token, intent)
+      .then(() => {
+        if (cancelled) return
+        toast.success('Card paid. Courier booked. We emailed the shop and the buyer.')
+        refetchBookings()
+        window.history.replaceState({}, '', window.location.pathname)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [token])
 
   const storeList = stores || []
   const marketplaceBookings = useMemo(
@@ -273,21 +299,50 @@ export default function CustomerEcommercePage() {
     }
   }
 
-  const confirmPay = async (booking) => {
+  const confirmPay = async (booking, selection) => {
     setPayingId(booking.id)
     try {
-      let paymentIntentId = booking.paymentIntentId
-      if (!paymentIntentId || booking.paymentStatus === 'not_required') {
-        const payment = await portalService.createMarketplacePayment(token, booking.id)
-        paymentIntentId = payment.paymentIntentId
+      const payment = await portalService.createMarketplacePayment(token, booking.id, selection)
+      if (payment.mode === 'stripe') {
+        if (payment.status === 'paid') {
+          await portalService.confirmMarketplacePayment(token, payment.paymentIntentId)
+          toast.success('Payment confirmed. Courier booked. We emailed the shop and the buyer.')
+          refetchBookings()
+          return
+        }
+        if (!payment.clientSecret || !(payment.publishableKey || payConfig.publishableKey)) {
+          toast.error('Stripe is on but STRIPE_SECRET_KEY or STRIPE_PUBLISHABLE_KEY is missing')
+          return
+        }
+        setStripeCheckout({
+          paymentIntentId: payment.paymentIntentId,
+          clientSecret: payment.clientSecret,
+          publishableKey: payment.publishableKey || payConfig.publishableKey,
+          amount: payment.amount,
+          currency: payment.currency,
+        })
+        return
       }
-      await portalService.confirmMarketplacePayment(token, paymentIntentId)
-      toast.success('Payment confirmed — courier booked (stub until Vasanth)')
+      await portalService.confirmMarketplacePayment(token, payment.paymentIntentId)
+      toast.success('Payment confirmed. Courier booked. We emailed the shop and the buyer.')
       refetchBookings()
     } catch (err) {
       toast.error(err.message || 'Payment confirm failed')
     } finally {
       setPayingId(null)
+    }
+  }
+
+  const finishStripePay = async () => {
+    if (!stripeCheckout) return
+    try {
+      await portalService.confirmMarketplacePayment(token, stripeCheckout.paymentIntentId)
+      toast.success('Card paid. Courier booked. We emailed the shop and the buyer.')
+      refetchBookings()
+    } catch (err) {
+      toast.error(err.message || 'Paid but the courier book failed. Refresh or retry.')
+    } finally {
+      setStripeCheckout(null)
     }
   }
 
@@ -312,7 +367,7 @@ export default function CustomerEcommercePage() {
     <div>
       <PageHeader
         title="E-commerce integrations"
-        subtitle="Connect WooCommerce, Shopify, Wix or Lovable — see rates with margin, pay, then book. No Postman needed."
+        subtitle="Connect your shop, set pickup and pricing rules, then live courier rates appear at checkout."
       />
 
       {/* Connected stores */}
@@ -376,6 +431,8 @@ export default function CustomerEcommercePage() {
           </div>
         ) : null}
       </Card>
+
+      <ShopCheckoutSettings stores={storeList} token={token} toast={toast} onSaved={refetchStores} />
 
       {/* Connect form */}
       <Card className="mb-6 p-5">
@@ -497,7 +554,7 @@ export default function CustomerEcommercePage() {
         <SectionHeader
           icon={Calculator}
           title="Test marketplace pricing"
-          description="Carrier stub price + CloudShip margin — same engine checkout rates use."
+          description="Live courier price + CloudShip 10% + your extra %. Table rates show when they match."
         />
         <form onSubmit={runQuote} className="grid gap-4 md:grid-cols-2">
           <FormField id="connectionId" label="Store (optional)">
@@ -558,7 +615,8 @@ export default function CustomerEcommercePage() {
                 <tr>
                   <th className="px-3 py-2">Partner</th>
                   <th className="px-3 py-2">Carrier</th>
-                  <th className="px-3 py-2">Margin</th>
+                  <th className="px-3 py-2">CloudShip</th>
+                  <th className="px-3 py-2">Your cut</th>
                   <th className="px-3 py-2">Customer pays</th>
                 </tr>
               </thead>
@@ -570,6 +628,7 @@ export default function CustomerEcommercePage() {
                     </td>
                     <td className="px-3 py-2">R {opt.carrierCost}</td>
                     <td className="px-3 py-2">R {opt.marginAmount}</td>
+                    <td className="px-3 py-2">R {opt.shopMarginAmount || 0}</td>
                     <td className="px-3 py-2 font-bold text-brand">R {opt.quotedPrice}</td>
                   </tr>
                 ))}
@@ -587,53 +646,32 @@ export default function CustomerEcommercePage() {
         <SectionHeader
           icon={Package}
           title="Marketplace orders"
-          description="Orders from connected shops. Mock-pay to book courier (stub until Vasanth)."
+          description="Orders from connected shops. Open a row to see live courier rates, pick one, then pay. CloudShip books that courier and emails both sides."
         />
+        {payConfig.mode === 'stripe' && !payConfig.ready ? (
+          <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            PAYMENT_MODE is stripe. Paste STRIPE_SECRET_KEY (sk_test_…) and STRIPE_PUBLISHABLE_KEY (pk_test_…) in
+            backend .env, then restart the backend. Use test card 4242 4242 4242 4242.
+          </p>
+        ) : null}
         {marketplaceBookings.length === 0 ? (
           <p className="text-sm text-muted">
             No shop orders yet. Create one via Postman webhook or wait for a real Woo order webhook.
           </p>
         ) : (
-          <DataTable
-            columns={[
-              { key: 'code', label: 'Booking' },
-              { key: 'source', label: 'Source' },
-              { key: 'externalOrderId', label: 'Shop order' },
-              {
-                key: 'quotedPrice',
-                label: 'Price',
-                render: (row) => `R ${row.quotedPrice ?? row.value}`,
-              },
-              {
-                key: 'paymentStatus',
-                label: 'Payment',
-                render: (row) => <StatusBadge status={row.paymentStatus || 'not_required'} />,
-              },
-              {
-                key: 'logisticsBookingRef',
-                label: 'Courier ref',
-                render: (row) => row.logisticsBookingRef || '—',
-              },
-              {
-                key: 'action',
-                label: '',
-                render: (row) =>
-                  row.paymentStatus === 'awaiting' ||
-                  (row.paymentStatus !== 'paid' && !row.logisticsBookingRef) ? (
-                    <button
-                      type="button"
-                      className={btnPrimary}
-                      disabled={payingId === row.id}
-                      onClick={() => confirmPay(row)}
-                    >
-                      {payingId === row.id ? 'Paying…' : 'Mock pay & book'}
-                    </button>
-                  ) : (
-                    <StatusBadge status="paid" />
-                  ),
-              },
-            ]}
+          <MarketplaceOrders
             rows={marketplaceBookings}
+            token={token}
+            payingId={payingId}
+            payConfig={payConfig}
+            payLabel={
+              payConfig.mode === 'stripe'
+                ? payConfig.ready
+                  ? 'Pay with test card'
+                  : 'Stripe keys missing'
+                : 'Mock pay & book'
+            }
+            onPay={confirmPay}
           />
         )}
       </Card>
@@ -643,7 +681,7 @@ export default function CustomerEcommercePage() {
         <SectionHeader
           icon={Code2}
           title="Tracking shortcode & embed"
-          description="Paste into Woo pages, Lovable, or any site. Replace the booking code with a real one."
+          description="Paste the tracking shortcode on a thank-you page. Checkout rates come from the CloudShip Woo shipping plugin, not this snippet."
         />
         <div className="space-y-4">
           <div>
@@ -668,6 +706,16 @@ export default function CustomerEcommercePage() {
           </p>
         </div>
       </Card>
+      {stripeCheckout ? (
+        <StripePayModal
+          clientSecret={stripeCheckout.clientSecret}
+          publishableKey={stripeCheckout.publishableKey}
+          amount={stripeCheckout.amount}
+          currency={stripeCheckout.currency}
+          onClose={() => setStripeCheckout(null)}
+          onPaid={finishStripePay}
+        />
+      ) : null}
     </div>
   )
 }

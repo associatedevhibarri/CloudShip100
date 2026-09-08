@@ -38,9 +38,12 @@ router.post(
   ecommerceController.createQuote
 );
 
+router.get('/payments/config', auth('manageOwnPayments'), ecommerceController.getPaymentConfig);
+
 router.post(
   '/bookings/:bookingId/pay',
   auth('manageOwnPayments'),
+  validate(ecommerceValidation.createPayment),
   ecommerceController.createPayment
 );
 

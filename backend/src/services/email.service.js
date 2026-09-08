@@ -55,9 +55,46 @@ If you did not create an account, then ignore this email.`;
   await sendEmail(to, subject, text);
 };
 
+const sendEmailSafe = async (to, subject, text) => {
+  if (!to) return;
+  try {
+    await sendEmail(to, subject, text);
+  } catch (err) {
+    logger.warn(`Email to ${to} failed: ${err.message}`);
+  }
+};
+
+const sendShipmentBookedEmails = async ({ booking, shopEmail, shopName }) => {
+  const track = booking.trackingNumber || booking.logisticsBookingRef || booking.code;
+  const buyerText = `Your delivery is booked.
+
+Booking: ${booking.code}
+From: ${booking.pickup}
+To: ${booking.dropoff}
+Courier: ${booking.partnerName || booking.selectedPartner || 'CloudShip'}
+Tracking: ${track}
+${booking.trackingUrl ? `Track: ${booking.trackingUrl}` : ''}
+
+Thank you for shopping with ${shopName || 'us'}.`;
+
+  const shopText = `A shopper paid for delivery. The courier is booked.
+
+Booking: ${booking.code}
+Shop order: ${booking.externalOrderId || '-'}
+Customer pays: ${booking.quotedPrice} ${booking.currency || ''}
+Courier cost: ${booking.carrierCost != null ? booking.carrierCost : '-'}
+From: ${booking.pickup}
+To: ${booking.dropoff}
+Tracking: ${track}`;
+
+  await sendEmailSafe(booking.buyerEmail, `Your delivery ${booking.code} is booked`, buyerText);
+  await sendEmailSafe(shopEmail, `CloudShip booked ${booking.code}`, shopText);
+};
+
 module.exports = {
   transport,
   sendEmail,
   sendResetPasswordEmail,
   sendVerificationEmail,
+  sendShipmentBookedEmails,
 };

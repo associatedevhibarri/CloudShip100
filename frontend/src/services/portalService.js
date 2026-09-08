@@ -46,10 +46,11 @@ export const portalService = {
     request(`/ecommerce/stores/${connectionId}`, { token, method: 'DELETE' }),
   createMarketplaceQuote: (token, body) =>
     request('/ecommerce/quotes', { token, method: 'POST', body }),
-  createMarketplacePayment: (token, bookingId) =>
-    request(`/ecommerce/bookings/${bookingId}/pay`, { token, method: 'POST' }),
+  createMarketplacePayment: (token, bookingId, body) =>
+    request(`/ecommerce/bookings/${bookingId}/pay`, { token, method: 'POST', body }),
   confirmMarketplacePayment: (token, paymentIntentId) =>
     request(`/ecommerce/payments/${paymentIntentId}/confirm`, { token, method: 'POST' }),
+  getPaymentConfig: (token) => request('/ecommerce/payments/config', { token }),
   ingestStoreOrder: (token, connectionId, body) =>
     request(`/ecommerce/stores/${connectionId}/orders`, { token, method: 'POST', body }),
   resolveFileUrl: (fileUrl) => {

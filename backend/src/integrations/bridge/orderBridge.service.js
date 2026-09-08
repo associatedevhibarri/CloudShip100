@@ -1,6 +1,7 @@
 const httpStatus = require('http-status');
 const { Booking, IntegrationEvent } = require('../../models');
 const ApiError = require('../../utils/ApiError');
+const logger = require('../../config/logger');
 const quoteBridge = require('./quoteBridge.service');
 const paymentBridge = require('./paymentBridge.service');
 const { getAdapter } = require('../ecommerce');
@@ -94,6 +95,9 @@ const ingestNormalizedOrder = async ({ storeConnection, normalized, quoteId, par
       quotedPrice: q.quotedPrice,
       partner: q.partner,
       service: q.service,
+      logisticsQuoteId: q.logisticsQuoteId || null,
+      shopMarginAmount: q.shopMarginAmount || 0,
+      pickupName: q.pickupName || null,
     };
     quoteMeta = { quoteId, pickup: q.doc.pickup, dropoff: q.doc.dropoff, weightKg: q.doc.weightKg, mode: q.doc.mode };
   } else {
@@ -103,6 +107,7 @@ const ingestNormalizedOrder = async ({ storeConnection, normalized, quoteId, par
       weightKg: normalized.weightKg || 1,
       mode: (storeConnection.settings && storeConnection.settings.defaultMode) || 'Road',
       currency: (storeConnection.settings && storeConnection.settings.currency) || 'ZAR',
+      storeConnection,
       storeConnectionId: storeConnection.id || storeConnection._id,
       companyId: storeConnection.company,
       preferredPartner: partner,
@@ -114,6 +119,9 @@ const ingestNormalizedOrder = async ({ storeConnection, normalized, quoteId, par
       quotedPrice: fresh.selected.quotedPrice,
       partner: fresh.selected.partner,
       service: fresh.selected.service,
+      logisticsQuoteId: fresh.selected.logisticsQuoteId || null,
+      shopMarginAmount: fresh.selected.shopMarginAmount || 0,
+      pickupName: fresh.pickupName || null,
     };
     quoteMeta = {
       quoteId: fresh.quoteId,
@@ -157,6 +165,11 @@ const ingestNormalizedOrder = async ({ storeConnection, normalized, quoteId, par
       paymentStatus: 'awaiting',
       selectedPartner: money.partner,
       selectedService: money.service,
+      logisticsQuoteId: money.logisticsQuoteId || null,
+      partnerId: money.partner || null,
+      serviceName: money.service || null,
+      shopMarginAmount: money.shopMarginAmount || 0,
+      pickupName: money.pickupName || null,
       weightKg: quoteMeta.weightKg || normalized.weightKg || null,
       buyerEmail: normalized.buyerEmail || null,
       buyerPhone: normalized.buyerPhone || null,
@@ -214,8 +227,35 @@ const pushStatusToShop = async (booking, statusPayload) => {
   }
 };
 
+const afterSuccessfulBook = async (booking) => {
+  if (!booking || !booking.logisticsBookingRef) return;
+  const claimed = await Booking.findOneAndUpdate(
+    { _id: booking._id, postBookNotifiedAt: null },
+    { $set: { postBookNotifiedAt: new Date() } },
+    { new: true }
+  );
+  if (!claimed) return;
+  await pushStatusToShop(claimed, {
+    status: 'in_transit',
+    trackingNumber: claimed.trackingNumber,
+  });
+  try {
+    const { Company } = require('../../models');
+    const { emailService } = require('../../services');
+    const company = await Company.findById(claimed.company);
+    await emailService.sendShipmentBookedEmails({
+      booking: claimed,
+      shopEmail: company && company.email,
+      shopName: company && company.name,
+    });
+  } catch (err) {
+    logger.warn(`Post-book notify failed for ${claimed.code}: ${err.message}`);
+  }
+};
+
 module.exports = {
   claimEvent,
   ingestNormalizedOrder,
   pushStatusToShop,
+  afterSuccessfulBook,
 };

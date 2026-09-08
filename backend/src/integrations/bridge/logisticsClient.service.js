@@ -2,16 +2,16 @@ const httpStatus = require('http-status');
 const config = require('../../config/config');
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
+const carriers = require('../../services/carriers');
 
 /**
- * Client for Vasanth's logistics partner layer.
- * Stage 1: stub mode returns deterministic quotes so e-com plugins can ship today.
- * When LOGISTICS_API_URL is set, calls the real internal API.
+ * Shop plugins (Pratik) talk to this client. In the same process we call Vasanth's
+ * live courier adapters. HTTP LOGISTICS_API_URL is only for a split deploy.
  *
- * Contract (agree with Vasanth — do not change casually):
- *  POST {base}/quotes  → { options: [{ partner, service, price, currency, etaHours }] }
- *  POST {base}/book    → { bookingRef, trackingNumber, labelUrl? }
- *  GET  {base}/tracking/:ref → { status, trackingNumber, events? }
+ * Contract:
+ *  getQuotes → { options: [{ partner, service, price, currency, etaHours, quoteId }] }
+ *    price is the courier cost. Quote bridge adds the 10% CloudShip cut.
+ *  bookShipment → { bookingRef, trackingNumber, labelUrl? }
  */
 
 const stubQuotes = ({ pickup, dropoff, weightKg }) => {
@@ -45,6 +45,98 @@ const stubQuotes = ({ pickup, dropoff, weightKg }) => {
   };
 };
 
+const etaHoursFromRow = (row) => {
+  if (Number.isFinite(row.durationMinutes) && row.durationMinutes > 0) {
+    return Math.round((row.durationMinutes / 60) * 10) / 10;
+  }
+  if (Number.isFinite(row.transitDays) && row.transitDays > 0) {
+    return row.transitDays * 24;
+  }
+  return null;
+};
+
+const toLogisticsOptions = (quoted) => {
+  const rows = (quoted && quoted.partners) || [];
+  return {
+    options: rows
+      .filter((row) => row && row.available && Number.isFinite(Number(row.partnerPrice)))
+      .map((row) => ({
+        partner: row.partnerId,
+        service: row.serviceName || row.serviceCode || row.partnerId,
+        price: Number(row.partnerPrice),
+        currency: (row.currency || 'ZAR').toUpperCase(),
+        etaHours: etaHoursFromRow(row),
+        quoteId: row.quoteId || null,
+      })),
+  };
+};
+
+const shipmentFromParams = (params = {}) => ({
+  pickup: params.pickup,
+  dropoff: params.dropoff,
+  weightKg: params.weightKg,
+  mode: params.mode || 'Road',
+  lengthCm: params.lengthCm,
+  widthCm: params.widthCm,
+  heightCm: params.heightCm,
+  pickupDate: params.pickupDate,
+  pickupPhone: params.pickupPhone || params.buyerPhone,
+  dropoffPhone: params.dropoffPhone || params.buyerPhone,
+  cargo: params.cargo || params.externalOrderId,
+});
+
+const liveQuotes = async (params) => {
+  const quoted = await carriers.quoteAll(shipmentFromParams(params));
+  return toLogisticsOptions(quoted);
+};
+
+const matchPartnerOption = (quoted, partner, service) => {
+  const available = (quoted.partners || []).filter((row) => row.available);
+  if (partner === 'shop_table') {
+    return available[0] || null;
+  }
+  const byPartner = available.filter((row) => row.partnerId === partner);
+  const pool = byPartner.length ? byPartner : available;
+  if (service) {
+    const match = pool.find(
+      (row) => row.serviceName === service || row.serviceCode === service || row.serviceName === `${service}`
+    );
+    if (match) return match;
+  }
+  return pool[0] || null;
+};
+
+const toBooked = (booked) => ({
+  bookingRef: booked.carrierShipmentId || booked.trackingNumber,
+  trackingNumber: booked.trackingNumber || booked.carrierShipmentId,
+  trackingUrl: booked.trackingUrl || null,
+  labelUrl: booked.labelUrl || null,
+  partner: booked.partnerId,
+  service: booked.serviceName,
+});
+
+const liveBook = async (params) => {
+  const extras = {
+    pickupPhone: params.pickupPhone || params.buyerPhone,
+    dropoffPhone: params.dropoffPhone || params.buyerPhone,
+    dropoffName: params.dropoffName,
+    pickupName: params.pickupName,
+  };
+  if (params.logisticsQuoteId) {
+    try {
+      return toBooked(await carriers.bookStoredQuote(params.logisticsQuoteId, extras));
+    } catch (err) {
+      logger.warn(`Live quote ${params.logisticsQuoteId} could not be booked (${err.message}); requesting a fresh rate`);
+    }
+  }
+  const quoted = await carriers.quoteAll(shipmentFromParams(params));
+  const match = matchPartnerOption(quoted, params.partner, params.service);
+  if (!match || !match.quoteId) {
+    throw new Error('No live courier rate for that partner');
+  }
+  return toBooked(await carriers.bookStoredQuote(match.quoteId, extras));
+};
+
 const requestJson = async (method, path, body) => {
   const base = config.ecommerce.logisticsApiUrl;
   if (!base) {
@@ -70,27 +162,41 @@ const requestJson = async (method, path, body) => {
   return res.json();
 };
 
-/**
- * @param {{ pickup: string, dropoff: string, weightKg: number, dims?: Object, currency?: string }} params
- */
+const useLiveCarriers = () => config.env !== 'test';
+
 const getQuotes = async (params) => {
-  const live = await requestJson('POST', '/quotes', params);
-  if (live && Array.isArray(live.options) && live.options.length) {
-    return live;
+  if (useLiveCarriers()) {
+    try {
+      const live = await liveQuotes(params);
+      if (live.options.length) return live;
+    } catch (err) {
+      logger.error(`Live courier quotes failed: ${err.message}`);
+    }
   }
-  if (config.ecommerce.logisticsApiUrl && !live) {
+  const remote = await requestJson('POST', '/quotes', params);
+  if (remote && Array.isArray(remote.options) && remote.options.length) {
+    return remote;
+  }
+  if (config.ecommerce.logisticsApiUrl && !remote) {
     throw new ApiError(httpStatus.BAD_GATEWAY, 'Logistics quotes unavailable');
   }
   return stubQuotes(params);
 };
 
-/**
- * @param {{ quoteSnapshot: Object, pickup: string, dropoff: string, weightKg: number, partner: string, service: string, externalOrderId?: string }} params
- */
 const bookShipment = async (params) => {
-  const live = await requestJson('POST', '/book', params);
-  if (live && live.bookingRef) {
-    return live;
+  if (useLiveCarriers()) {
+    try {
+      return await liveBook(params);
+    } catch (err) {
+      logger.error(`Live courier book failed: ${err.message}`);
+      if (config.ecommerce.logisticsApiUrl) {
+        throw new ApiError(httpStatus.BAD_GATEWAY, 'Logistics booking failed');
+      }
+    }
+  }
+  const remote = await requestJson('POST', '/book', params);
+  if (remote && remote.bookingRef) {
+    return remote;
   }
   if (config.ecommerce.logisticsApiUrl) {
     throw new ApiError(httpStatus.BAD_GATEWAY, 'Logistics booking failed');
@@ -107,8 +213,8 @@ const bookShipment = async (params) => {
 };
 
 const getTracking = async (bookingRef) => {
-  const live = await requestJson('GET', `/tracking/${encodeURIComponent(bookingRef)}`);
-  if (live) return live;
+  const remote = await requestJson('GET', `/tracking/${encodeURIComponent(bookingRef)}`);
+  if (remote) return remote;
   return {
     status: 'in_transit',
     trackingNumber: bookingRef,
@@ -122,4 +228,5 @@ module.exports = {
   bookShipment,
   getTracking,
   stubQuotes,
+  toLogisticsOptions,
 };

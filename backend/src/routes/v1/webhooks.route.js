@@ -26,4 +26,6 @@ router.post('/wix/rates/:connectionId', webhookController.wixRates);
 router.post('/lovable/orders', webhookController.lovableOrder);
 router.post('/lovable/rates', webhookController.lovableRates);
 
+router.post('/stripe', webhookController.stripeWebhook);
+
 module.exports = router;

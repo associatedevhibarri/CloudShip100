@@ -37,6 +37,18 @@ const createStoreConnection = async (companyId, body) => {
       defaultMode: (settings && settings.defaultMode) || 'Road',
       currency: (settings && settings.currency) || 'ZAR',
       pickupAddress: (settings && settings.pickupAddress) || credentials.pickupAddress || '',
+      extraMarginPercent: settings && settings.extraMarginPercent != null ? settings.extraMarginPercent : 0,
+      pickupStrategy: (settings && settings.pickupStrategy) || 'fixed',
+      pickupLocations:
+        (settings && settings.pickupLocations && settings.pickupLocations.length
+          ? settings.pickupLocations
+          : [{ name: 'Main warehouse', address: (settings && settings.pickupAddress) || credentials.pickupAddress || '', isDefault: true }]
+        ).filter((row) => row && row.address),
+      tableRates: (settings && settings.tableRates) || [],
+      paymentRules: {
+        collectAtCheckout: !(settings && settings.paymentRules && settings.paymentRules.collectAtCheckout === false),
+        autoBookOnPaid: !(settings && settings.paymentRules && settings.paymentRules.autoBookOnPaid === false),
+      },
     },
     status: 'active',
   });
