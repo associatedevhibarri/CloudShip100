@@ -6,8 +6,17 @@ const { Booking } = require('../../models');
 const logisticsClient = require('./logisticsClient.service');
 const logger = require('../../config/logger');
 const { getStripe } = require('./stripeClient');
+const { progressTimeline, courierStatusToStage, bookingStatusFromStage } = require('../utils/shipmentProgress');
 
 const OPEN_INTENT = new Set(['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing']);
+
+const applyCourierBookedStatus = (booking, courierStatus) => {
+  const statusLabel = courierStatus || booking.courierStatus || 'collection-assigned';
+  booking.courierStatus = statusLabel;
+  const stage = courierStatusToStage(statusLabel) || 'booked';
+  booking.status = bookingStatusFromStage(stage);
+  booking.timeline = progressTimeline(booking.timeline, stage, new Date());
+};
 
 const createPaymentForBooking = async (booking) => {
   if (!booking) {
@@ -46,7 +55,10 @@ const createPaymentForBooking = async (booking) => {
       if (
         OPEN_INTENT.has(existing.status) &&
         existing.client_secret &&
-        existing.amount === Math.round(amount * 100)
+        existing.amount === Math.round(amount * 100) &&
+        Array.isArray(existing.payment_method_types) &&
+        existing.payment_method_types.length === 1 &&
+        existing.payment_method_types[0] === 'card'
       ) {
         return {
           mode: 'stripe',
@@ -62,11 +74,11 @@ const createPaymentForBooking = async (booking) => {
     const intent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100),
       currency,
+      payment_method_types: ['card'],
       metadata: {
         bookingId: String(booking.id || booking._id),
         bookingCode: booking.code,
       },
-      automatic_payment_methods: { enabled: true },
     });
     await Booking.updateOne(
       { _id: booking.id || booking._id },
@@ -133,6 +145,7 @@ const confirmPaymentAndBook = async (paymentIntentId) => {
         cargo: booking.cargo,
         externalOrderId: booking.externalOrderId,
         buyerPhone: booking.buyerPhone,
+        pickupName: booking.pickupName,
         logisticsQuoteId: booking.logisticsQuoteId,
         quoteSnapshot: {
           carrierCost: booking.carrierCost,
@@ -147,6 +160,7 @@ const confirmPaymentAndBook = async (paymentIntentId) => {
       booking.carrierShipmentId = booked.bookingRef || null;
       booking.partnerId = booked.partner || booking.selectedPartner;
       booking.serviceName = booked.service || booking.selectedService;
+      applyCourierBookedStatus(booking, booked.courierStatus);
       await booking.save();
     } catch (err) {
       logger.error(`Logistics book failed after payment for ${booking.code}: ${err.message}`);

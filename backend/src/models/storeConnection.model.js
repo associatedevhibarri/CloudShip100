@@ -60,13 +60,18 @@ const storeConnectionSchema = mongoose.Schema(
       pickupAddress: { type: String, trim: true, default: '' },
       extraMarginPercent: { type: Number, default: 0, min: 0 },
       pickupStrategy: { type: String, enum: ['fixed', 'closest'], default: 'fixed' },
-      pickupLocations: [
-        {
-          name: { type: String, trim: true, default: 'Warehouse' },
-          address: { type: String, trim: true, required: true },
-          isDefault: { type: Boolean, default: false },
-        },
-      ],
+          pickupLocations: [
+            {
+              name: { type: String, trim: true, default: 'Warehouse' },
+              address: { type: String, trim: true, required: true },
+              street: { type: String, trim: true, default: '' },
+              city: { type: String, trim: true, default: '' },
+              state: { type: String, trim: true, default: '' },
+              postalCode: { type: String, trim: true, default: '' },
+              country: { type: String, trim: true, uppercase: true, default: 'ZA' },
+              isDefault: { type: Boolean, default: false },
+            },
+          ],
       tableRates: [
         {
           label: { type: String, trim: true, default: 'Standard shipping' },

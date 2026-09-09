@@ -3,13 +3,15 @@ import { MapPin, Percent, Table } from 'lucide-react'
 import { portalService } from '../../services/portalService'
 import { Card } from '../../components/ui/Card'
 import { FormField, formInputClass, SectionHeader } from '../../components/ui/FormField'
+import { PickupAddressFields } from '../../components/ui/PickupAddressFields'
+import { emptyPickupAddress, formatPickupAddress, parsePickupAddress } from '../../utils/pickupAddress'
 
 const btnPrimary =
   'inline-flex items-center justify-center gap-2 rounded-full bg-brand-gradient px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:brightness-105 disabled:opacity-50'
 const btnGhost =
   'inline-flex items-center justify-center gap-2 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-surface disabled:opacity-50'
 
-const emptyPickup = { name: '', address: '', isDefault: false }
+const emptyPickup = { name: '', ...emptyPickupAddress, isDefault: false }
 const emptyRate = { label: 'Standard shipping', minWeightKg: 0, maxWeightKg: '', country: '', price: '' }
 
 export function ShopCheckoutSettings({ stores, token, toast, onSaved }) {
@@ -31,7 +33,14 @@ export function ShopCheckoutSettings({ stores, token, toast, onSaved }) {
     const rows = settings.pickupLocations && settings.pickupLocations.length
       ? settings.pickupLocations
       : [{ name: 'Main warehouse', address: settings.pickupAddress || '', isDefault: true }]
-    setPickups(rows.map((row) => ({ name: row.name || '', address: row.address || '', isDefault: Boolean(row.isDefault) })))
+    setPickups(
+      rows.map((row) => ({
+        name: row.name || '',
+        ...emptyPickupAddress,
+        ...parsePickupAddress(row),
+        isDefault: Boolean(row.isDefault),
+      })),
+    )
     setTableRates(
       (settings.tableRates || []).map((row) => ({
         label: row.label || 'Standard shipping',
@@ -51,12 +60,20 @@ export function ShopCheckoutSettings({ stores, token, toast, onSaved }) {
     setSaving(true)
     try {
       const pickupLocations = pickups
-        .filter((row) => row.address.trim())
-        .map((row, i) => ({
-          name: row.name.trim() || `Warehouse ${i + 1}`,
-          address: row.address.trim(),
-          isDefault: Boolean(row.isDefault),
-        }))
+        .map((row, i) => {
+          const address = formatPickupAddress(row)
+          return {
+            name: row.name.trim() || `Warehouse ${i + 1}`,
+            street: row.street.trim(),
+            city: row.city.trim(),
+            state: row.state.trim(),
+            postalCode: row.postalCode.trim(),
+            country: row.country.trim() || 'ZA',
+            address,
+            isDefault: Boolean(row.isDefault),
+          }
+        })
+        .filter((row) => row.street || row.city)
       if (!pickupLocations.some((row) => row.isDefault) && pickupLocations[0]) {
         pickupLocations[0].isDefault = true
       }
@@ -154,34 +171,45 @@ export function ShopCheckoutSettings({ stores, token, toast, onSaved }) {
         <div>
           <p className="mb-2 text-sm font-semibold text-ink">Pickup locations</p>
           {pickups.map((row, i) => (
-            <div key={i} className="mb-2 grid gap-2 sm:grid-cols-6">
-              <input
-                className={`${formInputClass()} sm:col-span-2`}
-                placeholder="Name"
-                value={row.name}
-                onChange={(e) =>
-                  setPickups((prev) => prev.map((p, idx) => (idx === i ? { ...p, name: e.target.value } : p)))
-                }
-              />
-              <input
-                className={`${formInputClass()} sm:col-span-3`}
-                placeholder="Street, city, postal, country"
-                value={row.address}
-                onChange={(e) =>
-                  setPickups((prev) => prev.map((p, idx) => (idx === i ? { ...p, address: e.target.value } : p)))
-                }
-              />
-              <label className="flex items-center gap-1 text-xs">
+            <div key={i} className="mb-3 rounded-xl border border-line bg-surface/50 p-3">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
                 <input
-                  type="radio"
-                  name="defaultPickup"
-                  checked={row.isDefault}
-                  onChange={() =>
-                    setPickups((prev) => prev.map((p, idx) => ({ ...p, isDefault: idx === i })))
+                  className={`${formInputClass()} min-w-[10rem] flex-1`}
+                  placeholder="Warehouse name"
+                  value={row.name}
+                  onChange={(e) =>
+                    setPickups((prev) => prev.map((p, idx) => (idx === i ? { ...p, name: e.target.value } : p)))
                   }
                 />
-                Default
-              </label>
+                <label className="flex items-center gap-1 text-xs font-semibold">
+                  <input
+                    type="radio"
+                    name="defaultPickup"
+                    checked={row.isDefault}
+                    onChange={() =>
+                      setPickups((prev) => prev.map((p, idx) => ({ ...p, isDefault: idx === i })))
+                    }
+                  />
+                  Default
+                </label>
+                {pickups.length > 1 ? (
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-rose-600"
+                    onClick={() => setPickups((prev) => prev.filter((_, idx) => idx !== i))}
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+              <PickupAddressFields
+                idPrefix={`pickup-${i}`}
+                value={row}
+                onChange={(next) => setPickups((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...next } : p)))}
+              />
+              <p className="mt-1.5 text-[11px] text-muted">
+                Couriers need street, city, postal code and country — not city only.
+              </p>
             </div>
           ))}
           <button

@@ -131,13 +131,23 @@ export function PartnerQuoteCard({
               <button
                 type="button"
                 disabled={bookDisabled || booking}
+                aria-busy={booking}
                 onClick={(e) => {
+                  e.preventDefault()
                   e.stopPropagation()
+                  if (bookDisabled || booking) return
                   onBook(partner.quoteId)
                 }}
-                className="mt-1 rounded-full bg-brand-gradient px-5 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105 disabled:opacity-50"
+                className="mt-1 inline-flex min-w-[9.5rem] items-center justify-center gap-2 rounded-full bg-brand-gradient px-5 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {booking && selected ? bookingLabel : actionLabel}
+                {booking ? (
+                  <>
+                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    {bookingLabel}
+                  </>
+                ) : (
+                  actionLabel
+                )}
               </button>
             ) : (
               <button

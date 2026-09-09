@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   ShoppingBag,
@@ -12,6 +12,8 @@ import {
   ExternalLink,
   BookOpen,
   MapPin,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -20,6 +22,8 @@ import { usePortalFetch } from '../../hooks/usePortalFetch'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { FormField, formInputClass, SectionHeader } from '../../components/ui/FormField'
+import { PickupAddressFields } from '../../components/ui/PickupAddressFields'
+import { formatPickupAddress } from '../../utils/pickupAddress'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { LoadingState, ErrorState } from '../../components/ui/LoadingState'
 import { DataTable } from '../../components/ui/DataTable'
@@ -153,7 +157,11 @@ const emptyForm = {
   platform: 'woocommerce',
   storeName: '',
   storeUrl: '',
-  pickupAddress: 'Cape Town',
+  pickupStreet: '',
+  pickupCity: 'Cape Town',
+  pickupState: 'WC',
+  pickupPostal: '',
+  pickupCountry: 'ZA',
   currency: 'ZAR',
   consumerKey: '',
   consumerSecret: '',
@@ -167,7 +175,13 @@ const btnGhost =
   'inline-flex items-center justify-center gap-2 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-surface disabled:opacity-50'
 
 function buildCredentials(form) {
-  const pickupAddress = form.pickupAddress.trim()
+  const pickupAddress = formatPickupAddress({
+    street: form.pickupStreet,
+    city: form.pickupCity,
+    state: form.pickupState,
+    postalCode: form.pickupPostal,
+    country: form.pickupCountry,
+  })
   if (form.platform === 'woocommerce') {
     return {
       consumerKey: form.consumerKey.trim(),
@@ -233,9 +247,12 @@ export default function CustomerEcommercePage() {
   const [quoting, setQuoting] = useState(false)
 
   const [payingId, setPayingId] = useState(null)
+  const [payingQuoteId, setPayingQuoteId] = useState(null)
+  const payingLock = useRef(false)
   const [copied, setCopied] = useState('')
   const [payConfig, setPayConfig] = useState({ mode: 'mock', ready: true, publishableKey: '' })
   const [stripeCheckout, setStripeCheckout] = useState(null)
+  const [navCollapsed, setNavCollapsed] = useState(false)
 
   const setTab = (next) => {
     const params = new URLSearchParams(searchParams)
@@ -296,14 +313,20 @@ export default function CustomerEcommercePage() {
           form.platform === 'shopify' ? form.shopDomain.trim() || form.storeUrl.trim() : form.storeUrl.trim(),
         credentials: buildCredentials(form),
         settings: {
-          pickupAddress: form.pickupAddress.trim(),
+          pickupAddress: formatPickupAddress({
+            street: form.pickupStreet,
+            city: form.pickupCity,
+            state: form.pickupState,
+            postalCode: form.pickupPostal,
+            country: form.pickupCountry,
+          }),
           currency: form.currency.trim() || 'ZAR',
           defaultMode: 'Road',
         },
       }
       const created = await portalService.connectEcommerceStore(token, body)
       setLastConnected(created)
-      setForm({ ...emptyForm, platform: form.platform, pickupAddress: form.pickupAddress })
+      setForm({ ...emptyForm, platform: form.platform, pickupCity: form.pickupCity, pickupCountry: form.pickupCountry })
       refetchStores()
       setTab('stores')
       toast.success(`${created.platform} store connected`)
@@ -346,10 +369,21 @@ export default function CustomerEcommercePage() {
     }
   }
 
+  const clearPaying = () => {
+    payingLock.current = false
+    setPayingId(null)
+    setPayingQuoteId(null)
+  }
+
   const confirmPay = async (booking, selection) => {
+    if (payingLock.current) return
+    payingLock.current = true
+    const { quoteKey, ...paymentSelection } = selection
     setPayingId(booking.id)
+    setPayingQuoteId(quoteKey || `${selection.partner}::${selection.service}`)
+    let openedStripe = false
     try {
-      const payment = await portalService.createMarketplacePayment(token, booking.id, selection)
+      const payment = await portalService.createMarketplacePayment(token, booking.id, paymentSelection)
       if (payment.mode === 'stripe') {
         if (payment.status === 'paid') {
           await portalService.confirmMarketplacePayment(token, payment.paymentIntentId)
@@ -368,6 +402,7 @@ export default function CustomerEcommercePage() {
           amount: payment.amount,
           currency: payment.currency,
         })
+        openedStripe = true
         return
       }
       await portalService.confirmMarketplacePayment(token, payment.paymentIntentId)
@@ -376,20 +411,23 @@ export default function CustomerEcommercePage() {
     } catch (err) {
       toast.error(err.message || 'Payment confirm failed')
     } finally {
-      setPayingId(null)
+      if (!openedStripe) clearPaying()
     }
   }
 
   const finishStripePay = async () => {
-    if (!stripeCheckout) return
+    const intent = stripeCheckout?.paymentIntentId
+    if (!intent) return
     try {
-      await portalService.confirmMarketplacePayment(token, stripeCheckout.paymentIntentId)
+      await portalService.confirmMarketplacePayment(token, intent)
       toast.success('Card paid. Courier booked. We emailed the shop and the buyer.')
       refetchBookings()
-    } catch (err) {
-      toast.error(err.message || 'Paid but the courier book failed. Refresh or retry.')
-    } finally {
       setStripeCheckout(null)
+      clearPaying()
+    } catch (err) {
+      const message = err.message || 'Paid but the courier book failed. Refresh or retry.'
+      toast.error(message)
+      throw err
     }
   }
 
@@ -424,14 +462,32 @@ export default function CustomerEcommercePage() {
       />
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-        <aside className="w-full shrink-0 lg:w-[30%]">
+        <aside className={`w-full shrink-0 transition-[width] duration-200 ${navCollapsed ? 'lg:w-16' : 'lg:w-[30%]'}`}>
           <Card className="p-3 lg:sticky lg:top-4">
+            <div className="mb-1 hidden items-center lg:flex">
+              <button
+                type="button"
+                onClick={() => setNavCollapsed((open) => !open)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-surface hover:text-ink"
+                aria-label={navCollapsed ? 'Expand menu' : 'Collapse menu'}
+                title={navCollapsed ? 'Expand menu' : 'Collapse menu'}
+              >
+                {navCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+              </button>
+              {!navCollapsed ? (
+                <span className="text-xs font-semibold text-muted">Menu</span>
+              ) : null}
+            </div>
             <nav className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0" aria-label="E-commerce sections">
               {NAV_GROUPS.map((group) => (
                 <div key={group.group} className="min-w-max lg:min-w-0">
-                  <p className="mb-1.5 px-3 pt-2 text-[11px] font-bold uppercase tracking-wide text-muted">
-                    {group.group}
-                  </p>
+                  {!navCollapsed ? (
+                    <p className="mb-1.5 px-3 pt-2 text-[11px] font-bold uppercase tracking-wide text-muted">
+                      {group.group}
+                    </p>
+                  ) : (
+                    <div className="hidden lg:block lg:my-1 lg:border-t lg:border-line" />
+                  )}
                   <div className="flex gap-1 lg:flex-col">
                     {group.items.map((item) => {
                       const Icon = item.icon
@@ -442,12 +498,22 @@ export default function CustomerEcommercePage() {
                           key={item.id}
                           type="button"
                           onClick={() => setTab(item.id)}
+                          title={item.label}
                           className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+                            navCollapsed ? 'lg:items-center lg:justify-center lg:px-2' : ''
+                          } ${
                             active ? 'bg-brand-light text-ink shadow-sm' : 'text-muted hover:bg-surface hover:text-ink'
                           }`}
                         >
-                          <Icon size={16} className={`mt-0.5 shrink-0 ${active ? 'text-brand' : ''}`} />
-                          <span className="min-w-0 flex-1">
+                          <span className="relative shrink-0">
+                            <Icon size={16} className={`mt-0.5 ${active ? 'text-brand' : ''} ${navCollapsed ? 'lg:mt-0' : ''}`} />
+                            {navCollapsed && count != null ? (
+                              <span className="absolute -right-1.5 -top-1 hidden h-3.5 min-w-3.5 rounded-full bg-brand px-0.5 text-center text-[9px] font-bold leading-[14px] text-white lg:block">
+                                {count}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className={`min-w-0 flex-1 ${navCollapsed ? 'lg:hidden' : ''}`}>
                             <span className="flex items-center justify-between gap-2">
                               <span className="text-sm font-semibold">{item.label}</span>
                               {count != null ? (
@@ -472,7 +538,7 @@ export default function CustomerEcommercePage() {
           </Card>
         </aside>
 
-        <section className="min-w-0 w-full lg:w-[70%]">
+        <section className={`min-w-0 w-full ${navCollapsed ? 'lg:flex-1' : 'lg:w-[70%]'}`}>
           {tab === 'connect' ? (
             <Card className="p-5">
               <SectionHeader
@@ -528,12 +594,31 @@ export default function CustomerEcommercePage() {
                   </FormField>
                 ) : null}
 
-                <FormField id="pickupAddress" label="Pickup address" required hint="Warehouse the parcels leave from.">
-                  <input
-                    id="pickupAddress"
-                    className={formInputClass()}
-                    value={form.pickupAddress}
-                    onChange={(e) => setField('pickupAddress', e.target.value)}
+                <FormField
+                  id="pickupStreet"
+                  label="Pickup address"
+                  required
+                  hint="Warehouse the parcels leave from. Street, city, postal and country — not city only."
+                >
+                  <PickupAddressFields
+                    idPrefix="connect-pickup"
+                    value={{
+                      street: form.pickupStreet,
+                      city: form.pickupCity,
+                      state: form.pickupState,
+                      postalCode: form.pickupPostal,
+                      country: form.pickupCountry,
+                    }}
+                    onChange={(next) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        pickupStreet: next.street,
+                        pickupCity: next.city,
+                        pickupState: next.state,
+                        pickupPostal: next.postalCode,
+                        pickupCountry: next.country,
+                      }))
+                    }
                   />
                 </FormField>
 
@@ -794,8 +879,10 @@ export default function CustomerEcommercePage() {
               ) : (
                 <MarketplaceOrders
                   rows={marketplaceBookings}
+                  stores={storeList}
                   token={token}
                   payingId={payingId}
+                  payingQuoteId={payingQuoteId}
                   payConfig={payConfig}
                   payLabel={
                     payConfig.mode === 'stripe'
@@ -859,7 +946,10 @@ export default function CustomerEcommercePage() {
           publishableKey={stripeCheckout.publishableKey}
           amount={stripeCheckout.amount}
           currency={stripeCheckout.currency}
-          onClose={() => setStripeCheckout(null)}
+          onClose={() => {
+            setStripeCheckout(null)
+            clearPaying()
+          }}
           onPaid={finishStripePay}
         />
       ) : null}

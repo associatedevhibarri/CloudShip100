@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Package } from 'lucide-react'
 import { portalService } from '../services/portalService'
+import { TransitTimeline } from '../components/ui/TransitTimeline'
+import { displayShipmentStatus, displayShipmentLabel } from '../utils/shipmentProgress'
 
 /**
  * Public embeddable tracking widget for Stage 2 shortcodes.
@@ -45,7 +47,7 @@ export default function EmbedTrackPage() {
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] p-4 text-slate-900">
-      <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
             <Package size={18} />
@@ -63,7 +65,9 @@ export default function EmbedTrackPage() {
           <div className="space-y-3 text-sm">
             <div className="flex justify-between gap-3">
               <span className="text-slate-500">Status</span>
-              <span className="font-semibold capitalize">{String(data.status || '').replaceAll('_', ' ')}</span>
+              <span className="font-semibold capitalize">
+                {data.statusLabel || displayShipmentLabel(data)}
+              </span>
             </div>
             <div className="flex justify-between gap-3">
               <span className="text-slate-500">Payment</span>
@@ -81,20 +85,21 @@ export default function EmbedTrackPage() {
                 <span className="font-mono font-semibold">{data.trackingNumber}</span>
               </div>
             ) : null}
-            {Array.isArray(data.timeline) && data.timeline.length ? (
-              <ol className="mt-2 space-y-2 border-t border-slate-100 pt-3">
-                {data.timeline.map((step) => (
-                  <li key={step.stage} className="flex items-center gap-2">
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${step.done ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                    />
-                    <span className={step.done ? 'font-semibold text-slate-900' : 'text-slate-500'}>
-                      {step.label}
-                    </span>
-                  </li>
-                ))}
-              </ol>
+            {data.trackingUrl ? (
+              <p>
+                <a
+                  className="font-semibold text-sky-700 underline"
+                  href={data.trackingUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open courier tracking
+                </a>
+              </p>
             ) : null}
+            <div className="mt-2 border-t border-slate-100 pt-4">
+              <TransitTimeline timeline={data.timeline} status={displayShipmentStatus(data)} />
+            </div>
           </div>
         ) : null}
       </div>

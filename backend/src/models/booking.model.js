@@ -1,6 +1,15 @@
 const mongoose = require('mongoose');
 const { toJSON, paginate } = require('./plugins');
 
+const lineItemSchema = mongoose.Schema(
+  {
+    name: { type: String, trim: true },
+    quantity: { type: Number, default: 1 },
+    total: { type: Number, default: null },
+  },
+  { _id: false }
+);
+
 const timelineStepSchema = mongoose.Schema(
   {
     stage: { type: String, required: true },
@@ -161,6 +170,22 @@ const bookingSchema = mongoose.Schema(
       trim: true,
       default: null,
     },
+    orderTotal: {
+      type: Number,
+      default: null,
+    },
+    itemsTotal: {
+      type: Number,
+      default: null,
+    },
+    shippingTotal: {
+      type: Number,
+      default: null,
+    },
+    lineItems: {
+      type: [lineItemSchema],
+      default: [],
+    },
     logisticsQuoteId: { type: String, default: null, trim: true },
     shopMarginAmount: { type: Number, default: 0 },
     pickupName: { type: String, default: null, trim: true },
@@ -169,6 +194,8 @@ const bookingSchema = mongoose.Schema(
     partnerName: { type: String, default: null, trim: true },
     partnerPrice: { type: Number, default: null },
     trackingUrl: { type: String, default: null, trim: true },
+    courierStatus: { type: String, default: null, trim: true },
+    lastPushedCourierStatus: { type: String, default: null, trim: true },
     carrierShipmentId: { type: String, default: null, trim: true },
     labelUrl: { type: String, default: null, trim: true },
     serviceName: { type: String, default: null, trim: true },

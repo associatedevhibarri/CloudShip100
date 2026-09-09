@@ -3,6 +3,7 @@ const config = require('../../config/config');
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
 const carriers = require('../../services/carriers');
+const { courierStatusToStage } = require('../utils/shipmentProgress');
 
 /**
  * Shop plugins (Pratik) talk to this client. In the same process we call Vasanth's
@@ -14,6 +15,10 @@ const carriers = require('../../services/carriers');
  *  bookShipment → { bookingRef, trackingNumber, labelUrl? }
  */
 
+/**
+ * Dummy rates for automated tests only. Never shown in development or production —
+ * unconfigured carriers (DHL, DSV, …) must not appear as live bookable cards.
+ */
 const stubQuotes = ({ pickup, dropoff, weightKg }) => {
   const base = 45 + Number(weightKg || 1) * 8;
   const distanceFactor = Math.min(String(pickup || '').length + String(dropoff || '').length, 40);
@@ -68,6 +73,12 @@ const toLogisticsOptions = (quoted) => {
         etaHours: etaHoursFromRow(row),
         quoteId: row.quoteId || null,
       })),
+    skipped: rows
+      .filter((row) => row && !row.available && row.error)
+      .reduce((list, row) => {
+        if (list.some((item) => item.partner === row.partnerId)) return list;
+        return list.concat({ partner: row.partnerId, error: row.error });
+      }, []),
   };
 };
 
@@ -111,6 +122,7 @@ const toBooked = (booked) => ({
   trackingNumber: booked.trackingNumber || booked.carrierShipmentId,
   trackingUrl: booked.trackingUrl || null,
   labelUrl: booked.labelUrl || null,
+  courierStatus: booked.courierStatus || null,
   partner: booked.partnerId,
   service: booked.serviceName,
 });
@@ -167,8 +179,7 @@ const useLiveCarriers = () => config.env !== 'test';
 const getQuotes = async (params) => {
   if (useLiveCarriers()) {
     try {
-      const live = await liveQuotes(params);
-      if (live.options.length) return live;
+      return await liveQuotes(params);
     } catch (err) {
       logger.error(`Live courier quotes failed: ${err.message}`);
     }
@@ -180,6 +191,9 @@ const getQuotes = async (params) => {
   if (config.ecommerce.logisticsApiUrl && !remote) {
     throw new ApiError(httpStatus.BAD_GATEWAY, 'Logistics quotes unavailable');
   }
+  if (useLiveCarriers()) {
+    return { options: [], skipped: [] };
+  }
   return stubQuotes(params);
 };
 
@@ -189,9 +203,7 @@ const bookShipment = async (params) => {
       return await liveBook(params);
     } catch (err) {
       logger.error(`Live courier book failed: ${err.message}`);
-      if (config.ecommerce.logisticsApiUrl) {
-        throw new ApiError(httpStatus.BAD_GATEWAY, 'Logistics booking failed');
-      }
+      throw new ApiError(httpStatus.BAD_GATEWAY, err.message || 'Logistics booking failed');
     }
   }
   const remote = await requestJson('POST', '/book', params);
@@ -208,15 +220,27 @@ const bookShipment = async (params) => {
     labelUrl: null,
     partner: params.partner,
     service: params.service,
+    courierStatus: 'collection-assigned',
     stub: true,
   };
 };
 
-const getTracking = async (bookingRef) => {
+const getTracking = async ({ bookingRef, trackingNumber, partner } = {}) => {
+  const adapter = partner ? carriers.getAdapter(partner) : null;
+  if (adapter && typeof adapter.track === 'function') {
+    const tracked = await adapter.track({ trackingNumber, carrierShipmentId: bookingRef });
+    return {
+      status: courierStatusToStage(tracked.courierStatus) || tracked.courierStatus,
+      courierStatus: tracked.courierStatus,
+      trackingNumber: tracked.trackingNumber || trackingNumber || bookingRef,
+      events: tracked.events || [],
+    };
+  }
   const remote = await requestJson('GET', `/tracking/${encodeURIComponent(bookingRef)}`);
   if (remote) return remote;
   return {
-    status: 'in_transit',
+    status: 'booked',
+    courierStatus: 'collection-assigned',
     trackingNumber: bookingRef,
     events: [],
     stub: true,

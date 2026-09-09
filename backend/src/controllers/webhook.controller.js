@@ -83,6 +83,13 @@ const decodeWixJwt = (rawBody) => {
 const handleOrderWebhook = (platform) =>
   catchAsync(async (req, res) => {
     const conn = await resolveConnection(platform, req);
+    const source =
+      req.headers['x-wc-webhook-source'] ||
+      (platform === 'shopify' ? req.headers['x-shopify-shop-domain'] : null);
+    if (source && !conn.storeUrl) {
+      conn.storeUrl = String(source).replace(/\/$/, '');
+      await conn.save();
+    }
     const adapter = getAdapter(platform);
     adapter.verifyWebhook(conn, req);
 

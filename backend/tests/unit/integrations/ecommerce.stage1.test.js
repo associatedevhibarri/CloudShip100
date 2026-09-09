@@ -107,6 +107,9 @@ describe('E-commerce Stage 1 (Pratik)', () => {
         {
           id: 501,
           currency: 'ZAR',
+          total: '150.92',
+          shipping_total: '50.92',
+          subtotal: '100.00',
           billing: { email: 'buyer@test.com', phone: '081' },
           shipping: {
             address_1: '12 Main',
@@ -114,7 +117,7 @@ describe('E-commerce Stage 1 (Pratik)', () => {
             postcode: '2000',
             country: 'ZA',
           },
-          line_items: [{ name: 'Box', quantity: 2, weight: 1 }],
+          line_items: [{ name: 'Box', quantity: 2, weight: 1, total: '100.00' }],
         },
         fakeConn
       );
@@ -123,6 +126,10 @@ describe('E-commerce Stage 1 (Pratik)', () => {
       expect(normalized.dropoff).toContain('Joburg');
       expect(normalized.weightKg).toBe(2);
       expect(normalized.buyerEmail).toBe('buyer@test.com');
+      expect(normalized.orderTotal).toBe(150.92);
+      expect(normalized.shippingTotal).toBe(50.92);
+      expect(normalized.itemsTotal).toBe(100);
+      expect(normalized.shopLineItems).toEqual([{ name: 'Box', quantity: 2, total: 100 }]);
     });
 
     test('shopify converts grams to kg', () => {
@@ -219,8 +226,12 @@ describe('E-commerce Stage 1 (Pratik)', () => {
 
       const paid = await paymentBridge.confirmPaymentAndBook(ingested.payment.paymentIntentId);
       expect(paid.paymentStatus).toBe('paid');
+      expect(paid.status).toBe('pending');
+      expect(paid.courierStatus).toBe('collection-assigned');
       expect(paid.logisticsBookingRef).toMatch(/^STUB-/);
       expect(paid.trackingNumber).toBeTruthy();
+      const doneStages = (paid.timeline || []).filter((step) => step.done).map((step) => step.stage);
+      expect(doneStages).toEqual(['booked']);
 
       // Second confirm is idempotent
       const paidAgain = await paymentBridge.confirmPaymentAndBook(ingested.payment.paymentIntentId);
@@ -270,9 +281,12 @@ describe('E-commerce Stage 1 (Pratik)', () => {
       const payload = {
         id: 777,
         currency: 'ZAR',
-        billing: { email: 'a@b.com' },
+        total: '199.50',
+        shipping_total: '49.50',
+        subtotal: '150.00',
+        billing: { email: 'a@b.com', phone: '0820000000' },
         shipping: { address_1: '9 Long', city: 'Cape Town', postcode: '8001', country: 'ZA' },
-        line_items: [{ name: 'Parcel', quantity: 1, weight: 1.5 }],
+        line_items: [{ name: 'Parcel', quantity: 1, weight: 1.5, total: '150.00' }],
       };
       const raw = JSON.stringify(payload);
       const signature = hmacSha256Base64(webhookSecret, raw);
@@ -291,6 +305,10 @@ describe('E-commerce Stage 1 (Pratik)', () => {
       const booking = await Booking.findById(res.body.bookingId);
       expect(booking.source).toBe('woocommerce');
       expect(booking.externalOrderId).toBe('777');
+      expect(booking.orderTotal).toBe(199.5);
+      expect(booking.shippingTotal).toBe(49.5);
+      expect(booking.itemsTotal).toBe(150);
+      expect(booking.lineItems[0]).toMatchObject({ name: 'Parcel', quantity: 1, total: 150 });
       expect(booking.logisticsBookingRef).toBeFalsy();
     });
 
@@ -449,6 +467,58 @@ describe('E-commerce Stage 1 (Pratik)', () => {
       expect(updated.quotedPrice).toBe(other.quotedPrice);
       expect(updated.paymentStatus).toBe('awaiting');
       expect(updated.logisticsBookingRef).toBeFalsy();
+    });
+
+    test('lockPickup keeps the warehouse the shipper selected on the order', async () => {
+      const conn = await StoreConnection.create({
+        company: company._id,
+        platform: 'woocommerce',
+        storeName: 'Lock Pickup Shop',
+        storeUrl: 'https://lock.example',
+        credentialsEncrypted: encryptCredentials({ pickupAddress: 'Cape Town, ZA' }),
+        webhookSecret: 'wh_lock',
+        status: 'active',
+        settings: {
+          pickupAddress: 'Cape Town, ZA',
+          pickupStrategy: 'closest',
+          currency: 'ZAR',
+          defaultMode: 'Road',
+          pickupLocations: [
+            { name: 'Main warehouse', address: 'Cape Town, ZA', isDefault: true },
+            { name: 'Uber test', address: '90 Rivonia Road, Sandton, GP, 2196, ZA', isDefault: false },
+          ],
+        },
+      });
+      const lockedPickup = '90 Rivonia Road, Sandton, GP, 2196, ZA';
+      const quote = await quoteBridge.createMarketplaceQuote({
+        pickup: lockedPickup,
+        dropoff: '1 Sandton Drive, Sandton, GP, 2196, ZA',
+        weightKg: 5,
+        lockPickup: true,
+        storeConnection: conn,
+        storeConnectionId: conn._id,
+        companyId: company._id,
+      });
+      expect(quote.pickup).toBe(lockedPickup);
+      expect(quote.pickupName).toBe('Uber test');
+
+      const ingested = await orderBridge.ingestNormalizedOrder({
+        storeConnection: conn,
+        normalized: {
+          externalOrderId: 'LOCK-WH-1',
+          pickup: 'Cape Town, ZA',
+          dropoff: '1 Sandton Drive, Sandton, GP, 2196, ZA',
+          weightKg: 5,
+        },
+      });
+      await quoteBridge.applySelectedQuoteToBooking(ingested.booking, {
+        quoteId: quote.quoteId,
+        partner: quote.selected.partner,
+        service: quote.selected.service,
+      });
+      const updated = await Booking.findById(ingested.booking.id || ingested.booking._id);
+      expect(updated.pickup).toBe(lockedPickup);
+      expect(updated.pickupName).toBe('Uber test');
     });
 
     test('payment config is mock by default', async () => {
