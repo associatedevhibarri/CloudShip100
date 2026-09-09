@@ -88,7 +88,7 @@ export function ShopCheckoutSettings({ stores, token, toast, onSaved }) {
   }
 
   return (
-    <Card className="mb-6 p-5">
+    <Card className="p-5">
       <SectionHeader
         icon={MapPin}
         title="Checkout rules"

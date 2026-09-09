@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   ShoppingBag,
   Plug,
@@ -10,6 +11,7 @@ import {
   Unplug,
   ExternalLink,
   BookOpen,
+  MapPin,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -86,6 +88,32 @@ const PLATFORMS = [
   },
 ]
 
+const TAB_IDS = ['connect', 'stores', 'rules', 'quotes', 'orders', 'tracking']
+
+const NAV_GROUPS = [
+  {
+    group: 'Integrations',
+    items: [
+      { id: 'connect', label: 'Connect a store', icon: Plug, hint: 'Woo, Shopify, Wix, Lovable' },
+      { id: 'stores', label: 'Connected stores', icon: ShoppingBag, hint: 'Keys and connection IDs' },
+      { id: 'rules', label: 'Checkout rules', icon: MapPin, hint: 'Pickup, margin, table rates' },
+      { id: 'quotes', label: 'Test rates', icon: Calculator, hint: 'Try a quote before go-live' },
+    ],
+  },
+  {
+    group: 'Orders',
+    items: [
+      { id: 'orders', label: 'Shop orders', icon: Package, hint: 'Pay and book couriers' },
+    ],
+  },
+  {
+    group: 'Tracking',
+    items: [
+      { id: 'tracking', label: 'Widget & shortcode', icon: Code2, hint: 'Embed tracking on your shop' },
+    ],
+  },
+]
+
 function PlatformKeyGuide({ platform }) {
   if (!platform) return null
   return (
@@ -114,7 +142,8 @@ function PlatformKeyGuide({ platform }) {
         ))}
       </ol>
       <p className="mt-3 text-[11px] font-semibold text-amber-800">
-        Tip: Shop keys go in this form only. CloudShip .env is for server settings (Mongo, JWT, margin) — not Woo/Shopify tokens.
+        Tip: Shop keys go in this form only. CloudShip .env is for server settings (Mongo, JWT, margin) — not Woo/Shopify
+        tokens.
       </p>
     </div>
   )
@@ -163,10 +192,18 @@ function buildCredentials(form) {
   return { pickupAddress }
 }
 
+function panelTitle(tab) {
+  const item = NAV_GROUPS.flatMap((g) => g.items).find((i) => i.id === tab)
+  return item || { label: 'E-commerce', hint: '' }
+}
+
 export default function CustomerEcommercePage() {
   const { tokens } = useAuth()
   const toast = useToast()
   const token = tokens?.access?.token
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedTab = searchParams.get('tab')
+  const tab = TAB_IDS.includes(requestedTab) ? requestedTab : 'connect'
 
   const {
     data: stores,
@@ -200,6 +237,12 @@ export default function CustomerEcommercePage() {
   const [payConfig, setPayConfig] = useState({ mode: 'mock', ready: true, publishableKey: '' })
   const [stripeCheckout, setStripeCheckout] = useState(null)
 
+  const setTab = (next) => {
+    const params = new URLSearchParams(searchParams)
+    params.set('tab', next)
+    setSearchParams(params, { replace: true })
+  }
+
   useEffect(() => {
     if (!token) return undefined
     portalService.getPaymentConfig(token).then(setPayConfig).catch(() => {})
@@ -207,13 +250,14 @@ export default function CustomerEcommercePage() {
     const intent = params.get('payment_intent')
     if (!intent) return undefined
     let cancelled = false
+    setTab('orders')
     portalService
       .confirmMarketplacePayment(token, intent)
       .then(() => {
         if (cancelled) return
         toast.success('Card paid. Courier booked. We emailed the shop and the buyer.')
         refetchBookings()
-        window.history.replaceState({}, '', window.location.pathname)
+        window.history.replaceState({}, '', `${window.location.pathname}?tab=orders`)
       })
       .catch(() => {})
     return () => {
@@ -224,9 +268,7 @@ export default function CustomerEcommercePage() {
   const storeList = stores || []
   const marketplaceBookings = useMemo(
     () =>
-      (bookings || []).filter((b) =>
-        ['woocommerce', 'shopify', 'wix', 'lovable'].includes(b.source)
-      ),
+      (bookings || []).filter((b) => ['woocommerce', 'shopify', 'wix', 'lovable'].includes(b.source)),
     [bookings]
   )
 
@@ -234,6 +276,8 @@ export default function CustomerEcommercePage() {
   const sampleCode = marketplaceBookings[0]?.code || 'BKG-MKT-00001'
   const iframeSnippet = `<iframe src="${origin}/embed/track?code=${sampleCode}" width="100%" height="220" style="border:0;border-radius:12px" title="CloudShip tracking"></iframe>`
   const shortcodeSnippet = `[cloudship_track code="${sampleCode}"]`
+  const activeStoreCount = storeList.filter((s) => s.status === 'active').length
+  const current = panelTitle(tab)
 
   const setField = (key, value) => setForm((prev) => ({ ...prev, [key]: value }))
 
@@ -249,9 +293,7 @@ export default function CustomerEcommercePage() {
         platform: form.platform,
         storeName: form.storeName.trim(),
         storeUrl:
-          form.platform === 'shopify'
-            ? form.shopDomain.trim() || form.storeUrl.trim()
-            : form.storeUrl.trim(),
+          form.platform === 'shopify' ? form.shopDomain.trim() || form.storeUrl.trim() : form.storeUrl.trim(),
         credentials: buildCredentials(form),
         settings: {
           pickupAddress: form.pickupAddress.trim(),
@@ -263,6 +305,7 @@ export default function CustomerEcommercePage() {
       setLastConnected(created)
       setForm({ ...emptyForm, platform: form.platform, pickupAddress: form.pickupAddress })
       refetchStores()
+      setTab('stores')
       toast.success(`${created.platform} store connected`)
     } catch (err) {
       toast.error(err.message || 'Failed to connect store')
@@ -367,349 +410,449 @@ export default function CustomerEcommercePage() {
   if (storesError) return <ErrorState message={storesError} />
   if (bookingsError) return <ErrorState message={bookingsError} />
 
+  const badgeFor = (id) => {
+    if (id === 'stores') return storeList.length
+    if (id === 'orders') return marketplaceBookings.length
+    return null
+  }
+
   return (
     <div>
       <PageHeader
-        title="E-commerce integrations"
-        subtitle="Connect your shop, set pickup and pricing rules, then live courier rates appear at checkout."
+        title="E-commerce"
+        subtitle="Connect a shop, then handle orders and tracking from the menu on the left."
       />
 
-      {/* Connected stores */}
-      <Card className="mb-6 p-5">
-        <SectionHeader
-          icon={Plug}
-          title="Connected stores"
-          description="Each store is a CloudShip connection. Keys stay encrypted on the server — never in .env."
-        />
-        {storeList.length === 0 ? (
-          <p className="text-sm text-muted">No stores yet. Connect one below.</p>
-        ) : (
-          <DataTable
-            columns={[
-              { key: 'storeName', label: 'Store' },
-              { key: 'platform', label: 'Platform', render: (row) => row.platform },
-              {
-                key: 'storeUrl',
-                label: 'URL',
-                render: (row) => row.storeUrl || '—',
-              },
-              {
-                key: 'status',
-                label: 'Status',
-                render: (row) => <StatusBadge status={row.status} />,
-              },
-              {
-                key: 'id',
-                label: 'Connection ID',
-                render: (row) => (
-                  <button type="button" className={btnGhost} onClick={() => copyText(`id-${row.id}`, row.id)}>
-                    {copied === `id-${row.id}` ? <Check size={12} /> : <Copy size={12} />}
-                    <span className="max-w-[120px] truncate font-mono text-[10px]">{row.id}</span>
-                  </button>
-                ),
-              },
-              {
-                key: 'action',
-                label: '',
-                render: (row) =>
-                  row.status === 'active' ? (
-                    <button type="button" className={btnGhost} onClick={() => disconnect(row.id)}>
-                      <Unplug size={12} /> Disconnect
-                    </button>
-                  ) : null,
-              },
-            ]}
-            rows={storeList}
-          />
-        )}
-
-        {lastConnected?.webhookSecret || lastConnected?.publicApiKey ? (
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-            <p className="font-bold">Save these now (shown once after connect)</p>
-            {lastConnected.webhookSecret ? (
-              <p className="mt-2 font-mono text-xs">webhookSecret: {lastConnected.webhookSecret}</p>
-            ) : null}
-            {lastConnected.publicApiKey ? (
-              <p className="mt-1 font-mono text-xs">publicApiKey: {lastConnected.publicApiKey}</p>
-            ) : null}
-          </div>
-        ) : null}
-      </Card>
-
-      <ShopCheckoutSettings stores={storeList} token={token} toast={toast} onSaved={refetchStores} />
-
-      {/* Connect form */}
-      <Card className="mb-6 p-5">
-        <SectionHeader
-          icon={ShoppingBag}
-          title="Connect a store"
-          description="Pick a platform — we show exactly where to copy keys from. Paste them here (not in .env)."
-        />
-        <PlatformKeyGuide platform={PLATFORMS.find((p) => p.id === form.platform)} />
-        <form onSubmit={connectStore} className="grid gap-4 md:grid-cols-2">
-          <FormField id="platform" label="Platform" required>
-            <select
-              id="platform"
-              className={formInputClass()}
-              value={form.platform}
-              onChange={(e) => setField('platform', e.target.value)}
-            >
-              {PLATFORMS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}
-                </option>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        <aside className="w-full shrink-0 lg:w-[30%]">
+          <Card className="p-3 lg:sticky lg:top-4">
+            <nav className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0" aria-label="E-commerce sections">
+              {NAV_GROUPS.map((group) => (
+                <div key={group.group} className="min-w-max lg:min-w-0">
+                  <p className="mb-1.5 px-3 pt-2 text-[11px] font-bold uppercase tracking-wide text-muted">
+                    {group.group}
+                  </p>
+                  <div className="flex gap-1 lg:flex-col">
+                    {group.items.map((item) => {
+                      const Icon = item.icon
+                      const active = tab === item.id
+                      const count = badgeFor(item.id)
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setTab(item.id)}
+                          className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+                            active ? 'bg-brand-light text-ink shadow-sm' : 'text-muted hover:bg-surface hover:text-ink'
+                          }`}
+                        >
+                          <Icon size={16} className={`mt-0.5 shrink-0 ${active ? 'text-brand' : ''}`} />
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-semibold">{item.label}</span>
+                              {count != null ? (
+                                <span
+                                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                                    active ? 'bg-white text-brand' : 'bg-surface text-muted'
+                                  }`}
+                                >
+                                  {count}
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="mt-0.5 hidden text-[11px] leading-snug lg:block">{item.hint}</span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               ))}
-            </select>
-          </FormField>
-          <FormField id="storeName" label="Store name" required>
-            <input
-              id="storeName"
-              className={formInputClass()}
-              value={form.storeName}
-              onChange={(e) => setField('storeName', e.target.value)}
-              placeholder="My Woo Shop"
-            />
-          </FormField>
+            </nav>
+          </Card>
+        </aside>
 
-          {form.platform !== 'lovable' ? (
-            <FormField
-              id="storeUrl"
-              label={form.platform === 'shopify' ? 'Shop domain / URL' : 'Store URL'}
-              hint={form.platform === 'woocommerce' ? 'e.g. http://woocommerse.local' : 'e.g. mystore.myshopify.com'}
-            >
-              <input
-                id="storeUrl"
-                className={formInputClass()}
-                value={form.platform === 'shopify' ? form.shopDomain || form.storeUrl : form.storeUrl}
-                onChange={(e) => {
-                  if (form.platform === 'shopify') setField('shopDomain', e.target.value)
-                  else setField('storeUrl', e.target.value)
-                }}
+        <section className="min-w-0 w-full lg:w-[70%]">
+          {tab === 'connect' ? (
+            <Card className="p-5">
+              <SectionHeader
+                icon={Plug}
+                title={current.label}
+                description="Pick a platform — we show exactly where to copy keys from. Paste them here (not in .env)."
               />
-            </FormField>
+              <PlatformKeyGuide platform={PLATFORMS.find((p) => p.id === form.platform)} />
+              <form onSubmit={connectStore} className="grid gap-4 md:grid-cols-2">
+                <FormField id="platform" label="Platform" required>
+                  <select
+                    id="platform"
+                    className={formInputClass()}
+                    value={form.platform}
+                    onChange={(e) => setField('platform', e.target.value)}
+                  >
+                    {PLATFORMS.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                <FormField id="storeName" label="Store name" required>
+                  <input
+                    id="storeName"
+                    className={formInputClass()}
+                    value={form.storeName}
+                    onChange={(e) => setField('storeName', e.target.value)}
+                    placeholder="My Woo Shop"
+                  />
+                </FormField>
+
+                {form.platform !== 'lovable' ? (
+                  <FormField
+                    id="storeUrl"
+                    label={form.platform === 'shopify' ? 'Shop domain / URL' : 'Store URL'}
+                    hint={
+                      form.platform === 'woocommerce'
+                        ? 'e.g. http://cloudship-logistics.local'
+                        : 'e.g. mystore.myshopify.com'
+                    }
+                  >
+                    <input
+                      id="storeUrl"
+                      className={formInputClass()}
+                      value={form.platform === 'shopify' ? form.shopDomain || form.storeUrl : form.storeUrl}
+                      onChange={(e) => {
+                        if (form.platform === 'shopify') setField('shopDomain', e.target.value)
+                        else setField('storeUrl', e.target.value)
+                      }}
+                    />
+                  </FormField>
+                ) : null}
+
+                <FormField id="pickupAddress" label="Pickup address" required hint="Warehouse the parcels leave from.">
+                  <input
+                    id="pickupAddress"
+                    className={formInputClass()}
+                    value={form.pickupAddress}
+                    onChange={(e) => setField('pickupAddress', e.target.value)}
+                  />
+                </FormField>
+
+                {form.platform === 'woocommerce' ? (
+                  <>
+                    <FormField id="consumerKey" label="Consumer key (ck_…)" required>
+                      <input
+                        id="consumerKey"
+                        className={formInputClass()}
+                        value={form.consumerKey}
+                        onChange={(e) => setField('consumerKey', e.target.value)}
+                        autoComplete="off"
+                      />
+                    </FormField>
+                    <FormField id="consumerSecret" label="Consumer secret (cs_…)" required>
+                      <input
+                        id="consumerSecret"
+                        type="password"
+                        className={formInputClass()}
+                        value={form.consumerSecret}
+                        onChange={(e) => setField('consumerSecret', e.target.value)}
+                        autoComplete="off"
+                      />
+                    </FormField>
+                  </>
+                ) : null}
+
+                {form.platform === 'shopify' || form.platform === 'wix' ? (
+                  <FormField
+                    id="accessToken"
+                    label={form.platform === 'shopify' ? 'Admin API access token (shpat_…)' : 'Wix access token'}
+                    required
+                    hint={
+                      form.platform === 'shopify'
+                        ? 'From Develop apps → API credentials → Reveal token'
+                        : 'From Wix Dev Center app credentials'
+                    }
+                  >
+                    <input
+                      id="accessToken"
+                      type="password"
+                      className={formInputClass()}
+                      value={form.accessToken}
+                      onChange={(e) => setField('accessToken', e.target.value)}
+                      autoComplete="off"
+                      placeholder={form.platform === 'shopify' ? 'shpat_…' : 'Access token'}
+                    />
+                  </FormField>
+                ) : null}
+
+                <div className="md:col-span-2">
+                  <button type="submit" className={btnPrimary} disabled={connecting}>
+                    {connecting ? 'Connecting…' : 'Connect store'}
+                  </button>
+                </div>
+              </form>
+            </Card>
           ) : null}
 
-          <FormField id="pickupAddress" label="Pickup address" required>
-            <input
-              id="pickupAddress"
-              className={formInputClass()}
-              value={form.pickupAddress}
-              onChange={(e) => setField('pickupAddress', e.target.value)}
-            />
-          </FormField>
-
-          {form.platform === 'woocommerce' ? (
-            <>
-              <FormField id="consumerKey" label="Consumer key (ck_…)" required>
-                <input
-                  id="consumerKey"
-                  className={formInputClass()}
-                  value={form.consumerKey}
-                  onChange={(e) => setField('consumerKey', e.target.value)}
-                  autoComplete="off"
-                />
-              </FormField>
-              <FormField id="consumerSecret" label="Consumer secret (cs_…)" required>
-                <input
-                  id="consumerSecret"
-                  type="password"
-                  className={formInputClass()}
-                  value={form.consumerSecret}
-                  onChange={(e) => setField('consumerSecret', e.target.value)}
-                  autoComplete="off"
-                />
-              </FormField>
-            </>
-          ) : null}
-
-          {form.platform === 'shopify' || form.platform === 'wix' ? (
-            <FormField
-              id="accessToken"
-              label={form.platform === 'shopify' ? 'Admin API access token (shpat_…)' : 'Wix access token'}
-              required
-              hint={
-                form.platform === 'shopify'
-                  ? 'From Develop apps → API credentials → Reveal token'
-                  : 'From Wix Dev Center app credentials'
-              }
-            >
-              <input
-                id="accessToken"
-                type="password"
-                className={formInputClass()}
-                value={form.accessToken}
-                onChange={(e) => setField('accessToken', e.target.value)}
-                autoComplete="off"
-                placeholder={form.platform === 'shopify' ? 'shpat_…' : 'Access token'}
+          {tab === 'stores' ? (
+            <Card className="p-5">
+              <SectionHeader
+                icon={ShoppingBag}
+                title={current.label}
+                description="Each store is a CloudShip connection. Keys stay encrypted on the server — never in .env."
               />
-            </FormField>
+              {storeList.length === 0 ? (
+                <p className="text-sm text-muted">
+                  No stores yet.{' '}
+                  <button type="button" className="font-semibold text-brand underline" onClick={() => setTab('connect')}>
+                    Connect a store
+                  </button>
+                </p>
+              ) : (
+                <DataTable
+                  columns={[
+                    { key: 'storeName', label: 'Store' },
+                    { key: 'platform', label: 'Platform', render: (row) => row.platform },
+                    {
+                      key: 'storeUrl',
+                      label: 'URL',
+                      render: (row) => row.storeUrl || '—',
+                    },
+                    {
+                      key: 'status',
+                      label: 'Status',
+                      render: (row) => <StatusBadge status={row.status} />,
+                    },
+                    {
+                      key: 'id',
+                      label: 'Connection ID',
+                      render: (row) => (
+                        <button type="button" className={btnGhost} onClick={() => copyText(`id-${row.id}`, row.id)}>
+                          {copied === `id-${row.id}` ? <Check size={12} /> : <Copy size={12} />}
+                          <span className="max-w-[120px] truncate font-mono text-[10px]">{row.id}</span>
+                        </button>
+                      ),
+                    },
+                    {
+                      key: 'action',
+                      label: '',
+                      render: (row) =>
+                        row.status === 'active' ? (
+                          <button type="button" className={btnGhost} onClick={() => disconnect(row.id)}>
+                            <Unplug size={12} /> Disconnect
+                          </button>
+                        ) : null,
+                    },
+                  ]}
+                  rows={storeList}
+                />
+              )}
+
+              {lastConnected?.webhookSecret || lastConnected?.publicApiKey ? (
+                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                  <p className="font-bold">Save these now (shown once after connect)</p>
+                  {lastConnected.webhookSecret ? (
+                    <p className="mt-2 font-mono text-xs">webhookSecret: {lastConnected.webhookSecret}</p>
+                  ) : null}
+                  {lastConnected.publicApiKey ? (
+                    <p className="mt-1 font-mono text-xs">publicApiKey: {lastConnected.publicApiKey}</p>
+                  ) : null}
+                </div>
+              ) : null}
+            </Card>
           ) : null}
 
-          <div className="md:col-span-2">
-            <button type="submit" className={btnPrimary} disabled={connecting}>
-              {connecting ? 'Connecting…' : 'Connect store'}
-            </button>
-          </div>
-        </form>
-      </Card>
+          {tab === 'rules' ? (
+            activeStoreCount === 0 ? (
+              <Card className="p-5">
+                <SectionHeader
+                  icon={MapPin}
+                  title={current.label}
+                  description="Pickup points, extra margin, and table rates — after a store is connected."
+                />
+                <p className="text-sm text-muted">
+                  Connect a store first, then set pickup and pricing rules here.{' '}
+                  <button type="button" className="font-semibold text-brand underline" onClick={() => setTab('connect')}>
+                    Connect a store
+                  </button>
+                </p>
+              </Card>
+            ) : (
+              <ShopCheckoutSettings stores={storeList} token={token} toast={toast} onSaved={refetchStores} />
+            )
+          ) : null}
 
-      {/* Quote tester */}
-      <Card className="mb-6 p-5">
-        <SectionHeader
-          icon={Calculator}
-          title="Test marketplace pricing"
-          description="Live courier price + CloudShip 10% + your extra %. Table rates show when they match."
-        />
-        <form onSubmit={runQuote} className="grid gap-4 md:grid-cols-2">
-          <FormField id="connectionId" label="Store (optional)">
-            <select
-              id="connectionId"
-              className={formInputClass()}
-              value={quoteForm.connectionId}
-              onChange={(e) => setQuoteForm((p) => ({ ...p, connectionId: e.target.value }))}
-            >
-              <option value="">None</option>
-              {storeList
-                .filter((s) => s.status === 'active')
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.storeName} ({s.platform})
-                  </option>
-                ))}
-            </select>
-          </FormField>
-          <FormField id="weightKg" label="Weight (kg)" required>
-            <input
-              id="weightKg"
-              type="number"
-              min="0.1"
-              step="0.1"
-              className={formInputClass()}
-              value={quoteForm.weightKg}
-              onChange={(e) => setQuoteForm((p) => ({ ...p, weightKg: e.target.value }))}
-            />
-          </FormField>
-          <FormField id="pickup" label="Pickup" required>
-            <input
-              id="pickup"
-              className={formInputClass()}
-              value={quoteForm.pickup}
-              onChange={(e) => setQuoteForm((p) => ({ ...p, pickup: e.target.value }))}
-            />
-          </FormField>
-          <FormField id="dropoff" label="Dropoff" required>
-            <input
-              id="dropoff"
-              className={formInputClass()}
-              value={quoteForm.dropoff}
-              onChange={(e) => setQuoteForm((p) => ({ ...p, dropoff: e.target.value }))}
-            />
-          </FormField>
-          <div className="md:col-span-2">
-            <button type="submit" className={btnPrimary} disabled={quoting}>
-              {quoting ? 'Getting rates…' : 'Get live quote'}
-            </button>
-          </div>
-        </form>
+          {tab === 'quotes' ? (
+            <Card className="p-5">
+              <SectionHeader
+                icon={Calculator}
+                title={current.label}
+                description="Live courier price + CloudShip 10% + your extra %. Table rates show when they match."
+              />
+              <form onSubmit={runQuote} className="grid gap-4 md:grid-cols-2">
+                <FormField id="connectionId" label="Store (optional)">
+                  <select
+                    id="connectionId"
+                    className={formInputClass()}
+                    value={quoteForm.connectionId}
+                    onChange={(e) => setQuoteForm((p) => ({ ...p, connectionId: e.target.value }))}
+                  >
+                    <option value="">None</option>
+                    {storeList
+                      .filter((s) => s.status === 'active')
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.storeName} ({s.platform})
+                        </option>
+                      ))}
+                  </select>
+                </FormField>
+                <FormField id="weightKg" label="Weight (kg)" required>
+                  <input
+                    id="weightKg"
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    className={formInputClass()}
+                    value={quoteForm.weightKg}
+                    onChange={(e) => setQuoteForm((p) => ({ ...p, weightKg: e.target.value }))}
+                  />
+                </FormField>
+                <FormField id="pickup" label="Pickup" required>
+                  <input
+                    id="pickup"
+                    className={formInputClass()}
+                    value={quoteForm.pickup}
+                    onChange={(e) => setQuoteForm((p) => ({ ...p, pickup: e.target.value }))}
+                  />
+                </FormField>
+                <FormField id="dropoff" label="Dropoff" required>
+                  <input
+                    id="dropoff"
+                    className={formInputClass()}
+                    value={quoteForm.dropoff}
+                    onChange={(e) => setQuoteForm((p) => ({ ...p, dropoff: e.target.value }))}
+                  />
+                </FormField>
+                <div className="md:col-span-2">
+                  <button type="submit" className={btnPrimary} disabled={quoting}>
+                    {quoting ? 'Getting rates…' : 'Get live quote'}
+                  </button>
+                </div>
+              </form>
 
-        {quoteResult ? (
-          <div className="mt-5 overflow-x-auto rounded-xl border border-line">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-surface text-xs uppercase text-muted">
-                <tr>
-                  <th className="px-3 py-2">Partner</th>
-                  <th className="px-3 py-2">Carrier</th>
-                  <th className="px-3 py-2">CloudShip</th>
-                  <th className="px-3 py-2">Your cut</th>
-                  <th className="px-3 py-2">Customer pays</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(quoteResult.options || []).map((opt) => (
-                  <tr key={`${opt.partner}-${opt.service}`} className="border-t border-line">
-                    <td className="px-3 py-2 font-semibold text-ink">
-                      {opt.partner} / {opt.service}
-                    </td>
-                    <td className="px-3 py-2">R {opt.carrierCost}</td>
-                    <td className="px-3 py-2">R {opt.marginAmount}</td>
-                    <td className="px-3 py-2">R {opt.shopMarginAmount || 0}</td>
-                    <td className="px-3 py-2 font-bold text-brand">R {opt.quotedPrice}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="border-t border-line bg-surface px-3 py-2 font-mono text-[11px] text-muted">
-              quoteId: {quoteResult.quoteId} · selected R {quoteResult.selected?.quotedPrice}
-            </p>
-          </div>
-        ) : null}
-      </Card>
+              {quoteResult ? (
+                <div className="mt-5 overflow-x-auto rounded-xl border border-line">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="bg-surface text-xs uppercase text-muted">
+                      <tr>
+                        <th className="px-3 py-2">Partner</th>
+                        <th className="px-3 py-2">Carrier</th>
+                        <th className="px-3 py-2">CloudShip</th>
+                        <th className="px-3 py-2">Your cut</th>
+                        <th className="px-3 py-2">Customer pays</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(quoteResult.options || []).map((opt) => (
+                        <tr key={`${opt.partner}-${opt.service}`} className="border-t border-line">
+                          <td className="px-3 py-2 font-semibold text-ink">
+                            {opt.partner} / {opt.service}
+                          </td>
+                          <td className="px-3 py-2">R {opt.carrierCost}</td>
+                          <td className="px-3 py-2">R {opt.marginAmount}</td>
+                          <td className="px-3 py-2">R {opt.shopMarginAmount || 0}</td>
+                          <td className="px-3 py-2 font-bold text-brand">R {opt.quotedPrice}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="border-t border-line bg-surface px-3 py-2 font-mono text-[11px] text-muted">
+                    quoteId: {quoteResult.quoteId} · selected R {quoteResult.selected?.quotedPrice}
+                  </p>
+                </div>
+              ) : null}
+            </Card>
+          ) : null}
 
-      {/* Marketplace orders */}
-      <Card className="mb-6 p-5">
-        <SectionHeader
-          icon={Package}
-          title="Marketplace orders"
-          description="Orders from connected shops. Open a row to see live courier rates, pick one, then pay. CloudShip books that courier and emails both sides."
-        />
-        {payConfig.mode === 'stripe' && !payConfig.ready ? (
-          <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            PAYMENT_MODE is stripe. Paste STRIPE_SECRET_KEY (sk_test_…) and STRIPE_PUBLISHABLE_KEY (pk_test_…) in
-            backend .env, then restart the backend. Use test card 4242 4242 4242 4242.
-          </p>
-        ) : null}
-        {marketplaceBookings.length === 0 ? (
-          <p className="text-sm text-muted">
-            No shop orders yet. Create one via Postman webhook or wait for a real Woo order webhook.
-          </p>
-        ) : (
-          <MarketplaceOrders
-            rows={marketplaceBookings}
-            token={token}
-            payingId={payingId}
-            payConfig={payConfig}
-            payLabel={
-              payConfig.mode === 'stripe'
-                ? payConfig.ready
-                  ? 'Pay with test card'
-                  : 'Stripe keys missing'
-                : 'Mock pay & book'
-            }
-            onPay={confirmPay}
-          />
-        )}
-      </Card>
+          {tab === 'orders' ? (
+            <Card className="p-5">
+              <SectionHeader
+                icon={Package}
+                title={current.label}
+                description="Orders from connected shops. Open a row to see live courier rates, pick one, then pay."
+              />
+              {payConfig.mode === 'stripe' && !payConfig.ready ? (
+                <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  PAYMENT_MODE is stripe. Paste STRIPE_SECRET_KEY (sk_test_…) and STRIPE_PUBLISHABLE_KEY (pk_test_…) in
+                  backend .env, then restart the backend. Use test card 4242 4242 4242 4242.
+                </p>
+              ) : null}
+              {marketplaceBookings.length === 0 ? (
+                <p className="text-sm text-muted">
+                  No shop orders yet. Connect a store, add the Woo webhook, then place a test order.
+                </p>
+              ) : (
+                <MarketplaceOrders
+                  rows={marketplaceBookings}
+                  token={token}
+                  payingId={payingId}
+                  payConfig={payConfig}
+                  payLabel={
+                    payConfig.mode === 'stripe'
+                      ? payConfig.ready
+                        ? 'Pay with test card'
+                        : 'Stripe keys missing'
+                      : 'Mock pay & book'
+                  }
+                  onPay={confirmPay}
+                />
+              )}
+            </Card>
+          ) : null}
 
-      {/* Shortcodes */}
-      <Card className="p-5">
-        <SectionHeader
-          icon={Code2}
-          title="Tracking shortcode & embed"
-          description="Paste the tracking shortcode on a thank-you page. Checkout rates come from the CloudShip Woo shipping plugin, not this snippet."
-        />
-        <div className="space-y-4">
-          <div>
-            <p className="mb-1 text-xs font-bold uppercase text-muted">WordPress-style shortcode</p>
-            <pre className="overflow-x-auto rounded-xl bg-ink p-3 font-mono text-xs text-white">{shortcodeSnippet}</pre>
-            <button type="button" className={`${btnGhost} mt-2`} onClick={() => copyText('sc', shortcodeSnippet)}>
-              {copied === 'sc' ? <Check size={12} /> : <Copy size={12} />} Copy shortcode
-            </button>
-          </div>
-          <div>
-            <p className="mb-1 text-xs font-bold uppercase text-muted">HTML iframe embed</p>
-            <pre className="overflow-x-auto rounded-xl bg-ink p-3 font-mono text-xs text-white">{iframeSnippet}</pre>
-            <button type="button" className={`${btnGhost} mt-2`} onClick={() => copyText('iframe', iframeSnippet)}>
-              {copied === 'iframe' ? <Check size={12} /> : <Copy size={12} />} Copy iframe
-            </button>
-          </div>
-          <p className="text-sm text-muted">
-            Preview widget:{' '}
-            <a className="font-semibold text-brand underline" href={`/embed/track?code=${sampleCode}`} target="_blank" rel="noreferrer">
-              /embed/track?code={sampleCode}
-            </a>
-          </p>
-        </div>
-      </Card>
+          {tab === 'tracking' ? (
+            <Card className="p-5">
+              <SectionHeader
+                icon={Code2}
+                title={current.label}
+                description="Paste the tracking shortcode on a thank-you page. Checkout rates come from the connected shop, not this snippet."
+              />
+              <div className="space-y-4">
+                <div>
+                  <p className="mb-1 text-xs font-bold uppercase text-muted">WordPress-style shortcode</p>
+                  <pre className="overflow-x-auto rounded-xl bg-ink p-3 font-mono text-xs text-white">
+                    {shortcodeSnippet}
+                  </pre>
+                  <button type="button" className={`${btnGhost} mt-2`} onClick={() => copyText('sc', shortcodeSnippet)}>
+                    {copied === 'sc' ? <Check size={12} /> : <Copy size={12} />} Copy shortcode
+                  </button>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-bold uppercase text-muted">HTML iframe embed</p>
+                  <pre className="overflow-x-auto rounded-xl bg-ink p-3 font-mono text-xs text-white">
+                    {iframeSnippet}
+                  </pre>
+                  <button type="button" className={`${btnGhost} mt-2`} onClick={() => copyText('iframe', iframeSnippet)}>
+                    {copied === 'iframe' ? <Check size={12} /> : <Copy size={12} />} Copy iframe
+                  </button>
+                </div>
+                <p className="text-sm text-muted">
+                  Preview widget:{' '}
+                  <a
+                    className="font-semibold text-brand underline"
+                    href={`/embed/track?code=${sampleCode}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    /embed/track?code={sampleCode}
+                  </a>
+                </p>
+              </div>
+            </Card>
+          ) : null}
+        </section>
+      </div>
+
       {stripeCheckout ? (
         <StripePayModal
           clientSecret={stripeCheckout.clientSecret}

@@ -29,7 +29,7 @@ function PayForm({ amount, currency, onCancel, onPaid }) {
     const { error: stripeError } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: `${window.location.origin}/customer/ecommerce`,
+        return_url: `${window.location.origin}/customer/ecommerce?tab=orders`,
       },
       redirect: 'if_required',
     })
