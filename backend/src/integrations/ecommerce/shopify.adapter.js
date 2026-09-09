@@ -120,46 +120,54 @@ const formatShopifyRates = (quoteResult) => {
 
 const pushStatus = async (storeConnection, booking, statusPayload) => {
   const creds = safeDecrypt(storeConnection);
-  const shop = (creds.shopDomain || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const shop = (creds.shopDomain || storeConnection.storeUrl || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
   if (!shop || !creds.accessToken) {
     logger.warn(`Shopify pushStatus skipped — missing credentials for ${storeConnection.id}`);
     return { skipped: true };
   }
   const orderId = booking.externalOrderId;
-  const res = await fetch(`https://${shop}/admin/api/2024-10/orders/${encodeURIComponent(orderId)}/fulfillments.json`, {
-    method: 'POST',
-    headers: {
-      'X-Shopify-Access-Token': creds.accessToken,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      fulfillment: {
-        tracking_number: booking.trackingNumber || booking.logisticsBookingRef || booking.code,
-        tracking_company: 'CloudShip',
-        notify_customer: true,
-        line_items_by_fulfillment_order: undefined,
-      },
-    }),
-  });
-  // Older shops may need REST fulfillments differently; treat non-2xx as soft fail for Stage 1
-  if (!res.ok) {
-    const text = await res.text();
-    // Fallback: add order note
-    await fetch(`https://${shop}/admin/api/2024-10/orders/${encodeURIComponent(orderId)}.json`, {
-      method: 'PUT',
-      headers: {
-        'X-Shopify-Access-Token': creds.accessToken,
-        'Content-Type': 'application/json',
-      },
+  if (!orderId) return { skipped: true };
+  const headers = {
+    'X-Shopify-Access-Token': creds.accessToken,
+    'Content-Type': 'application/json',
+  };
+  const label =
+    (statusPayload && (statusPayload.label || statusPayload.courierStatus || statusPayload.status)) ||
+    booking.status;
+  const note = `CloudShip: ${label} | ${booking.trackingNumber || booking.code || ''}`;
+
+  if (!booking.lastPushedCourierStatus) {
+    const res = await fetch(`https://${shop}/admin/api/2024-10/orders/${encodeURIComponent(orderId)}/fulfillments.json`, {
+      method: 'POST',
+      headers,
       body: JSON.stringify({
-        order: {
-          id: orderId,
-          note: `CloudShip: ${statusPayload.status || booking.status} | ${booking.trackingNumber || ''}`,
+        fulfillment: {
+          tracking_number: booking.trackingNumber || booking.logisticsBookingRef || booking.code,
+          tracking_company: 'CloudShip',
+          notify_customer: true,
+          line_items_by_fulfillment_order: undefined,
         },
       }),
     });
-    logger.warn(`Shopify fulfillment create failed (${res.status}): ${text}`);
-    return { ok: false, noted: true };
+    if (!res.ok) {
+      const text = await res.text();
+      logger.warn(`Shopify fulfillment create failed (${res.status}): ${text}`);
+    }
+  }
+
+  const noteRes = await fetch(`https://${shop}/admin/api/2024-10/orders/${encodeURIComponent(orderId)}.json`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({
+      order: {
+        id: orderId,
+        note,
+      },
+    }),
+  });
+  if (!noteRes.ok) {
+    const text = await noteRes.text();
+    throw new Error(`Shopify status push failed: ${noteRes.status} ${text}`);
   }
   return { ok: true };
 };

@@ -15,6 +15,9 @@ const styles = {
   minor: 'bg-amber-50 text-amber-700 border-amber-100',
   major: 'bg-rose-50 text-rose-700 border-rose-100',
   pending: 'bg-violet-50 text-violet-700 border-violet-100',
+  booked: 'bg-violet-50 text-violet-700 border-violet-100',
+  'collection assigned': 'bg-sky-50 text-sky-700 border-sky-100',
+  warehouse: 'bg-sky-50 text-sky-700 border-sky-100',
   in_transit: 'bg-brand-light text-brand-dark border-brand/20',
   history: 'bg-slate-100 text-slate-600 border-slate-200',
   Open: 'bg-amber-50 text-amber-700 border-amber-100',
@@ -54,7 +57,7 @@ const styles = {
 
 export function StatusBadge({ status }) {
   const key = status || 'default'
-  const label = String(status || '').replaceAll('_', ' ')
+  const label = String(status || '').replaceAll('_', ' ').replaceAll('-', ' ')
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${

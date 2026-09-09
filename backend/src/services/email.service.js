@@ -66,14 +66,16 @@ const sendEmailSafe = async (to, subject, text) => {
 
 const sendShipmentBookedEmails = async ({ booking, shopEmail, shopName }) => {
   const track = booking.trackingNumber || booking.logisticsBookingRef || booking.code;
+  const widget = `${config.frontendUrl}/embed/track?code=${encodeURIComponent(booking.code)}`;
   const buyerText = `Your delivery is booked.
 
 Booking: ${booking.code}
 From: ${booking.pickup}
 To: ${booking.dropoff}
 Courier: ${booking.partnerName || booking.selectedPartner || 'CloudShip'}
-Tracking: ${track}
-${booking.trackingUrl ? `Track: ${booking.trackingUrl}` : ''}
+Tracking number: ${track}
+Track here: ${widget}
+${booking.trackingUrl ? `Courier tracking: ${booking.trackingUrl}` : ''}
 
 Thank you for shopping with ${shopName || 'us'}.`;
 
@@ -85,7 +87,8 @@ Customer pays: ${booking.quotedPrice} ${booking.currency || ''}
 Courier cost: ${booking.carrierCost != null ? booking.carrierCost : '-'}
 From: ${booking.pickup}
 To: ${booking.dropoff}
-Tracking: ${track}`;
+Tracking: ${track}
+Track: ${widget}`;
 
   await sendEmailSafe(booking.buyerEmail, `Your delivery ${booking.code} is booked`, buyerText);
   await sendEmailSafe(shopEmail, `CloudShip booked ${booking.code}`, shopText);

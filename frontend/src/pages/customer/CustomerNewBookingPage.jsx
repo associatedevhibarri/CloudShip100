@@ -287,7 +287,7 @@ export default function CustomerNewBookingPage() {
                   routeDurationMinutes={quote.durationMinutes}
                   onSelect={setSelectedQuoteId}
                   onBook={bookQuote}
-                  booking={submitting}
+                  booking={submitting && partner.quoteId === selectedQuoteId}
                   bookDisabled={submitting}
                 />
               </li>

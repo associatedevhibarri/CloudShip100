@@ -20,6 +20,11 @@ const connectStore = {
           Joi.object().keys({
             name: Joi.string().allow(''),
             address: Joi.string().required(),
+            street: Joi.string().allow(''),
+            city: Joi.string().allow(''),
+            state: Joi.string().allow(''),
+            postalCode: Joi.string().allow(''),
+            country: Joi.string().allow(''),
             isDefault: Joi.boolean(),
           })
         ),
@@ -72,6 +77,9 @@ const marketplaceQuote = {
     mode: Joi.string().valid('Road', 'Air', 'Maritime', 'Rail'),
     currency: Joi.string().length(3),
     preferredPartner: Joi.string(),
+    lockPickup: Joi.boolean(),
+    pickupLocked: Joi.boolean(),
+    pickupName: Joi.string().allow(''),
   }),
 };
 

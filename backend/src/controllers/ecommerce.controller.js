@@ -7,6 +7,8 @@ const quoteBridge = require('../integrations/bridge/quoteBridge.service');
 const paymentBridge = require('../integrations/bridge/paymentBridge.service');
 const orderBridge = require('../integrations/bridge/orderBridge.service');
 const { getAdapter } = require('../integrations/ecommerce');
+const { displayShipmentStatus, displayShipmentLabel, progressTimeline } = require('../integrations/utils/shipmentProgress');
+const carrierTracking = require('../integrations/bridge/carrierTracking.service');
 
 const connectStore = catchAsync(async (req, res) => {
   const company = await companyService.getOrCreateCompanyForUser(req.user);
@@ -100,16 +102,21 @@ const publicTrack = catchAsync(async (req, res) => {
   if (!booking) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Tracking not found');
   }
+  await carrierTracking.refreshBookingTracking(booking);
+  const status = displayShipmentStatus(booking);
   res.send({
     code: booking.code,
-    status: booking.status,
+    status,
+    courierStatus: booking.courierStatus || null,
+    statusLabel: displayShipmentLabel(booking),
     paymentStatus: booking.paymentStatus,
     pickup: booking.pickup,
     dropoff: booking.dropoff,
     trackingNumber: booking.trackingNumber,
+    trackingUrl: booking.trackingUrl || null,
     logisticsBookingRef: booking.logisticsBookingRef,
     source: booking.source,
-    timeline: booking.timeline,
+    timeline: progressTimeline(booking.timeline, status),
     updatedAt: booking.updatedAt,
   });
 });

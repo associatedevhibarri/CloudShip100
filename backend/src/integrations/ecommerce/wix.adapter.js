@@ -152,6 +152,7 @@ const pushStatus = async (storeConnection, booking, statusPayload) => {
           trackingInfo: {
             trackingNumber: booking.trackingNumber || booking.logisticsBookingRef,
             shippingProvider: 'CloudShip',
+            trackingLink: booking.trackingUrl || undefined,
           },
         },
       ],

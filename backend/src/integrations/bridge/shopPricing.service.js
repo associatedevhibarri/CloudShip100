@@ -49,7 +49,18 @@ const pickClosestPickup = async (settings, dropoff) => {
   return scored[0].loc;
 };
 
-const resolvePickup = async ({ settings, fallbackPickup, dropoff }) => {
+const matchPickup = (settings, address) => {
+  const target = String(address || '').trim().toLowerCase();
+  if (!target) return null;
+  return pickupLocations(settings).find((row) => String(row.address || '').trim().toLowerCase() === target) || null;
+};
+
+const resolvePickup = async ({ settings, fallbackPickup, dropoff, lockPickup }) => {
+  if (lockPickup) {
+    const address = String(fallbackPickup || '').trim();
+    const named = matchPickup(settings || {}, address);
+    return { address, name: (named && named.name) || 'Warehouse' };
+  }
   const chosen = await pickClosestPickup(settings || {}, dropoff);
   if (chosen && chosen.address) {
     return { address: chosen.address, name: chosen.name || 'Warehouse' };

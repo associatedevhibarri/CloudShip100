@@ -82,6 +82,7 @@ const createMarketplaceQuote = async (input) => {
     settings,
     fallbackPickup: input.pickup,
     dropoff,
+    lockPickup: Boolean(input.lockPickup || input.pickupLocked),
   });
   const pickup = resolved.address;
   if (!pickup) {
@@ -102,7 +103,19 @@ const createMarketplaceQuote = async (input) => {
   options = options.map((opt) => ({ ...opt, pickupName: resolved.name }));
 
   if (!options.length) {
-    throw new ApiError(httpStatus.BAD_GATEWAY, 'No logistics rates available');
+    return {
+      quoteId: null,
+      expiresAt: null,
+      pickup,
+      pickupName: resolved.name,
+      dropoff,
+      weightKg,
+      mode: settings.defaultMode || mode,
+      currency: (settings.currency || currency).toUpperCase(),
+      options: [],
+      skipped: raw.skipped || [],
+      selected: null,
+    };
   }
 
   let selected = options[0];
@@ -150,6 +163,7 @@ const createMarketplaceQuote = async (input) => {
     mode: doc.mode,
     currency: doc.currency,
     options,
+    skipped: raw.skipped || [],
     selected: {
       partner: selected.partner,
       service: selected.service,
@@ -214,6 +228,7 @@ const getValidQuote = async (quoteId, select = {}) => {
     logisticsQuoteId,
     shopMarginAmount,
     pickupName: doc.pickupName,
+    pickup: doc.pickup,
   };
 };
 
@@ -243,6 +258,7 @@ const applySelectedQuoteToBooking = async (booking, { quoteId, partner, service 
   booking.shopMarginAmount = q.shopMarginAmount || 0;
   booking.logisticsQuoteId = q.logisticsQuoteId || null;
   booking.pickupName = q.pickupName || booking.pickupName;
+  if (q.pickup) booking.pickup = q.pickup;
   await booking.save();
   return booking;
 };

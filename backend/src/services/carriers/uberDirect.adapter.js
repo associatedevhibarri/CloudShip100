@@ -2,33 +2,26 @@ const config = require('../../config/config');
 const { requestJson, formUrlEncoded } = require('./http');
 const { defaultParcel } = require('./address');
 const { phoneFor, structuredAddress, scheduleWindow, scheduleFromQuote } = require('./uberDirect.helpers');
+const { createOauthToken } = require('./oauthToken');
 
 const id = 'uber_direct';
 const name = 'Uber Direct';
-
-let tokenCache = { accessToken: null, expiresAt: 0 };
 
 const isConfigured = () => {
   const { clientId, clientSecret, customerId } = config.carriers.uberDirect;
   return Boolean(clientId && clientSecret && customerId);
 };
 
-const getToken = async () => {
-  if (tokenCache.accessToken && Date.now() < tokenCache.expiresAt) {
-    return tokenCache.accessToken;
-  }
-  const data = await formUrlEncoded('https://auth.uber.com/oauth/v2/token', {
+const tokens = createOauthToken(() =>
+  formUrlEncoded('https://auth.uber.com/oauth/v2/token', {
     client_id: config.carriers.uberDirect.clientId,
     client_secret: config.carriers.uberDirect.clientSecret,
     grant_type: 'client_credentials',
     scope: 'eats.deliveries',
-  });
-  tokenCache = {
-    accessToken: data.access_token,
-    expiresAt: Date.now() + (data.expires_in - 60) * 1000,
-  };
-  return tokenCache.accessToken;
-};
+  })
+);
+
+const getToken = () => tokens.get();
 
 const quote = async (shipment) => {
   const { customerId } = config.carriers.uberDirect;
@@ -107,6 +100,29 @@ const book = async (shipment, partnerQuote) => {
     trackingNumber: data.uuid || data.id,
     trackingUrl: data.tracking_url || null,
     labelUrl: null,
+    courierStatus: data.status || data.status_code || 'pending',
+  };
+};
+
+const track = async ({ trackingNumber, carrierShipmentId } = {}) => {
+  const { customerId } = config.carriers.uberDirect;
+  const deliveryId = carrierShipmentId || trackingNumber;
+  if (!deliveryId) {
+    throw new Error('Uber Direct delivery id required');
+  }
+  const token = await getToken();
+  const data = await requestJson(`https://api.uber.com/v1/customers/${customerId}/deliveries/${encodeURIComponent(deliveryId)}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  return {
+    courierStatus: data.status || data.status_code || null,
+    trackingNumber: data.uuid || data.id || trackingNumber || deliveryId,
+    trackingUrl: data.tracking_url || null,
+    events: data.undeliverable_reason ? [{ status: data.status, message: data.undeliverable_reason }] : [],
   };
 };
 
@@ -116,4 +132,5 @@ module.exports = {
   isConfigured,
   quote,
   book,
+  track,
 };

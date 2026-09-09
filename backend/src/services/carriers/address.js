@@ -45,10 +45,13 @@ const parseAddress = (raw, fallbackCountry = 'ZA') => {
       state = stateZip[1].toUpperCase();
       postalCode = stateZip[2];
       parts.pop();
-    } else if (/^\d{4,6}$/.test(tail)) {
+    } else if (/^\d{4,6}(?:-\d{4})?$/.test(tail)) {
       postalCode = tail;
       parts.pop();
     }
+  }
+  if (parts.length && /^[A-Za-z]{2}$/.test(parts[parts.length - 1])) {
+    state = parts.pop().toUpperCase();
   }
 
   const city = parts.length > 1 ? parts[parts.length - 1] : parts[0] || 'Unknown';

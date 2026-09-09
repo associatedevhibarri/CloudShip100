@@ -5,6 +5,8 @@ const logger = require('../../config/logger');
 const quoteBridge = require('./quoteBridge.service');
 const paymentBridge = require('./paymentBridge.service');
 const { getAdapter } = require('../ecommerce');
+const { extractShopTotals } = require('../ecommerce/normalize');
+const { displayShipmentStatus, displayShipmentLabel, progressTimeline } = require('../utils/shipmentProgress');
 
 const TIMELINE_TEMPLATE = [
   { stage: 'booked', label: 'Booked' },
@@ -173,6 +175,10 @@ const ingestNormalizedOrder = async ({ storeConnection, normalized, quoteId, par
       weightKg: quoteMeta.weightKg || normalized.weightKg || null,
       buyerEmail: normalized.buyerEmail || null,
       buyerPhone: normalized.buyerPhone || null,
+      orderTotal: normalized.orderTotal != null ? normalized.orderTotal : null,
+      itemsTotal: normalized.itemsTotal != null ? normalized.itemsTotal : null,
+      shippingTotal: normalized.shippingTotal != null ? normalized.shippingTotal : null,
+      lineItems: Array.isArray(normalized.shopLineItems) ? normalized.shopLineItems : [],
     });
   } catch (err) {
     if (err && err.code === 11000) {
@@ -211,7 +217,7 @@ const ingestNormalizedOrder = async ({ storeConnection, normalized, quoteId, par
  * After logistics status change, push tracking back to the shop (best-effort).
  */
 const pushStatusToShop = async (booking, statusPayload) => {
-  if (!booking.storeConnection) return { pushed: false };
+  if (!booking || !booking.storeConnection) return { pushed: false };
   const { StoreConnection } = require('../../models');
   const conn = await StoreConnection.findById(booking.storeConnection);
   if (!conn) return { pushed: false };
@@ -219,10 +225,27 @@ const pushStatusToShop = async (booking, statusPayload) => {
   if (!adapter || typeof adapter.pushStatus !== 'function') {
     return { pushed: false };
   }
+  const payload = {
+    status: (statusPayload && statusPayload.status) || displayShipmentStatus(booking),
+    courierStatus: (statusPayload && statusPayload.courierStatus) || booking.courierStatus || null,
+    trackingNumber: booking.trackingNumber,
+    trackingUrl: booking.trackingUrl || null,
+    bookingCode: booking.code,
+    label: displayShipmentLabel({
+      ...((booking.toObject && booking.toObject()) || booking),
+      courierStatus: (statusPayload && statusPayload.courierStatus) || booking.courierStatus,
+    }),
+  };
   try {
-    await adapter.pushStatus(conn, booking, statusPayload);
+    const result = await adapter.pushStatus(conn, booking, payload);
+    if (result && result.skipped) {
+      logger.warn(`Shop status push skipped for ${booking.code} (${conn.platform})`);
+      return { pushed: false, skipped: true };
+    }
+    logger.info(`Pushed ${payload.label} to ${conn.platform} for ${booking.code}`);
     return { pushed: true };
   } catch (err) {
+    logger.warn(`Shop status push failed for ${booking.code}: ${err.message}`);
     return { pushed: false, error: err.message };
   }
 };
@@ -235,10 +258,20 @@ const afterSuccessfulBook = async (booking) => {
     { new: true }
   );
   if (!claimed) return;
-  await pushStatusToShop(claimed, {
-    status: 'in_transit',
+  if (claimed.status === 'pending' && claimed.logisticsBookingRef && !claimed.courierStatus) {
+    claimed.courierStatus = 'collection-assigned';
+    claimed.timeline = progressTimeline(claimed.timeline, 'booked', new Date());
+    await claimed.save();
+  }
+  const pushed = await pushStatusToShop(claimed, {
+    status: displayShipmentStatus(claimed),
+    courierStatus: claimed.courierStatus,
     trackingNumber: claimed.trackingNumber,
   });
+  if (pushed.pushed) {
+    claimed.lastPushedCourierStatus = claimed.courierStatus || displayShipmentStatus(claimed);
+    await claimed.save();
+  }
   try {
     const { Company } = require('../../models');
     const { emailService } = require('../../services');
@@ -253,9 +286,66 @@ const afterSuccessfulBook = async (booking) => {
   }
 };
 
+const applyShopTotals = (booking, totals) => {
+  if (!booking || !totals) return false;
+  let changed = false;
+  if (booking.orderTotal == null && totals.orderTotal != null) {
+    booking.orderTotal = totals.orderTotal;
+    changed = true;
+  }
+  if (booking.itemsTotal == null && totals.itemsTotal != null) {
+    booking.itemsTotal = totals.itemsTotal;
+    changed = true;
+  }
+  if (booking.shippingTotal == null && totals.shippingTotal != null) {
+    booking.shippingTotal = totals.shippingTotal;
+    changed = true;
+  }
+  if ((!booking.lineItems || !booking.lineItems.length) && totals.lineItems && totals.lineItems.length) {
+    booking.lineItems = totals.lineItems;
+    changed = true;
+  }
+  return changed;
+};
+
+/**
+ * Fill orderTotal / line items on older marketplace bookings from the original webhook payload.
+ */
+const hydrateShopOrderTotals = async (bookings) => {
+  const missing = (bookings || []).filter(
+    (booking) =>
+      ['woocommerce', 'shopify', 'wix', 'lovable'].includes(booking.source) &&
+      (booking.orderTotal == null || !booking.lineItems || !booking.lineItems.length)
+  );
+  if (!missing.length) return bookings;
+
+  const events = await IntegrationEvent.find({
+    booking: { $in: missing.map((booking) => booking._id) },
+    eventType: 'order.created',
+  });
+  const byBooking = new Map(events.map((event) => [String(event.booking), event]));
+
+  await Promise.all(
+    missing.map(async (booking) => {
+      const event = byBooking.get(String(booking._id));
+      const payload = event && event.payload;
+      if (!payload) return;
+      const totals = extractShopTotals(payload.raw || payload, payload.shopLineItems || payload.lineItems);
+      if (!applyShopTotals(booking, totals)) return;
+      try {
+        await booking.save();
+      } catch (err) {
+        logger.warn(`Shop order hydrate failed for ${booking.code}: ${err.message}`);
+      }
+    })
+  );
+  return bookings;
+};
+
 module.exports = {
   claimEvent,
   ingestNormalizedOrder,
   pushStatusToShop,
   afterSuccessfulBook,
+  hydrateShopOrderTotals,
 };

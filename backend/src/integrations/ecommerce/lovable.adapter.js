@@ -88,7 +88,10 @@ const pushStatus = async (storeConnection, booking, statusPayload) => {
       externalOrderId: booking.externalOrderId,
       bookingCode: booking.code,
       status: statusPayload.status || booking.status,
+      courierStatus: statusPayload.courierStatus || booking.courierStatus || null,
+      label: statusPayload.label || null,
       trackingNumber: booking.trackingNumber,
+      trackingUrl: booking.trackingUrl || null,
       logisticsBookingRef: booking.logisticsBookingRef,
     }),
   });

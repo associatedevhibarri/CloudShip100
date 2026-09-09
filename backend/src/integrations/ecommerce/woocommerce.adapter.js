@@ -93,49 +93,75 @@ const parseRateRequest = (body, storeConnection) => {
 
 /**
  * Best-effort status push via Woo REST. Failures must not break CloudShip flow.
+ * Called on every courier status change, not only at book time.
  */
+const shopBaseUrl = (storeConnection, creds) => {
+  const raw =
+    (creds && creds.storeUrl) ||
+    storeConnection.storeUrl ||
+    (storeConnection.settings && storeConnection.settings.storeUrl) ||
+    '';
+  return String(raw).replace(/\/$/, '');
+};
+
+const shopNote = (booking, statusPayload = {}) => {
+  const label = statusPayload.label || statusPayload.courierStatus || statusPayload.status;
+  const track = booking.trackingNumber || booking.logisticsBookingRef || booking.code;
+  const widget = `${config.frontendUrl}/embed/track?code=${encodeURIComponent(booking.code || '')}`;
+  return `CloudShip: ${label}. Tracking ${track}. ${widget}`;
+};
+
 const pushStatus = async (storeConnection, booking, statusPayload) => {
   const creds = safeDecrypt(storeConnection);
-  const base = (creds.storeUrl || storeConnection.storeUrl || '').replace(/\/$/, '');
+  const base = shopBaseUrl(storeConnection, creds);
   if (!base || !creds.consumerKey || !creds.consumerSecret) {
-    logger.warn(`Woo pushStatus skipped — missing credentials for ${storeConnection.id}`);
+    logger.warn(`Woo pushStatus skipped — missing store URL or REST keys for ${storeConnection.id}`);
     return { skipped: true };
   }
   const orderId = booking.externalOrderId;
-  const note = [
-    statusPayload.status || booking.status,
-    booking.trackingNumber ? `Tracking: ${booking.trackingNumber}` : null,
-    booking.logisticsBookingRef ? `Ref: ${booking.logisticsBookingRef}` : null,
-  ]
-    .filter(Boolean)
-    .join(' | ');
-
+  if (!orderId) return { skipped: true };
+  const note = shopNote(booking, statusPayload || {});
   const auth = Buffer.from(`${creds.consumerKey}:${creds.consumerSecret}`).toString('base64');
+  const headers = {
+    Authorization: `Basic ${auth}`,
+    'Content-Type': 'application/json',
+  };
   const res = await fetch(`${base}/wp-json/wc/v3/orders/${encodeURIComponent(orderId)}`, {
     method: 'PUT',
-    headers: {
-      Authorization: `Basic ${auth}`,
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
-      status: mapWooStatus(statusPayload.status || booking.status),
+      status: mapWooStatus((statusPayload && statusPayload.status) || booking.status),
       meta_data: [
         { key: '_cloudship_tracking', value: booking.trackingNumber || '' },
         { key: '_cloudship_booking', value: booking.code || '' },
+        { key: '_cloudship_courier_status', value: (statusPayload && statusPayload.courierStatus) || '' },
       ],
-      customer_note: note,
     }),
   });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`WooCommerce status push failed: ${res.status} ${text}`);
   }
+  const noteRes = await fetch(`${base}/wp-json/wc/v3/orders/${encodeURIComponent(orderId)}/notes`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      note,
+      customer_note: true,
+    }),
+  });
+  if (!noteRes.ok) {
+    logger.warn(`Woo order note failed for ${orderId}: ${noteRes.status}`);
+  }
   return { ok: true };
 };
 
 const mapWooStatus = (status) => {
-  if (status === 'delivered' || status === 'completed') return 'completed';
-  if (status === 'in_transit' || status === 'out_for_delivery') return 'completed';
+  const s = String(status || '')
+    .toLowerCase()
+    .replaceAll('_', '-');
+  if (s === 'delivered' || s === 'completed' || s === 'ready-for-pickup') return 'completed';
+  if (s === 'cancelled' || s === 'canceled') return 'cancelled';
   return 'processing';
 };
 

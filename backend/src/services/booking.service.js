@@ -4,6 +4,7 @@ const pricingService = require('./pricing.service');
 const carriers = require('./carriers');
 const ApiError = require('../utils/ApiError');
 const logger = require('../config/logger');
+const { progressTimeline, courierStatusToStage, bookingStatusFromStage } = require('../integrations/utils/shipmentProgress');
 
 const TIMELINE_STAGE_ORDER = ['booked', 'warehouse', 'in_transit', 'out_for_delivery', 'delivered'];
 
@@ -67,6 +68,7 @@ const createBooking = async (company, body) => {
         carrierShipmentId: booked.carrierShipmentId || null,
         labelUrl: booked.labelUrl || null,
         serviceName: booked.serviceName || null,
+        courierStatus: booked.courierStatus || 'collection-assigned',
       };
     } catch (err) {
       logger.error(err);
@@ -87,16 +89,22 @@ const createBooking = async (company, body) => {
 
   const code = await generateBookingCode();
   const now = new Date();
-  const timeline = TIMELINE_TEMPLATE.map((step, i) => ({
-    ...step,
-    timestamp: i === 0 ? now : null,
-    done: i === 0,
-  }));
+  const stage = courierStatusToStage(partnerFields.courierStatus) || (partnerFields.trackingNumber ? 'booked' : 'pending');
+  const status = bookingStatusFromStage(stage);
+  const timeline = progressTimeline(
+    TIMELINE_TEMPLATE.map((step, i) => ({
+      ...step,
+      timestamp: i === 0 ? now : null,
+      done: i === 0,
+    })),
+    stage === 'pending' ? 'booked' : stage,
+    now
+  );
 
   const booking = await Booking.create({
     company: company.id,
     code,
-    status: 'pending',
+    status,
     mode,
     cargo,
     value: price,

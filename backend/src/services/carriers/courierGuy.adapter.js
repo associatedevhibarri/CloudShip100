@@ -121,6 +121,77 @@ const book = async (shipment, partnerQuote) => {
     trackingNumber: data.short_tracking_reference || data.tracking_reference || data.id,
     trackingUrl: data.tracking_url || null,
     labelUrl: (data.opt_in_urls && data.opt_in_urls.label) || data.label_url || null,
+    courierStatus: data.status || 'collection-assigned',
+  };
+};
+
+const authHeaders = () => ({
+  Authorization: `Bearer ${config.carriers.courierGuy.token}`,
+  Accept: 'application/json',
+});
+
+const firstShipment = (data) => {
+  if (!data) return null;
+  if (Array.isArray(data)) return data[0] || null;
+  if (Array.isArray(data.shipments)) return data.shipments[0] || null;
+  if (Array.isArray(data.data)) return data.data[0] || null;
+  if (data.id || data.shipment_id || data.status) return data;
+  return null;
+};
+
+const track = async ({ trackingNumber, carrierShipmentId } = {}) => {
+  const base = config.carriers.courierGuy.baseUrl.replace(/\/$/, '');
+  const headers = authHeaders();
+  let row = null;
+
+  if (carrierShipmentId) {
+    try {
+      row = firstShipment(
+        await requestJson(`${base}/v2/tracking/shipments?include_parcels=false&id=${encodeURIComponent(carrierShipmentId)}`, {
+          headers,
+        })
+      );
+    } catch (err) {
+      try {
+        row = firstShipment(await requestJson(`${base}/v2/shipments/${encodeURIComponent(carrierShipmentId)}`, { headers }));
+      } catch (inner) {
+        row = null;
+      }
+    }
+  }
+
+  if (!row && trackingNumber) {
+    const filter = encodeURIComponent(JSON.stringify({ short_tracking_reference: trackingNumber }));
+    try {
+      row = firstShipment(await requestJson(`${base}/v2/shipments?filter=${filter}`, { headers }));
+    } catch (err) {
+      row = firstShipment(
+        await requestJson(`${base}/v2/shipments?short_tracking_reference=${encodeURIComponent(trackingNumber)}`, { headers })
+      );
+    }
+    if (row && row.id && !row.tracking_events) {
+      try {
+        const detailed = firstShipment(
+          await requestJson(`${base}/v2/tracking/shipments?include_parcels=false&id=${encodeURIComponent(row.id)}`, {
+            headers,
+          })
+        );
+        if (detailed) row = { ...row, ...detailed };
+      } catch (err) {
+        // list payload already has status
+      }
+    }
+  }
+
+  if (!row) {
+    throw new Error('Courier Guy tracking not found');
+  }
+
+  return {
+    courierStatus: row.status || null,
+    trackingNumber: row.short_tracking_reference || trackingNumber || null,
+    trackingUrl: row.tracking_url || null,
+    events: row.tracking_events || [],
   };
 };
 
@@ -130,4 +201,5 @@ module.exports = {
   isConfigured,
   quote,
   book,
+  track,
 };
