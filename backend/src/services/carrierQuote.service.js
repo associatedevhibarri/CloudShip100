@@ -1,12 +1,30 @@
 const pricingService = require('./pricing.service');
 const googleMapsService = require('./googleMaps.service');
 const carriers = require('./carriers');
+const { calculateDistanceKm } = require('./carriers/distance');
+const { normalizeCargoUnits } = require('./carriers/units');
 
 const getQuotes = async (body) => {
+  const normalizedUnits = normalizeCargoUnits({
+    cargoCategory: body.cargoCategory,
+    quantity: body.quantity,
+    unit: body.unit,
+    weightKg: body.weightKg,
+    volumeM3: body.volumeM3,
+    lengthCm: body.lengthCm,
+    widthCm: body.widthCm,
+    heightCm: body.heightCm,
+  });
+
+  const distanceResult = await calculateDistanceKm(body.pickup, body.dropoff, {
+    collectionBuildingType: body.collectionBuildingType,
+    deliveryBuildingType: body.deliveryBuildingType,
+  });
+
   const shipment = {
     pickup: body.pickup,
     dropoff: body.dropoff,
-    weightKg: body.weightKg,
+    weightKg: normalizedUnits.chargeableWeightKg,
     mode: body.mode,
     cargo: body.cargo,
     lengthCm: body.lengthCm,
@@ -18,18 +36,24 @@ const getQuotes = async (body) => {
     pickupName: body.pickupName,
     dropoffName: body.dropoffName,
     pickupDate: body.pickupDate,
+    collectionBuildingType: body.collectionBuildingType,
+    deliveryBuildingType: body.deliveryBuildingType,
+    normalizedUnits,
+    distanceResult,
   };
 
-  let distanceKm = null;
-  let durationMinutes = null;
+  let distanceKm = distanceResult.effectiveBillableKm;
+  let durationMinutes = distanceResult.durationMinutes;
   let formattedPickup = body.pickup;
   let formattedDropoff = body.dropoff;
   try {
     const route = await googleMapsService.getRoute({ origin: body.pickup, destination: body.dropoff });
-    distanceKm = route.distanceKm;
-    durationMinutes = route.durationMinutes;
-    formattedPickup = route.formattedOrigin;
-    formattedDropoff = route.formattedDestination;
+    if (route && route.distanceKm) {
+      distanceKm = Math.round(route.distanceKm * distanceResult.combinedAccessMultiplier * 100) / 100;
+      durationMinutes = route.durationMinutes;
+      formattedPickup = route.formattedOrigin;
+      formattedDropoff = route.formattedDestination;
+    }
   } catch (mapsErr) {
     if (mapsErr && mapsErr.message) {
       formattedPickup = body.pickup;

@@ -19,6 +19,9 @@ export default function CustomerNewBookingPage() {
   const [dropoff, setDropoff] = useState('')
   const [deliveryBuildingType, setDeliveryBuildingType] = useState('RESIDENTIAL')
   const [cargo, setCargo] = useState('')
+  const [cargoCategory, setCargoCategory] = useState('SOLID')
+  const [quantity, setQuantity] = useState('1')
+  const [unit, setUnit] = useState('KG')
   const [weightKg, setWeightKg] = useState('')
   const [lengthCm, setLengthCm] = useState('20')
   const [widthCm, setWidthCm] = useState('20')
@@ -66,6 +69,9 @@ export default function CustomerNewBookingPage() {
             collectionBuildingType,
             dropoff,
             deliveryBuildingType,
+            cargoCategory,
+            quantity,
+            unit,
             cargo,
             weightKg,
             lengthCm,
@@ -92,6 +98,9 @@ export default function CustomerNewBookingPage() {
     collectionBuildingType,
     dropoff,
     deliveryBuildingType,
+    cargoCategory,
+    quantity,
+    unit,
     cargo,
     weightKg,
     lengthCm,
@@ -117,6 +126,9 @@ export default function CustomerNewBookingPage() {
         collectionBuildingType,
         dropoff,
         deliveryBuildingType,
+        cargoCategory,
+        quantity,
+        unit,
         cargo,
         weightKg,
         lengthCm,
@@ -219,6 +231,98 @@ export default function CustomerNewBookingPage() {
               onChange={(e) => setPickupDate(e.target.value)}
               className={quoteFieldClass}
             />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block font-semibold text-ink">Cargo Category</span>
+            <select
+              value={cargoCategory}
+              onChange={(e) => setCargoCategory(e.target.value)}
+              className={quoteFieldClass}
+            >
+              <option value="SOLID">📦 Solids (Parcels & Mass)</option>
+              <option value="LIQUID">🛢️ Liquids (Bulk & Containers)</option>
+              <option value="AGRICULTURAL">🌾 Agricultural Commodities</option>
+              <option value="GAS">⛽ Gas / Normalized Volume</option>
+              <option value="CONTAINER">🚢 Cargo Containers (TEU/FEU)</option>
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block font-semibold text-ink">Quantity & Unit</span>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min="0.1"
+                step="0.1"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                placeholder="1"
+                className={quoteFieldClass}
+              />
+              <select
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                className={quoteFieldClass}
+              >
+                <optgroup label="Solids - Mass Units">
+                  <option value="KG">Kilogram (kg)</option>
+                  <option value="TONNE">Tonne / Metric ton (t)</option>
+                  <option value="GRAM">Gram (g)</option>
+                  <option value="US_TON">Short ton (US ton)</option>
+                  <option value="IMPERIAL_TON">Long ton (imperial ton)</option>
+                  <option value="LB">Pound (lb)</option>
+                </optgroup>
+                <optgroup label="Solids - Volume Units">
+                  <option value="M3">Cubic meter (m³)</option>
+                  <option value="FT3">Cubic foot (ft³)</option>
+                  <option value="YD3">Cubic yard (yd³)</option>
+                </optgroup>
+                <optgroup label="Liquids - Volume & Bulk">
+                  <option value="L">Liter (L)</option>
+                  <option value="ML">Milliliter (mL)</option>
+                  <option value="M3">Cubic meter (m³)</option>
+                  <option value="DM3">Cubic decimeter (dm³)</option>
+                  <option value="HL">Hectoliter (hL)</option>
+                  <option value="US_GAL">Gallon (US gal)</option>
+                  <option value="IMP_GAL">Gallon (Imperial gal)</option>
+                  <option value="QUART">Quart</option>
+                  <option value="PINT">Pint</option>
+                  <option value="FL_OZ">Fluid ounce (US/Imp)</option>
+                  <option value="BBL">Barrel (bbl - 42 US gal)</option>
+                  <option value="DRUM">Drum (200 L / 55 gal)</option>
+                  <option value="IBC">IBC tank (1000 L standard)</option>
+                  <option value="TANKER_TRUCK">Tanker truck volume (m³)</option>
+                  <option value="TANK_CONTAINER">Tank container volume (ISO tank, m³)</option>
+                </optgroup>
+                <optgroup label="Agricultural Commodity Units">
+                  <option value="BUSHEL">Bushel (bu)</option>
+                  <option value="PECK">Peck</option>
+                  <option value="SACK">Sack (50kg)</option>
+                  <option value="BALE">Bale (220kg)</option>
+                  <option value="PICUL">Picul (60kg)</option>
+                </optgroup>
+                <optgroup label="Construction Bulk Units">
+                  <option value="LOAD_BUCKET">Load / bucket volume (m³)</option>
+                  <option value="AGGREGATE_TRUCKLOAD">Aggregate truckload volume (m³ or yd³)</option>
+                </optgroup>
+                <optgroup label="Gas - Volume & Energy Equivalent">
+                  <option value="NM3">Normal cubic meter (Nm³)</option>
+                  <option value="SCM">Standard cubic meter (SCM)</option>
+                  <option value="SCF">Standard cubic foot (SCF)</option>
+                  <option value="MMBTU">MMBtu (million BTU)</option>
+                  <option value="MBTU">MBtu</option>
+                  <option value="THERM">Therm</option>
+                  <option value="GJ">GJ (gigajoule)</option>
+                  <option value="KWH">kWh (electricity-equivalent gas)</option>
+                </optgroup>
+                <optgroup label="International Cargo & Containers">
+                  <option value="TEU">TEU (20-foot Container)</option>
+                  <option value="FEU">FEU (40-foot Container)</option>
+                  <option value="DWT">Deadweight ton (DWT)</option>
+                  <option value="DISPLACEMENT_TON">Displacement ton</option>
+                  <option value="LIGHTSHIP_TON">Lightship ton</option>
+                </optgroup>
+              </select>
+            </div>
           </label>
           <label className="text-sm">
             <span className="mb-1 block font-semibold text-ink">Weight (kg)</span>

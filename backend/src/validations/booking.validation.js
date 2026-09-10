@@ -18,6 +18,10 @@ const createBooking = {
       declaredValue: Joi.number().min(0),
       collectionBuildingType: Joi.string().allow(''),
       deliveryBuildingType: Joi.string().allow(''),
+      cargoCategory: Joi.string().allow(''),
+      quantity: Joi.number().positive(),
+      unit: Joi.string().allow(''),
+      volumeM3: Joi.number().positive(),
     })
     .or('weightKg', 'value', 'quoteId'),
 };
