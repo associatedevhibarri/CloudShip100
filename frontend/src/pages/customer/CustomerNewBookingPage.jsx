@@ -36,6 +36,7 @@ export default function CustomerNewBookingPage() {
   const [packagingClassification, setPackagingClassification] = useState('WRAPPED')
   const [bagWeightKg, setBagWeightKg] = useState('')
   const [bagTon, setBagTon] = useState('')
+  const [vehicleType, setVehicleType] = useState('ANY')
   const [declaredValue, setDeclaredValue] = useState('')
   const [pickupDate, setPickupDate] = useState(todayIsoDate())
   const [mode, setMode] = useState('Road')
@@ -97,6 +98,7 @@ export default function CustomerNewBookingPage() {
             packagingClassification,
             bagWeightKg: bagWeightKg !== '' ? Number(bagWeightKg) : undefined,
             bagTon: bagTon !== '' ? Number(bagTon) : undefined,
+            vehicleType: vehicleType !== 'ANY' ? vehicleType : undefined,
             declaredValue,
             pickupDate,
             mode,
@@ -136,6 +138,7 @@ export default function CustomerNewBookingPage() {
     packagingClassification,
     bagWeightKg,
     bagTon,
+    vehicleType,
     declaredValue,
     pickupDate,
     mode,
@@ -174,6 +177,7 @@ export default function CustomerNewBookingPage() {
         packagingClassification,
         bagWeightKg: bagWeightKg !== '' ? Number(bagWeightKg) : undefined,
         bagTon: bagTon !== '' ? Number(bagTon) : undefined,
+        vehicleType: vehicleType !== 'ANY' ? vehicleType : undefined,
         declaredValue,
         pickupDate,
         mode,
@@ -538,6 +542,102 @@ export default function CustomerNewBookingPage() {
               </div>
             </div>
           )}
+
+          {/* Step 6 – Type of Vehicle */}
+          <label className="text-sm">
+            <span className="mb-1 block font-semibold text-ink">🚚 Type of Vehicle</span>
+            <select
+              value={vehicleType}
+              onChange={(e) => setVehicleType(e.target.value)}
+              className={quoteFieldClass}
+            >
+              <option value="ANY">Any Suitable Vehicle</option>
+              <optgroup label="Cargo / Freight Trucks">
+                <option value="BOX_TRUCK">Box truck / Dry van</option>
+                <option value="STRAIGHT_TRUCK">Straight truck</option>
+                <option value="FLATBED_TRUCK">Flatbed truck</option>
+                <option value="CURTAINSIDER">Curtainsider</option>
+                <option value="DROP_SIDE_TRUCK">Drop-side truck</option>
+                <option value="STAKE_BED_TRUCK">Stake-bed truck</option>
+                <option value="REEFER_TRUCK">Refrigerated truck (Reefer)</option>
+                <option value="INSULATED_TRUCK">Insulated truck</option>
+                <option value="CONTAINER_TRUCK">Container truck (skeleton chassis)</option>
+                <option value="HIGH_CUBE_BOX_TRUCK">High-cube box truck</option>
+                <option value="SIDE_LOADER_TRUCK">Side-loader truck</option>
+                <option value="TAIL_LIFT_TRUCK">Tail-lift truck</option>
+              </optgroup>
+              <optgroup label="Heavy-Duty Tractor Units">
+                <option value="SEMI_TRUCK">Semi-truck / Tractor unit</option>
+                <option value="DAY_CAB_TRACTOR">Day cab tractor</option>
+                <option value="SLEEPER_CAB_TRACTOR">Sleeper cab tractor</option>
+                <option value="PRIME_MOVER">Prime mover</option>
+              </optgroup>
+              <optgroup label="Trailer Types (for semi-trucks)">
+                <option value="DRY_VAN_TRAILER">Dry van trailer</option>
+                <option value="REEFER_TRAILER">Reefer trailer</option>
+                <option value="FLATBED_TRAILER">Flatbed trailer</option>
+                <option value="EXTENDABLE_FLATBED">Extendable flatbed</option>
+                <option value="LOWBOY_TRAILER">Lowboy / Lowbed trailer</option>
+                <option value="STEP_DECK_TRAILER">Step-deck trailer</option>
+                <option value="DOUBLE_DROP_DECK_TRAILER">Double-drop deck trailer</option>
+                <option value="GOOSENECK_TRAILER">Gooseneck trailer</option>
+                <option value="CURTAINSIDER_TRAILER">Curtainsider trailer</option>
+                <option value="MILK_TANKER">Milk tanker</option>
+                <option value="GAS_TANKER">Gas tanker (LPG/LNG)</option>
+                <option value="HOPPER_TRAILER">Hopper trailer</option>
+                <option value="WALKING_FLOOR_TRAILER">Walking floor trailer</option>
+                <option value="TIPPER_TRAILER">Tipper trailer / Dump trailer</option>
+                <option value="CONTAINER_CHASSIS">Container chassis</option>
+                <option value="INTERMODAL_TRAILER">Intermodal trailer</option>
+                <option value="LOG_TRAILER">Log trailer</option>
+                <option value="LIVESTOCK_TRAILER">Livestock trailer</option>
+                <option value="CAR_CARRIER_TRAILER">Car carrier trailer</option>
+                <option value="BULK_PNEUMATIC_TANKER">Bulk/pneumatic tanker trailer</option>
+              </optgroup>
+              <optgroup label="Construction & Heavy Material Trucks">
+                <option value="DUMP_TRUCK">Dump truck / Tipper truck</option>
+                <option value="ARTICULATED_DUMP_TRUCK">Articulated dump truck (ADT)</option>
+                <option value="CONCRETE_MIXER">Concrete mixer truck</option>
+                <option value="CONCRETE_PUMP">Concrete pump truck</option>
+                <option value="WATER_TANKER">Water tanker truck</option>
+                <option value="VACUUM_TRUCK">Vacuum truck</option>
+                <option value="ROLL_OFF_TRUCK">Roll-off truck (hook-lift / skip loader)</option>
+              </optgroup>
+              <optgroup label="Specialized Trucks">
+                <option value="SUPERLINK">Superlink</option>
+                <option value="FUEL_DELIVERY_TRUCK">Fuel delivery truck</option>
+                <option value="CHEMICAL_TANKER">Chemical tanker truck</option>
+                <option value="RECYCLING_COLLECTION_TRUCK">Recycling collection truck</option>
+                <option value="MOBILE_CRANE_TRUCK">Mobile crane truck</option>
+                <option value="TOW_TRUCK">Tow truck (flatbed / wheel-lift)</option>
+                <option value="ARMORED_TRUCK">Armored truck</option>
+                <option value="MEDICAL_WASTE_TRUCK">Medical waste / laboratory truck</option>
+              </optgroup>
+              <optgroup label="Agricultural & Rural Logistics Trucks">
+                <option value="GRAIN_TRUCK">Grain truck / Grain hopper</option>
+                <option value="FEED_DELIVERY_TRUCK">Feed delivery truck (bulk blower)</option>
+                <option value="LIVESTOCK_TRUCK">Livestock truck</option>
+                <option value="COTTON_MODULE_TRUCK">Cotton module truck</option>
+                <option value="SILAGE_LOADER_TRUCK">Silage loader truck</option>
+              </optgroup>
+              <optgroup label="Light-Duty & Medium-Duty Trucks">
+                <option value="PICKUP_TRUCK">Pickup truck (light truck)</option>
+                <option value="CAB_OVER_TRUCK">Cab-over truck</option>
+                <option value="MINI_TRUCK">Mini truck (kei truck)</option>
+                <option value="CREW_CAB_TRUCK">Crew cab truck</option>
+                <option value="UTILITY_TRUCK">Utility/service truck</option>
+                <option value="PANEL_VAN">Panel van</option>
+                <option value="CHASSIS_CAB">Chassis cab (custom build)</option>
+              </optgroup>
+              <optgroup label="Off-Road & Mining Trucks">
+                <option value="MINING_DUMP_TRUCK">Mining dump truck (ultra-class haulers)</option>
+                <option value="RIGID_FRAME_HAUL_TRUCK">Rigid-frame haul truck</option>
+                <option value="ARTICULATED_HAULER">Articulated hauler</option>
+                <option value="UNDERGROUND_MINING_TRUCK">Underground mining truck</option>
+              </optgroup>
+            </select>
+          </label>
+
           <label className="text-sm">
             <span className="mb-1 block font-semibold text-ink">Declared value</span>
             <input
