@@ -28,6 +28,7 @@ export function toQuotePayload(values) {
   if (values.packagingClassification) body.packagingClassification = values.packagingClassification
   if (values.bagWeightKg != null && Number(values.bagWeightKg) > 0) body.bagWeightKg = Number(values.bagWeightKg)
   if (values.bagTon != null && Number(values.bagTon) > 0) body.bagTon = Number(values.bagTon)
+  if (values.vehicleType) body.vehicleType = values.vehicleType
   if (values.pickupDate) body.pickupDate = values.pickupDate
   if (Number(values.lengthCm) > 0) body.lengthCm = Number(values.lengthCm)
   if (Number(values.widthCm) > 0) body.widthCm = Number(values.widthCm)

@@ -35,6 +35,7 @@ const createBooking = {
       packagingClassification: Joi.string().allow(''),
       bagWeightKg: Joi.number().positive().allow(null),
       bagTon: Joi.number().positive().allow(null),
+      vehicleType: Joi.string().allow(''),
     })
     .or('weightKg', 'value', 'quoteId'),
 };
