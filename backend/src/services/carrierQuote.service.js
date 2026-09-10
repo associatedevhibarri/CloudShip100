@@ -4,6 +4,7 @@ const carriers = require('./carriers');
 const { calculateDistanceKm } = require('./carriers/distance');
 const { normalizeCargoUnits } = require('./carriers/units');
 const { calculateDimensions, calculateSpecialHandlingMultiplier } = require('./carriers/formSpecial');
+const { calculatePackagingMultiplier } = require('./carriers/packaging');
 
 const getQuotes = async (body) => {
   const dimensionInfo = calculateDimensions({
@@ -38,7 +39,16 @@ const getQuotes = async (body) => {
     deliveryBuildingType: body.deliveryBuildingType,
   });
 
-  const finalChargeableWeightKg = Math.round(normalizedUnits.chargeableWeightKg * handlingMultiplier * 100) / 100;
+  const packagingInfo = calculatePackagingMultiplier({
+    packagingMaterial: body.packagingMaterial,
+    packagingClassification: body.packagingClassification,
+    bagWeightKg: body.bagWeightKg,
+    bagTon: body.bagTon,
+  });
+
+  const finalChargeableWeightKg = Math.round(
+    normalizedUnits.chargeableWeightKg * handlingMultiplier * packagingInfo.combinedPackagingMultiplier * 100
+  ) / 100;
 
   const shipment = {
     pickup: body.pickup,

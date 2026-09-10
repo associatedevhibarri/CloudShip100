@@ -31,6 +31,10 @@ const createBooking = {
       extraLabour: Joi.boolean(),
       requiresAdditionalLabour: Joi.boolean(),
       specialClassifications: Joi.array().items(Joi.string()),
+      packagingMaterial: Joi.string().allow(''),
+      packagingClassification: Joi.string().allow(''),
+      bagWeightKg: Joi.number().positive().allow(null),
+      bagTon: Joi.number().positive().allow(null),
     })
     .or('weightKg', 'value', 'quoteId'),
 };

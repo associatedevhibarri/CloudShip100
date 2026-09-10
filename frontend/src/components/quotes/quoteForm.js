@@ -24,6 +24,10 @@ export function toQuotePayload(values) {
   if (values.perishable) body.perishable = true
   if (values.fragile) body.fragile = true
   if (values.extraLabour) body.extraLabour = true
+  if (values.packagingMaterial) body.packagingMaterial = values.packagingMaterial
+  if (values.packagingClassification) body.packagingClassification = values.packagingClassification
+  if (values.bagWeightKg != null && Number(values.bagWeightKg) > 0) body.bagWeightKg = Number(values.bagWeightKg)
+  if (values.bagTon != null && Number(values.bagTon) > 0) body.bagTon = Number(values.bagTon)
   if (values.pickupDate) body.pickupDate = values.pickupDate
   if (Number(values.lengthCm) > 0) body.lengthCm = Number(values.lengthCm)
   if (Number(values.widthCm) > 0) body.widthCm = Number(values.widthCm)
