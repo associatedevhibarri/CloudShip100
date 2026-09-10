@@ -15,7 +15,9 @@ export default function CustomerNewBookingPage() {
   const navigate = useNavigate()
 
   const [pickup, setPickup] = useState('')
+  const [collectionBuildingType, setCollectionBuildingType] = useState('COMMERCIAL')
   const [dropoff, setDropoff] = useState('')
+  const [deliveryBuildingType, setDeliveryBuildingType] = useState('RESIDENTIAL')
   const [cargo, setCargo] = useState('')
   const [weightKg, setWeightKg] = useState('')
   const [lengthCm, setLengthCm] = useState('20')
@@ -61,7 +63,9 @@ export default function CustomerNewBookingPage() {
         const result = await portalService.getQuote(
           toQuotePayload({
             pickup,
+            collectionBuildingType,
             dropoff,
+            deliveryBuildingType,
             cargo,
             weightKg,
             lengthCm,
@@ -83,7 +87,21 @@ export default function CustomerNewBookingPage() {
     }, 600)
 
     return () => clearTimeout(timer)
-  }, [pickup, dropoff, cargo, weightKg, lengthCm, widthCm, heightCm, declaredValue, pickupDate, mode, canQuote])
+  }, [
+    pickup,
+    collectionBuildingType,
+    dropoff,
+    deliveryBuildingType,
+    cargo,
+    weightKg,
+    lengthCm,
+    widthCm,
+    heightCm,
+    declaredValue,
+    pickupDate,
+    mode,
+    canQuote,
+  ])
 
   const bookQuote = async (quoteId) => {
     if (!cargo.trim()) {
@@ -96,7 +114,9 @@ export default function CustomerNewBookingPage() {
     try {
       const payload = toQuotePayload({
         pickup,
+        collectionBuildingType,
         dropoff,
+        deliveryBuildingType,
         cargo,
         weightKg,
         lengthCm,
@@ -136,6 +156,22 @@ export default function CustomerNewBookingPage() {
               className={quoteFieldClass}
             />
           </label>
+          <label className="text-sm">
+            <span className="mb-1 block font-semibold text-ink">Pickup Building Type</span>
+            <select
+              value={collectionBuildingType}
+              onChange={(e) => setCollectionBuildingType(e.target.value)}
+              className={quoteFieldClass}
+            >
+              <option value="RESIDENTIAL">🏠 Residential</option>
+              <option value="COMMERCIAL">🏬 Commercial</option>
+              <option value="INDUSTRIAL">🏭 Industrial Warehouse</option>
+              <option value="MINING_FACILITY">⛏️ Mining Facility</option>
+              <option value="FARM">🚜 Agricultural (Farm)</option>
+              <option value="STORAGE">📦 Storage / Bonded</option>
+              <option value="CONSTRUCTION_SITE_OFFICE">🏗️ Construction Site</option>
+            </select>
+          </label>
           <label className="text-sm sm:col-span-2">
             <span className="mb-1 block font-semibold text-ink">Dropoff address</span>
             <input
@@ -146,6 +182,22 @@ export default function CustomerNewBookingPage() {
               placeholder="Street, city, postal code, country"
               className={quoteFieldClass}
             />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block font-semibold text-ink">Dropoff Building Type</span>
+            <select
+              value={deliveryBuildingType}
+              onChange={(e) => setDeliveryBuildingType(e.target.value)}
+              className={quoteFieldClass}
+            >
+              <option value="RESIDENTIAL">🏠 Residential</option>
+              <option value="COMMERCIAL">🏬 Commercial</option>
+              <option value="INDUSTRIAL">🏭 Industrial Warehouse</option>
+              <option value="MINING_FACILITY">⛏️ Mining Facility</option>
+              <option value="FARM">🚜 Agricultural (Farm)</option>
+              <option value="STORAGE">📦 Storage / Bonded</option>
+              <option value="CONSTRUCTION_SITE_OFFICE">🏗️ Construction Site</option>
+            </select>
           </label>
           <label className="text-sm sm:col-span-2 lg:col-span-4">
             <span className="mb-1 block font-semibold text-ink">Cargo description</span>
