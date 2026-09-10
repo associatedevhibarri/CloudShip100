@@ -48,6 +48,20 @@ export function PickupAddressFields({ idPrefix, value, onChange }) {
         <option value="DE">Germany</option>
         <option value="NL">Netherlands</option>
       </select>
+      <select
+        id={`${idPrefix}-building-type`}
+        className={`${formInputClass()} sm:col-span-6`}
+        value={value.buildingType || 'RESIDENTIAL'}
+        onChange={set('buildingType')}
+      >
+        <option value="RESIDENTIAL">🏠 Residential (House / Apartment / Estate)</option>
+        <option value="COMMERCIAL">🏬 Commercial (Office / Retail Store / Mall)</option>
+        <option value="INDUSTRIAL">🏭 Industrial (Warehouse / Factory / Hub)</option>
+        <option value="MINING_FACILITY">⛏️ Mining Facility (Mining site / Yard)</option>
+        <option value="FARM">🚜 Agricultural (Farm / Small Hold / Silo)</option>
+        <option value="STORAGE">📦 Storage (Container storage / Bonded warehouse)</option>
+        <option value="CONSTRUCTION_SITE_OFFICE">🏗️ Temporary / Construction Site</option>
+      </select>
     </div>
   )
 }
