@@ -18,6 +18,12 @@ export function toQuotePayload(values) {
   if (values.cargoCategory) body.cargoCategory = values.cargoCategory
   if (Number(values.quantity) > 0) body.quantity = Number(values.quantity)
   if (values.unit) body.unit = values.unit
+  if (values.dimensionUnit) body.dimensionUnit = values.dimensionUnit
+  if (values.cargoForm) body.cargoForm = values.cargoForm
+  if (values.flammable) body.flammable = true
+  if (values.perishable) body.perishable = true
+  if (values.fragile) body.fragile = true
+  if (values.extraLabour) body.extraLabour = true
   if (values.pickupDate) body.pickupDate = values.pickupDate
   if (Number(values.lengthCm) > 0) body.lengthCm = Number(values.lengthCm)
   if (Number(values.widthCm) > 0) body.widthCm = Number(values.widthCm)

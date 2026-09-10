@@ -22,6 +22,15 @@ const getQuote = {
     quantity: Joi.number().positive(),
     unit: Joi.string().allow(''),
     volumeM3: Joi.number().positive(),
+    dimensionUnit: Joi.string().allow(''),
+    cargoForm: Joi.string().allow(''),
+    form: Joi.string().allow(''),
+    flammable: Joi.boolean(),
+    perishable: Joi.boolean(),
+    fragile: Joi.boolean(),
+    extraLabour: Joi.boolean(),
+    requiresAdditionalLabour: Joi.boolean(),
+    specialClassifications: Joi.array().items(Joi.string()),
   }),
 };
 
