@@ -26,6 +26,16 @@ export default function CustomerNewBookingPage() {
   const [lengthCm, setLengthCm] = useState('20')
   const [widthCm, setWidthCm] = useState('20')
   const [heightCm, setHeightCm] = useState('20')
+  const [dimensionUnit, setDimensionUnit] = useState('CM')
+  const [cargoForm, setCargoForm] = useState('SOLID')
+  const [flammable, setFlammable] = useState(false)
+  const [perishable, setPerishable] = useState(false)
+  const [fragile, setFragile] = useState(false)
+  const [extraLabour, setExtraLabour] = useState(false)
+  const [packagingMaterial, setPackagingMaterial] = useState('CARTON_OR_BOX')
+  const [packagingClassification, setPackagingClassification] = useState('WRAPPED')
+  const [bagWeightKg, setBagWeightKg] = useState('')
+  const [bagTon, setBagTon] = useState('')
   const [declaredValue, setDeclaredValue] = useState('')
   const [pickupDate, setPickupDate] = useState(todayIsoDate())
   const [mode, setMode] = useState('Road')
@@ -77,6 +87,16 @@ export default function CustomerNewBookingPage() {
             lengthCm,
             widthCm,
             heightCm,
+            dimensionUnit,
+            cargoForm,
+            flammable,
+            perishable,
+            fragile,
+            extraLabour,
+            packagingMaterial,
+            packagingClassification,
+            bagWeightKg: bagWeightKg !== '' ? Number(bagWeightKg) : undefined,
+            bagTon: bagTon !== '' ? Number(bagTon) : undefined,
             declaredValue,
             pickupDate,
             mode,
@@ -106,6 +126,16 @@ export default function CustomerNewBookingPage() {
     lengthCm,
     widthCm,
     heightCm,
+    dimensionUnit,
+    cargoForm,
+    flammable,
+    perishable,
+    fragile,
+    extraLabour,
+    packagingMaterial,
+    packagingClassification,
+    bagWeightKg,
+    bagTon,
     declaredValue,
     pickupDate,
     mode,
@@ -134,6 +164,16 @@ export default function CustomerNewBookingPage() {
         lengthCm,
         widthCm,
         heightCm,
+        dimensionUnit,
+        cargoForm,
+        flammable,
+        perishable,
+        fragile,
+        extraLabour,
+        packagingMaterial,
+        packagingClassification,
+        bagWeightKg: bagWeightKg !== '' ? Number(bagWeightKg) : undefined,
+        bagTon: bagTon !== '' ? Number(bagTon) : undefined,
         declaredValue,
         pickupDate,
         mode,
@@ -338,35 +378,166 @@ export default function CustomerNewBookingPage() {
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-semibold text-ink">Length (cm)</span>
-            <input
-              type="number"
-              min="1"
-              value={lengthCm}
-              onChange={(e) => setLengthCm(e.target.value)}
-              className={quoteFieldClass}
-            />
+            <span className="mb-1 block font-semibold text-ink">Dimensions (L × W × H)</span>
+            <div className="flex gap-1">
+              <input
+                type="number"
+                min="1"
+                value={lengthCm}
+                onChange={(e) => setLengthCm(e.target.value)}
+                placeholder="L"
+                className={quoteFieldClass}
+              />
+              <input
+                type="number"
+                min="1"
+                value={widthCm}
+                onChange={(e) => setWidthCm(e.target.value)}
+                placeholder="W"
+                className={quoteFieldClass}
+              />
+              <input
+                type="number"
+                min="1"
+                value={heightCm}
+                onChange={(e) => setHeightCm(e.target.value)}
+                placeholder="H"
+                className={quoteFieldClass}
+              />
+              <select
+                value={dimensionUnit}
+                onChange={(e) => setDimensionUnit(e.target.value)}
+                className={quoteFieldClass}
+              >
+                <option value="CM">cm</option>
+                <option value="M">m</option>
+                <option value="IN">in</option>
+                <option value="FT">ft</option>
+              </select>
+            </div>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-semibold text-ink">Width (cm)</span>
-            <input
-              type="number"
-              min="1"
-              value={widthCm}
-              onChange={(e) => setWidthCm(e.target.value)}
+            <span className="mb-1 block font-semibold text-ink">Physical Form</span>
+            <select
+              value={cargoForm}
+              onChange={(e) => setCargoForm(e.target.value)}
               className={quoteFieldClass}
-            />
+            >
+              <option value="SOLID">Solid</option>
+              <option value="LIQUID">Liquid (+10% handling)</option>
+              <option value="GAS">Gas (+15% handling)</option>
+            </select>
           </label>
+          <div className="text-sm sm:col-span-2 lg:col-span-4">
+            <span className="mb-2 block font-semibold text-ink">Special Classifications</span>
+            <div className="flex flex-wrap gap-4 rounded-xl border border-line bg-surface p-3">
+              <label className="inline-flex items-center gap-2 font-medium text-ink">
+                <input
+                  type="checkbox"
+                  checked={flammable}
+                  onChange={(e) => setFlammable(e.target.checked)}
+                  className="rounded border-line text-brand focus:ring-brand"
+                />
+                🔥 Flammable (Hazmat +25%)
+              </label>
+              <label className="inline-flex items-center gap-2 font-medium text-ink">
+                <input
+                  type="checkbox"
+                  checked={perishable}
+                  onChange={(e) => setPerishable(e.target.checked)}
+                  className="rounded border-line text-brand focus:ring-brand"
+                />
+                ❄️ Perishable (Reefer +20%)
+              </label>
+              <label className="inline-flex items-center gap-2 font-medium text-ink">
+                <input
+                  type="checkbox"
+                  checked={fragile}
+                  onChange={(e) => setFragile(e.target.checked)}
+                  className="rounded border-line text-brand focus:ring-brand"
+                />
+                🍷 Fragile (+10%)
+              </label>
+              <label className="inline-flex items-center gap-2 font-medium text-ink">
+                <input
+                  type="checkbox"
+                  checked={extraLabour}
+                  onChange={(e) => setExtraLabour(e.target.checked)}
+                  className="rounded border-line text-brand focus:ring-brand"
+                />
+                👷 Extra Labour Loading (+15%)
+              </label>
+            </div>
+          </div>
+
+          {/* Step 5 – Packaging Material */}
           <label className="text-sm">
-            <span className="mb-1 block font-semibold text-ink">Height (cm)</span>
-            <input
-              type="number"
-              min="1"
-              value={heightCm}
-              onChange={(e) => setHeightCm(e.target.value)}
+            <span className="mb-1 block font-semibold text-ink">📦 Packaging Material</span>
+            <select
+              value={packagingMaterial}
+              onChange={(e) => setPackagingMaterial(e.target.value)}
               className={quoteFieldClass}
-            />
+            >
+              <option value="UNPACKAGED_BULK">🪨 Unpackaged Bulk (+20%)</option>
+              <option value="ORGANIC_SOFT_MATERIAL">🌾 Organic Soft Material (+5%)</option>
+              <option value="ORGANIC_HARD_MATERIAL">🪵 Organic Hard Material (+5%)</option>
+              <option value="PAPER">📄 Paper</option>
+              <option value="CARTON_OR_BOX">📦 Carton or Box</option>
+              <option value="LIGHT_PLASTIC">🧴 Light Plastic (+2%)</option>
+              <option value="HARD_PLASTIC">🪣 Hard Plastic</option>
+              <option value="METAL_OR_STEEL">🔩 Metal or Steel (+8%)</option>
+            </select>
           </label>
+
+          {/* Step 5 – Packaging Classification */}
+          <label className="text-sm">
+            <span className="mb-1 block font-semibold text-ink">🏷️ Packaging Classification</span>
+            <select
+              value={packagingClassification}
+              onChange={(e) => { setPackagingClassification(e.target.value); setBagWeightKg(''); setBagTon('') }}
+              className={quoteFieldClass}
+            >
+              <option value="UNPACKAGED_BULK">🪨 Unpackaged Bulk (+20%)</option>
+              <option value="BAGGED">🛍️ Bagged</option>
+              <option value="PELLETIZED">🏗️ Pelletized</option>
+              <option value="UNWRAPPED">⚠️ Unwrapped (+10%)</option>
+              <option value="WRAPPED">🎁 Wrapped</option>
+              <option value="STRAPPED">🔗 Strapped (+2%)</option>
+            </select>
+          </label>
+
+          {/* Conditional bag weight when Bagged selected */}
+          {packagingClassification === 'BAGGED' && (
+            <div className="text-sm sm:col-span-2">
+              <span className="mb-2 block font-semibold text-ink">🛍️ Bag Weight</span>
+              <div className="flex gap-2">
+                <label className="flex-1">
+                  <span className="mb-1 block text-xs text-muted">Weight per bag (kg)</span>
+                  <input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={bagWeightKg}
+                    onChange={(e) => setBagWeightKg(e.target.value)}
+                    placeholder="e.g. 50"
+                    className={quoteFieldClass}
+                  />
+                </label>
+                <label className="flex-1">
+                  <span className="mb-1 block text-xs text-muted">Weight per bag (ton)</span>
+                  <input
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    value={bagTon}
+                    onChange={(e) => setBagTon(e.target.value)}
+                    placeholder="e.g. 0.05"
+                    className={quoteFieldClass}
+                  />
+                </label>
+              </div>
+            </div>
+          )}
           <label className="text-sm">
             <span className="mb-1 block font-semibold text-ink">Declared value</span>
             <input

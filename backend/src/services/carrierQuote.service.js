@@ -3,17 +3,35 @@ const googleMapsService = require('./googleMaps.service');
 const carriers = require('./carriers');
 const { calculateDistanceKm } = require('./carriers/distance');
 const { normalizeCargoUnits } = require('./carriers/units');
+const { calculateDimensions, calculateSpecialHandlingMultiplier } = require('./carriers/formSpecial');
+const { calculatePackagingMultiplier } = require('./carriers/packaging');
 
 const getQuotes = async (body) => {
+  const dimensionInfo = calculateDimensions({
+    length: body.lengthCm || body.length,
+    width: body.widthCm || body.width,
+    height: body.heightCm || body.height,
+    unit: body.dimensionUnit || 'CM',
+  });
+
+  const handlingMultiplier = calculateSpecialHandlingMultiplier({
+    cargoForm: body.cargoForm || body.form || 'SOLID',
+    flammable: Boolean(body.flammable),
+    perishable: Boolean(body.perishable),
+    fragile: Boolean(body.fragile),
+    extraLabour: Boolean(body.extraLabour || body.requiresAdditionalLabour),
+    specialClassifications: body.specialClassifications,
+  });
+
   const normalizedUnits = normalizeCargoUnits({
     cargoCategory: body.cargoCategory,
     quantity: body.quantity,
     unit: body.unit,
     weightKg: body.weightKg,
-    volumeM3: body.volumeM3,
-    lengthCm: body.lengthCm,
-    widthCm: body.widthCm,
-    heightCm: body.heightCm,
+    volumeM3: Math.max(body.volumeM3 || 0, dimensionInfo.volumeM3),
+    lengthCm: dimensionInfo.lengthCm,
+    widthCm: dimensionInfo.widthCm,
+    heightCm: dimensionInfo.heightCm,
   });
 
   const distanceResult = await calculateDistanceKm(body.pickup, body.dropoff, {
@@ -21,15 +39,26 @@ const getQuotes = async (body) => {
     deliveryBuildingType: body.deliveryBuildingType,
   });
 
+  const packagingInfo = calculatePackagingMultiplier({
+    packagingMaterial: body.packagingMaterial,
+    packagingClassification: body.packagingClassification,
+    bagWeightKg: body.bagWeightKg,
+    bagTon: body.bagTon,
+  });
+
+  const finalChargeableWeightKg = Math.round(
+    normalizedUnits.chargeableWeightKg * handlingMultiplier * packagingInfo.combinedPackagingMultiplier * 100
+  ) / 100;
+
   const shipment = {
     pickup: body.pickup,
     dropoff: body.dropoff,
-    weightKg: normalizedUnits.chargeableWeightKg,
+    weightKg: finalChargeableWeightKg,
     mode: body.mode,
     cargo: body.cargo,
-    lengthCm: body.lengthCm,
-    widthCm: body.widthCm,
-    heightCm: body.heightCm,
+    lengthCm: dimensionInfo.lengthCm,
+    widthCm: dimensionInfo.widthCm,
+    heightCm: dimensionInfo.heightCm,
     declaredValue: body.declaredValue,
     pickupPhone: body.pickupPhone,
     dropoffPhone: body.dropoffPhone,
@@ -38,6 +67,8 @@ const getQuotes = async (body) => {
     pickupDate: body.pickupDate,
     collectionBuildingType: body.collectionBuildingType,
     deliveryBuildingType: body.deliveryBuildingType,
+    dimensionInfo,
+    handlingMultiplier,
     normalizedUnits,
     distanceResult,
   };
