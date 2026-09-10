@@ -22,7 +22,6 @@ define('CLOUDSHIP_PLUGIN_FILE', __FILE__);
 define('CLOUDSHIP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('CLOUDSHIP_PLUGIN_VERSION', '1.1.0');
 define('CLOUDSHIP_DEFAULT_API_URL', 'https://cloudship100.onrender.com');
-define('CLOUDSHIP_TD', 'cloudship-shipping-logistics-delivery');
 
 require_once CLOUDSHIP_PLUGIN_DIR . 'includes/class-cloudship-connect.php';
 require_once CLOUDSHIP_PLUGIN_DIR . 'includes/class-cloudship-admin.php';
@@ -36,7 +35,7 @@ add_action('before_woocommerce_init', function () {
 register_activation_hook(__FILE__, function () {
     if (!class_exists('WooCommerce')) {
         deactivate_plugins(plugin_basename(__FILE__));
-        wp_die(esc_html__('CloudShip requires WooCommerce.', CLOUDSHIP_TD));
+        wp_die(esc_html__('CloudShip requires WooCommerce.', 'cloudship-shipping-logistics-delivery'));
     }
     add_option('cloudship_do_activation_redirect', '1');
 });
