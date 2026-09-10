@@ -14,29 +14,15 @@ All webhook endpoints in CloudShip expect this `connectionId` either in the quer
 
 ## 1. 🛒 WooCommerce Integration
 
-### A. Generating REST API Keys
-1. Log into your WordPress Admin (`http://your-site.local/wp-admin` or live domain).
-2. Go to **WooCommerce** ➔ **Settings** ➔ **Advanced** ➔ **REST API** ➔ Click **Add key**.
-3. Description: `CloudShip Integration` | Permissions: **`Read/Write`**.
-4. Click **Generate API Key**. Copy your `Consumer key (ck_...)` and `Consumer secret (cs_...)`.
+Install the plugin in WordPress. The shop owner signs in once; the plugin creates REST keys and the order webhook. Checkout shipping stays the seller’s (Flat rate / free). Courier prices show to the seller in CloudShip after **Place Order**.
 
-### B. Connecting in CloudShip
-1. Go to CloudShip Dashboard ➔ **E-Commerce Integrations** ➔ **WooCommerce**.
-2. Fill in: **Store URL**, **Consumer key**, **Consumer secret**, and **Pickup Address**.
-3. Click **Connect**. CloudShip creates the store connection and outputs your **Connection ID**.
+1. Copy `plugins/woocommerce-cloudship` into `wp-content/plugins/` and activate **CloudShip**.
+2. WooCommerce ➔ **CloudShip**.
+3. API URL = your CloudShip backend with no `/v1` (example `http://localhost:3000` or `https://cloudship100.onrender.com`).
+4. Enter the CloudShip seller email and password ➔ **Connect store**.
+5. Place a test order. Confirm it in CloudShip ➔ E-commerce ➔ Orders.
 
-### C. Registering the WooCommerce Webhook
-1. In WordPress Admin, go to **WooCommerce** ➔ **Settings** ➔ **Advanced** ➔ **Webhooks** ➔ Click **Add webhook**.
-2. Configure fields:
-   - **Name**: `CloudShip Order Created`
-   - **Status**: **`Active`**
-   - **Topic**: **`Order created`**
-   - **Delivery URL**: 
-     ```text
-     https://<YOUR_NGROK_OR_PROD_DOMAIN>/v1/webhooks/woocommerce/orders?connectionId=<YOUR_CONNECTION_ID>
-     ```
-   - **API Version**: `WP REST API Integration v3`
-3. Click **Save webhook**. *(WooCommerce will send a ping verification payload. CloudShip handles ping webhooks gracefully returning HTTP 200 OK).*
+Pickup defaults to WooCommerce ➔ Settings ➔ General. Edit warehouses later in CloudShip.
 
 ---
 

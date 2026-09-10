@@ -1,132 +1,60 @@
 <?php
 /**
- * Plugin Name: CloudShip Shipping
- * Description: Live courier rates at WooCommerce checkout. Shop owner sets pickup points, extra %, and table rates in CloudShip.
- * Version: 1.0.0
+ * Plugin Name: CloudShip – Shipping, Logistics & Delivery
+ * Plugin URI: https://github.com/hibarriassistantdev/CloudShip100
+ * Description: WooCommerce shipping, logistics, local and international delivery, and package management. Install, sign in, and CloudShip connects your store. The seller sees courier prices in CloudShip after the customer places the order — not at checkout.
+ * Version: 1.1.0
+ * Requires at least: 6.0
+ * Requires PHP: 7.4
  * Requires Plugins: woocommerce
+ * WC requires at least: 7.0
+ * WC tested up to: 9.3
+ * Author: CloudShip
+ * License: GPL-2.0-or-later
+ * Text Domain: woocommerce-cloudship
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-add_action('woocommerce_shipping_init', function () {
-    if (!class_exists('WC_Shipping_Method')) {
-        return;
-    }
+define('CLOUDSHIP_PLUGIN_FILE', __FILE__);
+define('CLOUDSHIP_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('CLOUDSHIP_PLUGIN_VERSION', '1.1.0');
+define('CLOUDSHIP_DEFAULT_API_URL', 'https://cloudship100.onrender.com');
 
-    class WC_CloudShip_Shipping_Method extends WC_Shipping_Method
-    {
-        public function __construct($instance_id = 0)
-        {
-            $this->id = 'cloudship';
-            $this->instance_id = absint($instance_id);
-            $this->method_title = 'CloudShip';
-            $this->method_description = 'Shows live courier prices (plus your CloudShip markup) at checkout.';
-            $this->supports = array('shipping-zones', 'instance-settings');
-            $this->init();
-        }
+require_once CLOUDSHIP_PLUGIN_DIR . 'includes/class-cloudship-connect.php';
+require_once CLOUDSHIP_PLUGIN_DIR . 'includes/class-cloudship-admin.php';
 
-        public function init()
-        {
-            $this->instance_form_fields = array(
-                'title' => array(
-                    'title' => 'Title',
-                    'type' => 'text',
-                    'default' => 'CloudShip delivery',
-                ),
-                'api_url' => array(
-                    'title' => 'CloudShip API URL',
-                    'type' => 'text',
-                    'default' => 'http://localhost:3000',
-                    'description' => 'No /v1 suffix. Example: https://cloudship100.onrender.com',
-                ),
-                'connection_id' => array(
-                    'title' => 'Connection ID',
-                    'type' => 'text',
-                    'description' => 'Copy from CloudShip → E-commerce → Connected stores.',
-                ),
-            );
-            $this->init_settings();
-            $this->title = $this->get_instance_option('title', 'CloudShip delivery');
-        }
-
-        public function calculate_shipping($package = array())
-        {
-            $api = rtrim($this->get_instance_option('api_url'), '/');
-            $connection_id = trim($this->get_instance_option('connection_id'));
-            if (!$api || !$connection_id) {
-                return;
-            }
-
-            $dest = isset($package['destination']) ? $package['destination'] : array();
-            $weight = 0;
-            $items = array();
-            foreach ($package['contents'] as $item) {
-                $product = $item['data'];
-                $qty = isset($item['quantity']) ? $item['quantity'] : 1;
-                $item_kg = 0.5;
-                if ($product && method_exists($product, 'get_weight')) {
-                    $w = wc_get_weight($product->get_weight(), 'kg');
-                    if ($w) {
-                        $item_kg = floatval($w);
-                    }
-                }
-                $weight += $item_kg * $qty;
-                $items[] = array('weight' => $item_kg, 'quantity' => $qty);
-            }
-
-            $body = array(
-                'destination' => array(
-                    'address_1' => isset($dest['address_1']) ? $dest['address_1'] : '',
-                    'address_2' => isset($dest['address_2']) ? $dest['address_2'] : '',
-                    'city' => isset($dest['city']) ? $dest['city'] : '',
-                    'state' => isset($dest['state']) ? $dest['state'] : '',
-                    'postcode' => isset($dest['postcode']) ? $dest['postcode'] : '',
-                    'country' => isset($dest['country']) ? $dest['country'] : '',
-                ),
-                'weightKg' => $weight > 0 ? $weight : 1,
-                'items' => $items,
-            );
-
-            $response = wp_remote_post(
-                $api . '/v1/webhooks/woocommerce/rates/' . rawurlencode($connection_id),
-                array(
-                    'timeout' => 12,
-                    'headers' => array('Content-Type' => 'application/json'),
-                    'body' => wp_json_encode($body),
-                )
-            );
-            if (is_wp_error($response)) {
-                return;
-            }
-            $quote = json_decode(wp_remote_retrieve_body($response), true);
-            if (empty($quote['options']) || !is_array($quote['options'])) {
-                return;
-            }
-
-            foreach ($quote['options'] as $opt) {
-                $label = !empty($opt['partner']) && $opt['partner'] === 'shop_table'
-                    ? $opt['service']
-                    : 'CloudShip ' . $opt['partner'] . ' ' . $opt['service'];
-                $this->add_rate(
-                    array(
-                        'id' => $this->id . '_' . sanitize_title($opt['partner'] . '_' . $opt['service']),
-                        'label' => $label,
-                        'cost' => floatval($opt['quotedPrice']),
-                        'meta_data' => array(
-                            'cloudship_quote_id' => isset($quote['quoteId']) ? $quote['quoteId'] : '',
-                            'cloudship_partner' => isset($opt['partner']) ? $opt['partner'] : '',
-                            'cloudship_service' => isset($opt['service']) ? $opt['service'] : '',
-                        ),
-                    )
-                );
-            }
-        }
+add_action('before_woocommerce_init', function () {
+    if (class_exists(\Automattic\WooCommerce\Utilities\FeaturesUtil::class)) {
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('custom_order_tables', __FILE__, true);
     }
 });
 
-add_filter('woocommerce_shipping_methods', function ($methods) {
-    $methods['cloudship'] = 'WC_CloudShip_Shipping_Method';
-    return $methods;
+register_activation_hook(__FILE__, function () {
+    if (!class_exists('WooCommerce')) {
+        deactivate_plugins(plugin_basename(__FILE__));
+        wp_die(esc_html__('CloudShip requires WooCommerce.', 'woocommerce-cloudship'));
+    }
+    add_option('cloudship_do_activation_redirect', '1');
+});
+
+add_action('admin_init', function () {
+    if (!get_option('cloudship_do_activation_redirect')) {
+        return;
+    }
+    delete_option('cloudship_do_activation_redirect');
+    if (isset($_GET['activate-multi'])) {
+        return;
+    }
+    wp_safe_redirect(admin_url('admin.php?page=cloudship'));
+    exit;
+});
+
+add_action('plugins_loaded', function () {
+    if (!class_exists('WooCommerce')) {
+        return;
+    }
+    CloudShip_Admin::init();
 });
