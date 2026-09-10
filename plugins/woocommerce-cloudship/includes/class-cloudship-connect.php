@@ -60,7 +60,7 @@ class CloudShip_Connect
             $token = $login['tokens']['access']['token'];
         }
         if (!$token) {
-            return new WP_Error('cloudship_login', __('CloudShip login did not return a token. Use a seller (customer) account.', 'woocommerce-cloudship'));
+            return new WP_Error('cloudship_login', __('CloudShip login did not return a token. Use a seller (customer) account.', CLOUDSHIP_TD));
         }
 
         self::cleanup_local_woo_artifacts();
@@ -111,7 +111,7 @@ class CloudShip_Connect
             if ($code === 'cloudship_http_403') {
                 return new WP_Error(
                     $code,
-                    __('This CloudShip login cannot connect stores. Use a seller account (not a driver or warehouse operator).', 'woocommerce-cloudship')
+                    __('This CloudShip login cannot connect stores. Use a seller account (not a driver or warehouse operator).', CLOUDSHIP_TD)
                 );
             }
             return $created;
@@ -120,7 +120,7 @@ class CloudShip_Connect
         $connection_id = !empty($created['id']) ? (string) $created['id'] : '';
         if ($connection_id === '') {
             self::delete_rest_key($keys['key_id']);
-            return new WP_Error('cloudship_connect', __('CloudShip did not return a connection id.', 'woocommerce-cloudship'));
+            return new WP_Error('cloudship_connect', __('CloudShip did not return a connection id.', CLOUDSHIP_TD));
         }
 
         $delivery = $api_url . '/v1/webhooks/woocommerce/orders?connectionId=' . rawurlencode($connection_id);
@@ -159,7 +159,7 @@ class CloudShip_Connect
         $url = untrailingslashit($url);
         $url = preg_replace('#/v1$#', '', $url);
         if ($url === '' || !preg_match('#^https?://#i', $url)) {
-            return new WP_Error('cloudship_api_url', __('Enter a CloudShip API URL starting with http:// or https://.', 'woocommerce-cloudship'));
+            return new WP_Error('cloudship_api_url', __('Enter a CloudShip API URL starting with http:// or https://.', CLOUDSHIP_TD));
         }
         return $url;
     }
@@ -190,7 +190,7 @@ class CloudShip_Connect
         $code = (int) wp_remote_retrieve_response_code($response);
         $data = json_decode(wp_remote_retrieve_body($response), true);
         if ($code < 200 || $code >= 300) {
-            $message = __('CloudShip request failed.', 'woocommerce-cloudship');
+            $message = __('CloudShip request failed.', CLOUDSHIP_TD);
             if (is_array($data) && !empty($data['message'])) {
                 $message = is_array($data['message']) ? wp_json_encode($data['message']) : (string) $data['message'];
             }
@@ -227,12 +227,12 @@ class CloudShip_Connect
         global $wpdb;
 
         if (!function_exists('wc_rand_hash') || !function_exists('wc_api_hash')) {
-            return new WP_Error('cloudship_woo', __('WooCommerce REST API helpers are missing.', 'woocommerce-cloudship'));
+            return new WP_Error('cloudship_woo', __('WooCommerce REST API helpers are missing.', CLOUDSHIP_TD));
         }
 
         $user_id = get_current_user_id();
         if (!$user_id) {
-            return new WP_Error('cloudship_user', __('You must be logged into WordPress.', 'woocommerce-cloudship'));
+            return new WP_Error('cloudship_user', __('You must be logged into WordPress.', CLOUDSHIP_TD));
         }
 
         $consumer_key = 'ck_' . wc_rand_hash();
@@ -252,7 +252,7 @@ class CloudShip_Connect
         );
 
         if (!$inserted) {
-            return new WP_Error('cloudship_key', __('Could not create a WooCommerce REST API key.', 'woocommerce-cloudship'));
+            return new WP_Error('cloudship_key', __('Could not create a WooCommerce REST API key.', CLOUDSHIP_TD));
         }
 
         return array(
@@ -275,7 +275,7 @@ class CloudShip_Connect
     private static function create_order_webhook($delivery_url, $secret)
     {
         if (!class_exists('WC_Webhook')) {
-            return new WP_Error('cloudship_webhook', __('WooCommerce webhooks are not available.', 'woocommerce-cloudship'));
+            return new WP_Error('cloudship_webhook', __('WooCommerce webhooks are not available.', CLOUDSHIP_TD));
         }
 
         $user_id = get_current_user_id();
@@ -291,7 +291,7 @@ class CloudShip_Connect
         }
         $id = $webhook->save();
         if (!$id) {
-            return new WP_Error('cloudship_webhook', __('Could not create the WooCommerce order webhook.', 'woocommerce-cloudship'));
+            return new WP_Error('cloudship_webhook', __('Could not create the WooCommerce order webhook.', CLOUDSHIP_TD));
         }
         return (int) $id;
     }
