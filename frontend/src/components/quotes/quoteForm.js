@@ -15,6 +15,9 @@ export function toQuotePayload(values) {
   if (values.cargo?.trim()) body.cargo = values.cargo.trim()
   if (values.collectionBuildingType) body.collectionBuildingType = values.collectionBuildingType
   if (values.deliveryBuildingType) body.deliveryBuildingType = values.deliveryBuildingType
+  if (values.cargoCategory) body.cargoCategory = values.cargoCategory
+  if (Number(values.quantity) > 0) body.quantity = Number(values.quantity)
+  if (values.unit) body.unit = values.unit
   if (values.pickupDate) body.pickupDate = values.pickupDate
   if (Number(values.lengthCm) > 0) body.lengthCm = Number(values.lengthCm)
   if (Number(values.widthCm) > 0) body.widthCm = Number(values.widthCm)
