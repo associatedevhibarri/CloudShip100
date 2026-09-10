@@ -16,6 +16,7 @@ export const emptyPickupAddress = {
   state: '',
   postalCode: '',
   country: 'ZA',
+  buildingType: '',
 }
 
 export function formatPickupAddress(parts = {}) {
@@ -33,6 +34,7 @@ export function parsePickupAddress(raw) {
       state: raw.state || '',
       postalCode: raw.postalCode || '',
       country: raw.country || 'ZA',
+      buildingType: raw.buildingType || '',
     }
     if (fromFields.street || fromFields.city) return fromFields
     return parsePickupAddress(raw.address || '')

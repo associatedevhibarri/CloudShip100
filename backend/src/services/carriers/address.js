@@ -65,6 +65,7 @@ const parseAddress = (raw, fallbackCountry = 'ZA') => {
     postalCode,
     countryCode,
     company: '',
+    buildingType: typeof raw === 'object' && raw ? raw.buildingType || '' : '',
   };
 };
 

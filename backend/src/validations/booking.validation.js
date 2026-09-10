@@ -16,6 +16,12 @@ const createBooking = {
       heightCm: Joi.number().positive(),
       pickupDate: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/),
       declaredValue: Joi.number().min(0),
+      collectionBuildingType: Joi.string().allow(''),
+      deliveryBuildingType: Joi.string().allow(''),
+      cargoCategory: Joi.string().allow(''),
+      quantity: Joi.number().positive(),
+      unit: Joi.string().allow(''),
+      volumeM3: Joi.number().positive(),
     })
     .or('weightKg', 'value', 'quoteId'),
 };
