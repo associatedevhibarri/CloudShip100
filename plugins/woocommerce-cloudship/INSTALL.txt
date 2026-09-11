@@ -4,7 +4,7 @@ What this is
 A WordPress plugin so store owners can find and install CloudShip (shipping, logistics, delivery, package management). After install they sign in once. The plugin connects the store and sends new orders to CloudShip. Courier prices are for the seller in CloudShip, not the shopper at checkout.
 
 How to set it up
-1. Create a CloudShip seller account and keep the API running (example http://localhost:3000 or your live API).
+1. Create a CloudShip seller account and keep the API running (live: https://api.cloudship100.com — local: http://localhost:3000).
 2. Copy this folder into wp-content/plugins/woocommerce-cloudship.
 3. In WordPress: Plugins → activate CloudShip.
 4. WooCommerce → CloudShip → enter API URL, CloudShip email, password → Connect store.

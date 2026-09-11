@@ -35,6 +35,17 @@ export const portalService = {
   getPromotions: (token) => request('/promotions', { token }),
   createPromotion: (token, body) => request('/promotions', { token, method: 'POST', body }),
   getQuote: (body) => request('/pricing/quote', { method: 'POST', body }),
+  suggestAddresses: (q, { sessionToken, country } = {}) => {
+    const params = new URLSearchParams({ q: q || '' })
+    if (sessionToken) params.set('sessionToken', sessionToken)
+    if (country) params.set('country', country)
+    return request(`/places/autocomplete?${params.toString()}`)
+  },
+  getAddressDetails: (placeId, { sessionToken } = {}) => {
+    const params = new URLSearchParams({ placeId })
+    if (sessionToken) params.set('sessionToken', sessionToken)
+    return request(`/places/details?${params.toString()}`)
+  },
   submitLead: (body) => request('/leads', { method: 'POST', body }),
   // Stage 2 — e-commerce marketplace
   listEcommerceStores: (token) => request('/ecommerce/stores', { token }),

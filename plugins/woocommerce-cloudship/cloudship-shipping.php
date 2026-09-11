@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 define('CLOUDSHIP_PLUGIN_FILE', __FILE__);
 define('CLOUDSHIP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('CLOUDSHIP_PLUGIN_VERSION', '1.1.2');
-define('CLOUDSHIP_DEFAULT_API_URL', 'https://cloudship100.onrender.com');
+define('CLOUDSHIP_DEFAULT_API_URL', 'https://api.cloudship100.com');
 
 require_once CLOUDSHIP_PLUGIN_DIR . 'includes/class-cloudship-connect.php';
 require_once CLOUDSHIP_PLUGIN_DIR . 'includes/class-cloudship-admin.php';

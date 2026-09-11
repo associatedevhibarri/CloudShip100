@@ -6,6 +6,7 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { Card } from '../../components/ui/Card'
 import { FormField, formInputClass } from '../../components/ui/FormField'
+import { AddressPicker } from '../../components/ui/AddressPicker'
 import { LoadingState, ErrorState } from '../../components/ui/LoadingState'
 import { useToast } from '../../context/ToastContext'
 
@@ -85,23 +86,23 @@ export default function CustomerDeliveriesPage() {
             </select>
           </FormField>
           <FormField id="pickup" label="Pickup" required>
-            <input
+            <AddressPicker
               id="pickup"
               required
               value={form.pickup}
-              onChange={onChange('pickup')}
+              onChange={(next) => setForm((prev) => ({ ...prev, pickup: next }))}
+              placeholder="Search street, city, postal code, country"
               className={formInputClass()}
-              placeholder="Durban"
             />
           </FormField>
           <FormField id="dropoff" label="Dropoff" required>
-            <input
+            <AddressPicker
               id="dropoff"
               required
               value={form.dropoff}
-              onChange={onChange('dropoff')}
+              onChange={(next) => setForm((prev) => ({ ...prev, dropoff: next }))}
+              placeholder="Search street, city, postal code, country"
               className={formInputClass()}
-              placeholder="Johannesburg"
             />
           </FormField>
           <FormField id="value" label="Value (USD)" required>

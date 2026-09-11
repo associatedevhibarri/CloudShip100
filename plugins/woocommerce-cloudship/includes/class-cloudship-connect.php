@@ -72,7 +72,6 @@ class CloudShip_Connect
         }
 
         $secret = wp_generate_password(32, false, false);
-        $pickup = self::store_pickup_address();
         $store_url = home_url('/');
         $store_name = wp_specialchars_decode(get_bloginfo('name'), ENT_QUOTES);
         if ($store_name === '') {
@@ -91,10 +90,8 @@ class CloudShip_Connect
                     'consumerKey' => $keys['consumer_key'],
                     'consumerSecret' => $keys['consumer_secret'],
                     'storeUrl' => $store_url,
-                    'pickupAddress' => $pickup,
                 ),
                 'settings' => array(
-                    'pickupAddress' => $pickup,
                     'currency' => function_exists('get_woocommerce_currency') ? get_woocommerce_currency() : 'ZAR',
                     'defaultMode' => 'Road',
                     'paymentRules' => array(
@@ -200,28 +197,6 @@ class CloudShip_Connect
         }
 
         return is_array($data) ? $data : array();
-    }
-
-    private static function store_pickup_address()
-    {
-        if (!function_exists('WC') || !WC()->countries) {
-            return get_bloginfo('name') . ' ' . home_url('/');
-        }
-        $countries = WC()->countries;
-        $parts = array_filter(
-            array(
-                $countries->get_base_address(),
-                $countries->get_base_address_2(),
-                $countries->get_base_city(),
-                $countries->get_base_state(),
-                $countries->get_base_postcode(),
-                $countries->get_base_country(),
-            )
-        );
-        if (!$parts) {
-            return get_bloginfo('name') . ', ' . home_url('/');
-        }
-        return implode(', ', $parts);
     }
 
     private static function create_rest_key()

@@ -22,8 +22,7 @@ import { usePortalFetch } from '../../hooks/usePortalFetch'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { FormField, formInputClass, SectionHeader } from '../../components/ui/FormField'
-import { PickupAddressFields } from '../../components/ui/PickupAddressFields'
-import { formatPickupAddress } from '../../utils/pickupAddress'
+import { AddressPicker } from '../../components/ui/AddressPicker'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { LoadingState, ErrorState } from '../../components/ui/LoadingState'
 import { DataTable } from '../../components/ui/DataTable'
@@ -44,7 +43,7 @@ const PLATFORMS = [
       'The plugin creates REST keys and the Order created webhook. You do not paste a Connection ID.',
       'Place a test order on the shop. It appears under Orders in this CloudShip page.',
     ],
-    fieldsNeeded: 'Optional manual connect: Store URL + Consumer key + Consumer secret + Pickup address',
+    fieldsNeeded: 'Optional manual connect: Store URL + Consumer key + Consumer secret',
   },
   {
     id: 'shopify',
@@ -59,7 +58,7 @@ const PLATFORMS = [
       'Go to Shopify Admin → Settings → Notifications → Webhooks → Create Webhook.',
       'Event: Order creation | Format: JSON | URL: https://<NGROK_OR_DOMAIN>/v1/webhooks/shopify/orders?connectionId=<CONNECTION_ID>',
     ],
-    fieldsNeeded: 'Shop domain + Access token (shpat_…) + Pickup address',
+    fieldsNeeded: 'Shop domain + Access token (shpat_…)',
   },
   {
     id: 'wix',
@@ -71,9 +70,9 @@ const PLATFORMS = [
       'In Wix Dev App → Webhooks → Add Webhook → Wix Stores → Order Created.',
       'Callback URL: https://<NGROK_OR_DOMAIN>/v1/webhooks/wix/orders?connectionId=<CONNECTION_ID>',
       'In Wix Dev App → Extensions → Ecom Shipping Rates → Set Base URI: https://<NGROK_OR_DOMAIN>/v1/webhooks/wix/rates?connectionId=<CONNECTION_ID>',
-      'Install app on your dev site, then paste access token and pickup address below to connect.',
+      'Install app on your dev site, then paste the access token below to connect.',
     ],
-    fieldsNeeded: 'Access token + Pickup address',
+    fieldsNeeded: 'Access token',
   },
   {
     id: 'lovable',
@@ -81,13 +80,13 @@ const PLATFORMS = [
     hint: 'No external keys required. CloudShip generates a Public API Key upon connection.',
     docsUrl: null,
     steps: [
-      'Enter Store Name + Pickup Address below and click Connect.',
+      'Enter a store name below and click Connect.',
       'Copy your generated publicApiKey (cs_live_…) and webhookSecret (shown once).',
       'Set VITE_CLOUDSHIP_API_KEY=cs_live_... and VITE_CLOUDSHIP_API_URL=https://<NGROK_OR_DOMAIN> in your .env file.',
       'In your Lovable site: POST /v1/webhooks/lovable/rates (for checkout quotes) & POST /v1/webhooks/lovable/orders (for order placement).',
       'Pass header: x-cloudship-key: <YOUR_PUBLIC_API_KEY>.',
     ],
-    fieldsNeeded: 'Store name + Pickup address only',
+    fieldsNeeded: 'Store name only'
   },
 ]
 
@@ -185,11 +184,6 @@ const emptyForm = {
   platform: 'woocommerce',
   storeName: '',
   storeUrl: '',
-  pickupStreet: '',
-  pickupCity: 'Cape Town',
-  pickupState: 'WC',
-  pickupPostal: '',
-  pickupCountry: 'ZA',
   currency: 'ZAR',
   consumerKey: '',
   consumerSecret: '',
@@ -203,18 +197,10 @@ const btnGhost =
   'inline-flex items-center justify-center gap-2 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-surface disabled:opacity-50'
 
 function buildCredentials(form) {
-  const pickupAddress = formatPickupAddress({
-    street: form.pickupStreet,
-    city: form.pickupCity,
-    state: form.pickupState,
-    postalCode: form.pickupPostal,
-    country: form.pickupCountry,
-  })
   if (form.platform === 'woocommerce') {
     return {
       consumerKey: form.consumerKey.trim(),
       consumerSecret: form.consumerSecret.trim(),
-      pickupAddress,
       storeUrl: form.storeUrl.trim(),
     }
   }
@@ -222,16 +208,14 @@ function buildCredentials(form) {
     return {
       shopDomain: form.shopDomain.trim() || form.storeUrl.trim(),
       accessToken: form.accessToken.trim(),
-      pickupAddress,
     }
   }
   if (form.platform === 'wix') {
     return {
       accessToken: form.accessToken.trim(),
-      pickupAddress,
     }
   }
-  return { pickupAddress }
+  return {}
 }
 
 function panelTitle(tab) {
@@ -310,7 +294,13 @@ export default function CustomerEcommercePage() {
     }
   }, [token])
 
-  const storeList = stores || []
+  const storeList = useMemo(() => {
+    const rows = stores || []
+    if (lastConnected?.id && !rows.some((s) => s.id === lastConnected.id)) {
+      return [lastConnected, ...rows]
+    }
+    return rows
+  }, [stores, lastConnected])
   const marketplaceBookings = useMemo(
     () =>
       (bookings || []).filter((b) => ['woocommerce', 'shopify', 'wix', 'lovable'].includes(b.source)),
@@ -341,23 +331,16 @@ export default function CustomerEcommercePage() {
           form.platform === 'shopify' ? form.shopDomain.trim() || form.storeUrl.trim() : form.storeUrl.trim(),
         credentials: buildCredentials(form),
         settings: {
-          pickupAddress: formatPickupAddress({
-            street: form.pickupStreet,
-            city: form.pickupCity,
-            state: form.pickupState,
-            postalCode: form.pickupPostal,
-            country: form.pickupCountry,
-          }),
           currency: form.currency.trim() || 'ZAR',
           defaultMode: 'Road',
         },
       }
       const created = await portalService.connectEcommerceStore(token, body)
       setLastConnected(created)
-      setForm({ ...emptyForm, platform: form.platform, pickupCity: form.pickupCity, pickupCountry: form.pickupCountry })
+      setForm({ ...emptyForm, platform: form.platform })
       refetchStores()
-      setTab('stores')
-      toast.success(`${created.platform} store connected`)
+      setTab('rules')
+      toast.success(`${created.platform} store connected. Add pickup warehouses in Checkout rules.`)
     } catch (err) {
       toast.error(err.message || 'Failed to connect store')
     } finally {
@@ -647,34 +630,6 @@ export default function CustomerEcommercePage() {
                   </FormField>
                 ) : null}
 
-                <FormField
-                  id="pickupStreet"
-                  label="Pickup address"
-                  required
-                  hint="Warehouse the parcels leave from. Street, city, postal and country — not city only."
-                >
-                  <PickupAddressFields
-                    idPrefix="connect-pickup"
-                    value={{
-                      street: form.pickupStreet,
-                      city: form.pickupCity,
-                      state: form.pickupState,
-                      postalCode: form.pickupPostal,
-                      country: form.pickupCountry,
-                    }}
-                    onChange={(next) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        pickupStreet: next.street,
-                        pickupCity: next.city,
-                        pickupState: next.state,
-                        pickupPostal: next.postalCode,
-                        pickupCountry: next.country,
-                      }))
-                    }
-                  />
-                </FormField>
-
                 {form.platform === 'woocommerce' ? (
                   <>
                     <FormField id="consumerKey" label="Consumer key (ck_…)" required>
@@ -723,6 +678,13 @@ export default function CustomerEcommercePage() {
                 ) : null}
 
                 <div className="md:col-span-2">
+                  <p className="mb-3 text-xs text-muted">
+                    Add warehouses in{' '}
+                    <button type="button" className="font-semibold text-brand underline" onClick={() => setTab('rules')}>
+                      Checkout rules
+                    </button>{' '}
+                    after you connect — including extra pickup points and closest-to-customer.
+                  </p>
                   <button type="submit" className={btnPrimary} disabled={connecting}>
                     {connecting ? 'Connecting…' : 'Connect store'}
                   </button>
@@ -865,7 +827,13 @@ export default function CustomerEcommercePage() {
                 </p>
               </Card>
             ) : (
-              <ShopCheckoutSettings stores={storeList} token={token} toast={toast} onSaved={refetchStores} />
+              <ShopCheckoutSettings
+                stores={storeList}
+                token={token}
+                toast={toast}
+                onSaved={refetchStores}
+                preferredStoreId={lastConnected?.id}
+              />
             )
           ) : null}
 
@@ -906,19 +874,23 @@ export default function CustomerEcommercePage() {
                   />
                 </FormField>
                 <FormField id="pickup" label="Pickup" required>
-                  <input
+                  <AddressPicker
                     id="pickup"
-                    className={formInputClass()}
+                    required
                     value={quoteForm.pickup}
-                    onChange={(e) => setQuoteForm((p) => ({ ...p, pickup: e.target.value }))}
+                    onChange={(next) => setQuoteForm((p) => ({ ...p, pickup: next }))}
+                    placeholder="Search street, city, postal code, country"
+                    className={formInputClass()}
                   />
                 </FormField>
                 <FormField id="dropoff" label="Dropoff" required>
-                  <input
+                  <AddressPicker
                     id="dropoff"
-                    className={formInputClass()}
+                    required
                     value={quoteForm.dropoff}
-                    onChange={(e) => setQuoteForm((p) => ({ ...p, dropoff: e.target.value }))}
+                    onChange={(next) => setQuoteForm((p) => ({ ...p, dropoff: next }))}
+                    placeholder="Search street, city, postal code, country"
+                    className={formInputClass()}
                   />
                 </FormField>
                 <div className="md:col-span-2">
@@ -990,7 +962,7 @@ export default function CustomerEcommercePage() {
                   payLabel={
                     payConfig.mode === 'stripe'
                       ? payConfig.ready
-                        ? 'Pay with test card'
+                        ? 'Pay'
                         : 'Stripe keys missing'
                       : 'Mock pay & book'
                   }

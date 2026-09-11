@@ -13,6 +13,7 @@ const paymentRequestRoute = require('./paymentRequest.route');
 const notificationRoute = require('./notification.route');
 const promotionRoute = require('./promotion.route');
 const pricingRoute = require('./pricing.route');
+const placesRoute = require('./places.route');
 const leadRoute = require('./lead.route');
 const geofenceRoute = require('./geofence.route');
 const ecommerceRoute = require('./ecommerce.route');
@@ -73,6 +74,10 @@ const defaultRoutes = [
   {
     path: '/pricing',
     route: pricingRoute,
+  },
+  {
+    path: '/places',
+    route: placesRoute,
   },
   {
     path: '/leads',

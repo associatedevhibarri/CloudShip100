@@ -1,9 +1,45 @@
+import { useState } from 'react'
 import { formInputClass } from './FormField'
+import { AddressPicker } from './AddressPicker'
+import { formatPickupAddress } from '../../utils/pickupAddress'
+
+const COUNTRIES = [
+  { value: 'ZA', label: 'South Africa' },
+  { value: 'US', label: 'United States' },
+  { value: 'GB', label: 'United Kingdom' },
+  { value: 'DE', label: 'Germany' },
+  { value: 'NL', label: 'Netherlands' },
+  { value: 'IN', label: 'India' },
+]
 
 export function PickupAddressFields({ idPrefix, value, onChange }) {
+  const [search, setSearch] = useState('')
   const set = (key) => (e) => onChange({ ...value, [key]: e.target.value })
+  const country = value.country || 'ZA'
+  const knownCountry = COUNTRIES.some((row) => row.value === country)
+
   return (
     <div className="grid gap-2 sm:grid-cols-6">
+      <div className="sm:col-span-6">
+        <AddressPicker
+          id={`${idPrefix}-search`}
+          value={search}
+          onChange={setSearch}
+          onSelect={(details) => {
+            onChange({
+              ...value,
+              street: details.street || value.street,
+              city: details.city || value.city,
+              state: details.state || value.state,
+              postalCode: details.postalCode || value.postalCode,
+              country: details.country || value.country || 'ZA',
+            })
+            setSearch(details.formatted || formatPickupAddress(details) || search)
+          }}
+          placeholder="Search Google address"
+          className={formInputClass()}
+        />
+      </div>
       <input
         id={`${idPrefix}-street`}
         className={`${formInputClass()} sm:col-span-6`}
@@ -39,14 +75,15 @@ export function PickupAddressFields({ idPrefix, value, onChange }) {
       <select
         id={`${idPrefix}-country`}
         className={`${formInputClass()} sm:col-span-2`}
-        value={value.country || 'ZA'}
+        value={country}
         onChange={set('country')}
       >
-        <option value="ZA">South Africa</option>
-        <option value="US">United States</option>
-        <option value="GB">United Kingdom</option>
-        <option value="DE">Germany</option>
-        <option value="NL">Netherlands</option>
+        {COUNTRIES.map((row) => (
+          <option key={row.value} value={row.value}>
+            {row.label}
+          </option>
+        ))}
+        {!knownCountry && country ? <option value={country}>{country}</option> : null}
       </select>
       <select
         id={`${idPrefix}-building-type`}

@@ -6,6 +6,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge'
 import { LoadingState } from '../../components/ui/LoadingState'
 import { TransitTimeline } from '../../components/ui/TransitTimeline'
 import { FormField, formInputClass } from '../../components/ui/FormField'
+import { AddressPicker } from '../../components/ui/AddressPicker'
 import { displayShipmentStatus, displayShipmentLabel } from '../../utils/shipmentProgress'
 
 const PARTNER_NAMES = {
@@ -83,16 +84,28 @@ const warehousesFor = (row, stores) => {
   if (!rows.length && settings.pickupAddress) {
     rows.push({ name: 'Main warehouse', address: settings.pickupAddress, isDefault: true })
   }
-  const current = String(row.pickup || '').trim()
-  if (current && !rows.some((loc) => loc.address.trim().toLowerCase() === current.toLowerCase())) {
-    rows.unshift({ name: row.pickupName || 'On this order', address: current, isDefault: false })
-  }
   return rows
 }
 
 const matchWarehouse = (warehouses, address) => {
   const target = String(address || '').trim().toLowerCase()
-  return warehouses.find((loc) => loc.address.trim().toLowerCase() === target) || warehouses[0] || null
+  if (!target) return null
+  return warehouses.find((loc) => loc.address.trim().toLowerCase() === target) || null
+}
+
+const defaultWarehouse = (warehouses) => warehouses.find((loc) => loc.isDefault) || warehouses[0] || null
+
+const originFor = (row, stores, override) => {
+  const warehouses = warehousesFor(row, stores)
+  const requested = String(override || '').trim()
+  const shopPickup = String(row.pickup || '').trim()
+  const named = matchWarehouse(warehouses, requested)
+  if (named) return { warehouses, address: named.address, name: named.name }
+  if (requested && requested.toLowerCase() !== shopPickup.toLowerCase()) {
+    return { warehouses, address: requested, name: 'Custom pickup' }
+  }
+  const fallback = defaultWarehouse(warehouses)
+  return { warehouses, address: fallback?.address || '', name: fallback?.name || 'Warehouse' }
 }
 
 const Detail = ({ label, value }) => (
@@ -112,7 +125,9 @@ const ShopOrderDetails = ({ row, stores, money }) => {
         <Detail label="Buyer phone" value={row.buyerPhone} />
         <Detail label="Weight" value={row.weightKg ? `${row.weightKg} kg` : null} />
         <Detail label="Service" value={bookedService(row)} />
-        <Detail label="Ship from" value={row.pickupName ? `${row.pickupName} · ${row.pickup}` : row.pickup} />
+        {row.pickupName || row.pickup ? (
+          <Detail label="Shop pickup" value={row.pickupName ? `${row.pickupName} · ${row.pickup}` : row.pickup} />
+        ) : null}
         <Detail label="Ship to" value={row.dropoff} />
         <Detail label="Items total" value={money(row.itemsTotal)} />
         <Detail label="Shipping (shop)" value={money(row.shippingTotal)} />
@@ -160,11 +175,24 @@ export function MarketplaceOrders({
   const shipmentStatus = (row) => displayShipmentStatus(row)
 
   const loadQuote = async (row, pickup) => {
-    const warehouses = warehousesFor(row, stores)
-    const chosen = matchWarehouse(warehouses, pickup || row.pickup)
-    const address = chosen?.address || String(pickup || row.pickup || '').trim()
+    const origin = originFor(row, stores, pickup)
+    const address = origin.address
+    const chosen = { name: origin.name }
     const seq = (quoteSeq.current[row.id] || 0) + 1
     quoteSeq.current[row.id] = seq
+    if (!address) {
+      setQuotes((prev) => ({
+        ...prev,
+        [row.id]: {
+          loading: false,
+          error: 'Add a pickup warehouse in Checkout rules, then try again.',
+          quote: null,
+          requestedPickup: '',
+          seq,
+        },
+      }))
+      return
+    }
     setQuotes((prev) => ({
       ...prev,
       [row.id]: { loading: true, error: '', quote: null, requestedPickup: address, seq },
@@ -173,7 +201,7 @@ export function MarketplaceOrders({
       const quote = await portalService.createMarketplaceQuote(token, {
         connectionId: connectionIdOf(row),
         pickup: address,
-        pickupName: chosen?.name,
+        pickupName: chosen.name,
         lockPickup: true,
         dropoff: row.dropoff,
         weightKg: Number(row.weightKg) > 0 ? Number(row.weightKg) : 1,
@@ -207,12 +235,10 @@ export function MarketplaceOrders({
     const next = openId === row.id ? null : row.id
     setOpenId(next)
     if (!next || !canPay(row)) return
-    const warehouses = warehousesFor(row, stores)
-    const chosen = matchWarehouse(warehouses, pickupById[row.id] || row.pickup)
-    const address = chosen?.address || row.pickup
-    setPickupById((prev) => (prev[row.id] ? prev : { ...prev, [row.id]: address }))
+    const origin = originFor(row, stores, pickupById[row.id])
+    setPickupById((prev) => (prev[row.id] ? prev : { ...prev, [row.id]: origin.address }))
     if (quotes[row.id]?.quote || quotes[row.id]?.loading) return
-    await loadQuote(row, address)
+    await loadQuote(row, origin.address)
   }
 
   const changeWarehouse = async (row, address) => {
@@ -248,8 +274,7 @@ export function MarketplaceOrders({
             const retryBook = needsRetryBook(row)
             const panel = quotes[row.id]
             const warehouses = warehousesFor(row, stores)
-            const shipFrom =
-              pickupById[row.id] || matchWarehouse(warehouses, row.pickup)?.address || row.pickup
+            const shipFrom = originFor(row, stores, pickupById[row.id]).address
             const originLabel = awaitingPay
               ? panel?.quote?.pickupName
                 ? `${panel.quote.pickupName} · ${panel.quote.pickup}`
@@ -309,26 +334,47 @@ export function MarketplaceOrders({
                   <tr className="border-t border-line bg-surface/50">
                     <td colSpan={TABLE_COL_COUNT} className="px-4 py-4">
                       <ShopOrderDetails row={row} stores={stores} money={money} />
-                      {awaitingPay && warehouses.length ? (
-                        <div className="mb-3 max-w-xl" onClick={(e) => e.stopPropagation()}>
-                          <FormField
-                            id={`warehouse-${row.id}`}
-                            label="Ship from"
-                            hint="Pick the warehouse this order is sitting at. Live rates use that origin."
-                          >
-                            <select
+                      {awaitingPay ? (
+                        <div className="mb-3 max-w-xl space-y-3" onClick={(e) => e.stopPropagation()}>
+                          {warehouses.length ? (
+                            <FormField
                               id={`warehouse-${row.id}`}
-                              className={formInputClass()}
-                              value={shipFrom}
-                              onChange={(e) => changeWarehouse(row, e.target.value)}
+                              label="Ship from"
+                              hint="Saved warehouse, or search Google below for another origin."
                             >
-                              {warehouses.map((loc) => (
-                                <option key={loc.address} value={loc.address}>
-                                  {loc.name}
-                                  {loc.isDefault ? ' (Default)' : ''} — {loc.address}
-                                </option>
-                              ))}
-                            </select>
+                              <select
+                                id={`warehouse-${row.id}`}
+                                className={formInputClass()}
+                                value={shipFrom}
+                                onChange={(e) => changeWarehouse(row, e.target.value)}
+                              >
+                                {shipFrom && !warehouses.some((loc) => loc.address === shipFrom) ? (
+                                  <option value={shipFrom}>Custom pickup — {shipFrom}</option>
+                                ) : null}
+                                {warehouses.map((loc) => (
+                                  <option key={loc.address} value={loc.address}>
+                                    {loc.name}
+                                    {loc.isDefault ? ' (Default)' : ''} — {loc.address}
+                                  </option>
+                                ))}
+                              </select>
+                            </FormField>
+                          ) : null}
+                          <FormField
+                            id={`pickup-search-${row.id}`}
+                            label={warehouses.length ? 'Or search another pickup' : 'Ship from'}
+                            hint="Couriers need street, city, postal code and country."
+                          >
+                            <AddressPicker
+                              id={`pickup-search-${row.id}`}
+                              value={shipFrom}
+                              onChange={(next) => setPickupById((prev) => ({ ...prev, [row.id]: next }))}
+                              onSelect={(details) =>
+                                changeWarehouse(row, details.formatted || details.street || shipFrom)
+                              }
+                              placeholder="Search Google address"
+                              className={formInputClass()}
+                            />
                           </FormField>
                         </div>
                       ) : null}
