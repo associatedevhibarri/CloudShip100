@@ -11,7 +11,13 @@ const quoteLimiter = rateLimit({
   max: 20,
 });
 
+const placesLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+});
+
 module.exports = {
   authLimiter,
   quoteLimiter,
+  placesLimiter,
 };

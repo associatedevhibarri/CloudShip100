@@ -24,7 +24,7 @@ const envVarsSchema = Joi.object()
     SMTP_PASSWORD: Joi.string().description('password for email server'),
     EMAIL_FROM: Joi.string().description('the from field in the emails sent by the app'),
     FRONTEND_URL: Joi.string().allow('').default('http://localhost:5173'),
-    GOOGLE_MAPS_API_KEY: Joi.string().allow('').description('Google Maps Platform API key (Directions API)'),
+    GOOGLE_MAPS_API_KEY: Joi.string().allow('').description('Google Maps Platform API key (Directions + Places)'),
     CLOUDINARY_CLOUD_NAME: Joi.string().allow('').description('Cloudinary cloud name'),
     CLOUDINARY_API_KEY: Joi.string().allow('').description('Cloudinary API key'),
     CLOUDINARY_API_SECRET: Joi.string().allow('').description('Cloudinary API secret'),

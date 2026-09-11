@@ -25,6 +25,7 @@ import { PartnerQuoteCard } from '../components/quotes/PartnerQuoteCard'
 import { QuoteToolbar } from '../components/quotes/QuoteToolbar'
 import { filterAndSortPartners } from '../components/quotes/quoteFilters'
 import { MODES, quoteFieldClass, todayIsoDate, toQuotePayload } from '../components/quotes/quoteForm'
+import { AddressPicker } from '../components/ui/AddressPicker'
 
 function LivePricingWidget() {
   const [pickup, setPickup] = useState('')
@@ -85,23 +86,23 @@ function LivePricingWidget() {
       <form onSubmit={handleQuote} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="text-sm sm:col-span-2">
           <span className="mb-1 block font-semibold text-ink">Pickup</span>
-          <input
-            type="text"
+          <AddressPicker
+            id="home-pickup"
             required
             value={pickup}
-            onChange={(e) => setPickup(e.target.value)}
-            placeholder="Street, city, postal code, country"
+            onChange={setPickup}
+            placeholder="Search street, city, postal code, country"
             className={quoteFieldClass}
           />
         </label>
         <label className="text-sm sm:col-span-2">
           <span className="mb-1 block font-semibold text-ink">Dropoff</span>
-          <input
-            type="text"
+          <AddressPicker
+            id="home-dropoff"
             required
             value={dropoff}
-            onChange={(e) => setDropoff(e.target.value)}
-            placeholder="Street, city, postal code, country"
+            onChange={setDropoff}
+            placeholder="Search street, city, postal code, country"
             className={quoteFieldClass}
           />
         </label>

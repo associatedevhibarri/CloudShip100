@@ -18,7 +18,7 @@ Install the plugin in WordPress. The shop owner signs in once; the plugin create
 
 1. Copy `plugins/woocommerce-cloudship` into `wp-content/plugins/` and activate **CloudShip**.
 2. WooCommerce ➔ **CloudShip**.
-3. API URL = your CloudShip backend with no `/v1` (example `http://localhost:3000` or `https://cloudship100.onrender.com`).
+3. API URL = your CloudShip backend with no `/v1` (example `http://localhost:3000` or `https://api.cloudship100.com`).
 4. Enter the CloudShip seller email and password ➔ **Connect store**.
 5. Place a test order. Confirm it in CloudShip ➔ E-commerce ➔ Orders.
 

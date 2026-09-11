@@ -130,7 +130,7 @@ function PayForm({ amount, currency, onCancel, onPaid }) {
               Paying…
             </>
           ) : (
-            'Pay with test card'
+            'Pay'
           )}
         </button>
       </div>

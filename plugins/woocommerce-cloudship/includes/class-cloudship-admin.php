@@ -127,7 +127,7 @@ class CloudShip_Admin
         if (is_array($flash)) {
             delete_transient(self::notice_key());
             if (!empty($flash['connected'])) {
-                echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Store connected. New orders will appear in CloudShip.', 'cloudship-shipping-logistics-delivery') . '</p></div>';
+                echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Store connected. Add pickup warehouses in CloudShip → Checkout rules. New orders will appear in CloudShip.', 'cloudship-shipping-logistics-delivery') . '</p></div>';
             }
             if (!empty($flash['disconnected'])) {
                 echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Disconnected on this store. You can also disconnect it in the CloudShip dashboard.', 'cloudship-shipping-logistics-delivery') . '</p></div>';
@@ -167,7 +167,7 @@ class CloudShip_Admin
         echo '<table class="form-table" role="presentation"><tbody>';
         echo '<tr><th scope="row"><label for="cloudship_api_url">' . esc_html__('CloudShip API URL', 'cloudship-shipping-logistics-delivery') . '</label></th><td>';
         echo '<input name="api_url" id="cloudship_api_url" type="url" class="regular-text" required value="' . esc_attr($state['api_url'] ? $state['api_url'] : CLOUDSHIP_DEFAULT_API_URL) . '" />';
-        echo '<p class="description">' . esc_html__('No /v1 at the end. Local example: http://localhost:3000', 'cloudship-shipping-logistics-delivery') . '</p>';
+        echo '<p class="description">' . esc_html__('No /v1 at the end. Live: https://api.cloudship100.com  Local: http://localhost:3000', 'cloudship-shipping-logistics-delivery') . '</p>';
         echo '</td></tr>';
         echo '<tr><th scope="row"><label for="cloudship_email">' . esc_html__('CloudShip email', 'cloudship-shipping-logistics-delivery') . '</label></th><td>';
         echo '<input name="email" id="cloudship_email" type="email" class="regular-text" required value="" autocomplete="username" />';

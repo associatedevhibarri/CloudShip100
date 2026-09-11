@@ -14,16 +14,25 @@ const btnGhost =
 const emptyPickup = { name: '', ...emptyPickupAddress, isDefault: false }
 const emptyRate = { label: 'Standard shipping', minWeightKg: 0, maxWeightKg: '', country: '', price: '' }
 
-export function ShopCheckoutSettings({ stores, token, toast, onSaved }) {
+export function ShopCheckoutSettings({ stores, token, toast, onSaved, preferredStoreId }) {
   const active = (stores || []).filter((s) => s.status === 'active')
-  const [storeId, setStoreId] = useState(active[0]?.id || '')
+  const [storeId, setStoreId] = useState(preferredStoreId || active[0]?.id || '')
   const [saving, setSaving] = useState(false)
   const [extraMarginPercent, setExtraMarginPercent] = useState(0)
   const [pickupStrategy, setPickupStrategy] = useState('fixed')
   const [pickups, setPickups] = useState([{ ...emptyPickup, name: 'Main warehouse', isDefault: true }])
   const [tableRates, setTableRates] = useState([])
 
-  const selected = active.find((s) => s.id === storeId)
+  const selected = active.find((s) => s.id === storeId) || active[0]
+
+  useEffect(() => {
+    const ids = (stores || []).filter((s) => s.status === 'active').map((s) => s.id)
+    if (preferredStoreId && ids.includes(preferredStoreId)) {
+      setStoreId(preferredStoreId)
+      return
+    }
+    setStoreId((current) => (current && ids.includes(current) ? current : ids[0] || ''))
+  }, [stores, preferredStoreId])
 
   useEffect(() => {
     if (!selected) return
@@ -109,7 +118,7 @@ export function ShopCheckoutSettings({ stores, token, toast, onSaved }) {
       <SectionHeader
         icon={MapPin}
         title="Checkout rules"
-        description="For shop operators: pickup points, your extra profit on shipping, and optional table rates. No developer needed."
+        description="This is where warehouses live — default pickup, extra locations, closest-to-customer, your extra profit, and optional table rates."
       />
       <form onSubmit={save} className="grid gap-4">
         <FormField id="rulesStore" label="Store">
@@ -208,7 +217,7 @@ export function ShopCheckoutSettings({ stores, token, toast, onSaved }) {
                 onChange={(next) => setPickups((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...next } : p)))}
               />
               <p className="mt-1.5 text-[11px] text-muted">
-                Couriers need street, city, postal code and country — not city only.
+                Search Google or type street, city, postal code and country — not city only.
               </p>
             </div>
           ))}
