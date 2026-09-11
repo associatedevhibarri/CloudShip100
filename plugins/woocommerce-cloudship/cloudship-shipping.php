@@ -3,7 +3,7 @@
  * Plugin Name: CloudShip – Shipping, Logistics & Delivery
  * Plugin URI: https://github.com/hibarriassistantdev/CloudShip100
  * Description: WooCommerce shipping, logistics, local and international delivery, and package management. Install, sign in, and CloudShip connects your store. The seller sees courier prices in CloudShip after the customer places the order — not at checkout.
- * Version: 1.1.0
+ * Version: 1.1.2
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -20,11 +20,12 @@ if (!defined('ABSPATH')) {
 
 define('CLOUDSHIP_PLUGIN_FILE', __FILE__);
 define('CLOUDSHIP_PLUGIN_DIR', plugin_dir_path(__FILE__));
-define('CLOUDSHIP_PLUGIN_VERSION', '1.1.0');
+define('CLOUDSHIP_PLUGIN_VERSION', '1.1.2');
 define('CLOUDSHIP_DEFAULT_API_URL', 'https://cloudship100.onrender.com');
 
 require_once CLOUDSHIP_PLUGIN_DIR . 'includes/class-cloudship-connect.php';
 require_once CLOUDSHIP_PLUGIN_DIR . 'includes/class-cloudship-admin.php';
+require_once CLOUDSHIP_PLUGIN_DIR . 'includes/class-cloudship-orders.php';
 
 add_action('before_woocommerce_init', function () {
     if (class_exists(\Automattic\WooCommerce\Utilities\FeaturesUtil::class)) {
@@ -57,4 +58,5 @@ add_action('plugins_loaded', function () {
         return;
     }
     CloudShip_Admin::init();
+    CloudShip_Orders::init();
 });

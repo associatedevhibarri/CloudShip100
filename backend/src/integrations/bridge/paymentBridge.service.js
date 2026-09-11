@@ -36,6 +36,15 @@ const createPaymentForBooking = async (booking) => {
   const currency = (booking.currency || 'ZAR').toLowerCase();
   const mode = config.ecommerce.paymentMode;
 
+  if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+    return {
+      mode: 'none',
+      status: 'awaiting',
+      amount: 0,
+      currency: currency.toUpperCase(),
+    };
+  }
+
   if (mode === 'stripe') {
     if (!config.ecommerce.stripeSecretKey) {
       throw new ApiError(httpStatus.SERVICE_UNAVAILABLE, 'STRIPE_SECRET_KEY not configured');

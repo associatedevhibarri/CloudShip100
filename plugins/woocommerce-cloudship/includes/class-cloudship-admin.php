@@ -11,6 +11,7 @@ class CloudShip_Admin
         add_action('admin_notices', array(__CLASS__, 'notice'));
         add_action('admin_post_cloudship_connect', array(__CLASS__, 'handle_connect'));
         add_action('admin_post_cloudship_disconnect', array(__CLASS__, 'handle_disconnect'));
+        add_action('admin_post_cloudship_push_last', array(__CLASS__, 'handle_push_last'));
     }
 
     public static function menu()
@@ -81,6 +82,34 @@ class CloudShip_Admin
         exit;
     }
 
+    public static function handle_push_last()
+    {
+        if (!current_user_can('manage_woocommerce')) {
+            wp_die(esc_html__('You do not have permission to send CloudShip orders.', 'cloudship-shipping-logistics-delivery'));
+        }
+        check_admin_referer('cloudship_push_last');
+        $orders = wc_get_orders(
+            array(
+                'limit' => 1,
+                'orderby' => 'date',
+                'order' => 'DESC',
+                'status' => array('pending', 'processing', 'on-hold', 'completed'),
+            )
+        );
+        if (empty($orders)) {
+            set_transient(self::notice_key(), array('error' => 'No WooCommerce orders found to send.'), 60);
+        } else {
+            $result = CloudShip_Orders::push($orders[0], true);
+            if (!empty($result['ok'])) {
+                set_transient(self::notice_key(), array('push' => $result['message']), 60);
+            } else {
+                set_transient(self::notice_key(), array('error' => !empty($result['message']) ? $result['message'] : 'Send failed'), 60);
+            }
+        }
+        wp_safe_redirect(admin_url('admin.php?page=cloudship'));
+        exit;
+    }
+
     public static function render()
     {
         if (!current_user_can('manage_woocommerce')) {
@@ -103,6 +132,9 @@ class CloudShip_Admin
             if (!empty($flash['disconnected'])) {
                 echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Disconnected on this store. You can also disconnect it in the CloudShip dashboard.', 'cloudship-shipping-logistics-delivery') . '</p></div>';
             }
+            if (!empty($flash['push'])) {
+                echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($flash['push']) . '</p></div>';
+            }
             if (!empty($flash['error'])) {
                 echo '<div class="notice notice-error"><p>' . esc_html($flash['error']) . '</p></div>';
             }
@@ -115,6 +147,11 @@ class CloudShip_Admin
             self::row(__('Account', 'cloudship-shipping-logistics-delivery'), esc_html($state['email']));
             self::row(__('Connection ID', 'cloudship-shipping-logistics-delivery'), '<code>' . esc_html($state['connection_id']) . '</code>');
             echo '</tbody></table>';
+            echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="margin-bottom:1rem">';
+            echo '<input type="hidden" name="action" value="cloudship_push_last" />';
+            wp_nonce_field('cloudship_push_last');
+            submit_button(__('Send last Woo order to CloudShip', 'cloudship-shipping-logistics-delivery'), 'primary', 'submit', false);
+            echo '</form>';
             echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" onsubmit="return confirm(\'' . esc_js(__('Disconnect CloudShip from this store?', 'cloudship-shipping-logistics-delivery')) . '\');">';
             echo '<input type="hidden" name="action" value="cloudship_disconnect" />';
             wp_nonce_field('cloudship_disconnect');
