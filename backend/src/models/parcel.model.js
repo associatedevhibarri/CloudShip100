@@ -20,7 +20,7 @@ const parcelSchema = mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['assigned', 'picked_up', 'in_transit', 'delivered'],
+      enum: ['assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'],
       default: 'assigned',
     },
     weight: {

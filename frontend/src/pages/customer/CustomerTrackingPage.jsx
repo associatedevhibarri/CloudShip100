@@ -38,10 +38,21 @@ export default function CustomerTrackingPage() {
                     {p.pickup} → {p.dropoff}
                   </p>
                 </div>
-                <StatusBadge status={displayShipmentLabel(p)} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge status={displayShipmentLabel(p)} />
+                  {p.paymentStatus && p.paymentStatus !== 'not_required' ? (
+                    <StatusBadge status={p.paymentStatus} />
+                  ) : null}
+                </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-4 text-sm">
                 <span className="rounded-full bg-surface px-3 py-1 font-semibold">{p.mode}</span>
+                {p.source && p.source !== 'portal' ? (
+                  <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold capitalize text-sky-800">
+                    {p.source}
+                    {p.externalOrderId ? ` · #${p.externalOrderId}` : ''}
+                  </span>
+                ) : null}
                 <span className="font-semibold text-ink">${p.value.toLocaleString()}</span>
                 <span className="text-muted">Booked {p.bookedAt?.slice(0, 10)}</span>
               </div>

@@ -145,7 +145,52 @@ const markBookingStage = async (parcel, stage, extra = {}) => {
   await booking.save();
 };
 
+const MARKETPLACE_SOURCES = ['woocommerce', 'shopify', 'wix', 'lovable'];
+
+const isMarketplaceSource = (source) => MARKETPLACE_SOURCES.includes(String(source || ''));
+
+/**
+ * Marketplace unpaid orders must not enter receiving.
+ * External-courier bookings (logisticsBookingRef) are fulfilled by the partner — skip own-fleet ingest.
+ */
+const shouldIngestBookingForWarehouse = (booking) => {
+  if (!booking) return false;
+  if (booking.logisticsBookingRef) return false;
+  if (isMarketplaceSource(booking.source)) {
+    return booking.paymentStatus === 'paid';
+  }
+  return true;
+};
+
+const findBookingForWarehouseParcel = async (parcel) => {
+  if (!parcel) return null;
+  const or = [];
+  if (parcel.bookingId) or.push({ _id: parcel.bookingId });
+  if (parcel.orderId) or.push({ code: parcel.orderId });
+  if (!or.length) return null;
+  try {
+    return await Booking.findOne({ $or: or });
+  } catch (e) {
+    return Booking.findOne({ code: parcel.orderId });
+  }
+};
+
+const assertNotExternalCourierFulfillment = async (parcel) => {
+  const booking = await findBookingForWarehouseParcel(parcel);
+  if (booking && booking.logisticsBookingRef) {
+    throw new ApiError(
+      httpStatus.CONFLICT,
+      `Parcel ${parcel.code} is fulfilled by external courier (${booking.logisticsBookingRef}) — cannot assign own-fleet driver`
+    );
+  }
+  return booking;
+};
+
 const ingestBooking = async (booking, company, extras = {}) => {
+  if (!shouldIngestBookingForWarehouse(booking)) {
+    return null;
+  }
+
   const orderId = booking.code || booking.id;
   const bookingId = String(booking.id || booking._id);
   const existing = await Parcel.findOne({
@@ -186,7 +231,11 @@ const ingestBooking = async (booking, company, extras = {}) => {
 
 const syncExpectedFromBookings = async () => {
   const bookings = await Booking.find({ status: { $in: ['pending', 'in_transit'] } }).populate('company');
-  await Promise.all(bookings.map((booking) => ingestBooking(booking, booking.company)));
+  await Promise.all(
+    bookings
+      .filter((booking) => shouldIngestBookingForWarehouse(booking))
+      .map((booking) => ingestBooking(booking, booking.company))
+  );
 };
 
 const listRegisteredDrivers = async () => {
@@ -725,6 +774,12 @@ const resolveDispatchPoint = async (parcel, options = {}, activeZone = null) => 
 };
 
 const applySuggestionToParcel = async (parcelCode, hintOverride) => {
+  const parcelForGuard = await Parcel.findOne({ code: parcelCode });
+  if (!parcelForGuard) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Parcel not found');
+  }
+  await assertNotExternalCourierFulfillment(parcelForGuard);
+
   let hint = hintOverride;
   if (!hint) {
     const hintDoc = await AssignmentSuggestion.findOne({ code: parcelCode });
@@ -771,7 +826,11 @@ const assignParcelToRegisteredDriver = async (parcelCode, employeeId) => {
   }
 
   const existing = await Parcel.findOne({ code: parcelCode });
-  const existingTruck = existing ? existing.truck : null;
+  if (!existing) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Parcel not found');
+  }
+  await assertNotExternalCourierFulfillment(existing);
+  const existingTruck = existing.truck;
 
   const updated = await Parcel.findOneAndUpdate(
     { code: parcelCode },
@@ -804,6 +863,7 @@ const assignParcel = async (parcelCode, { employeeId, fleetType, truck, driver, 
     throw new ApiError(httpStatus.NOT_FOUND, 'Parcel not found');
   }
   assertReceived(parcel);
+  await assertNotExternalCourierFulfillment(parcel);
 
   if (employeeId) {
     return assignParcelToRegisteredDriver(parcelCode, employeeId);
@@ -828,6 +888,11 @@ const autoAssignParcels = async () => {
   let driverIndex = 0;
 
   for (const parcel of open) {
+    try {
+      await assertNotExternalCourierFulfillment(parcel);
+    } catch (err) {
+      continue;
+    }
     if (registered.length) {
       const driver = registered[driverIndex % registered.length];
       driverIndex += 1;

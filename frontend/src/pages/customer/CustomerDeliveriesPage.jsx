@@ -142,10 +142,21 @@ export default function CustomerDeliveriesPage() {
                     {d.pickup} → {d.dropoff}
                   </p>
                 </div>
-                <StatusBadge status={d.status} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge status={d.status} />
+                  {d.paymentStatus && d.paymentStatus !== 'not_required' ? (
+                    <StatusBadge status={d.paymentStatus} />
+                  ) : null}
+                </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-4 text-sm">
                 <span className="rounded-full bg-surface px-3 py-1 font-semibold">{d.mode}</span>
+                {d.source && d.source !== 'portal' ? (
+                  <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold capitalize text-sky-800">
+                    {d.source}
+                    {d.externalOrderId ? ` · #${d.externalOrderId}` : ''}
+                  </span>
+                ) : null}
                 <span className="font-semibold text-ink">${Number(d.value || 0).toLocaleString()}</span>
                 <span className="text-muted">Booked {d.bookedAt?.slice(0, 10)}</span>
               </div>
