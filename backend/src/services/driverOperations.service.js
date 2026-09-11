@@ -1,8 +1,18 @@
 const httpStatus = require('http-status');
-const { DriverProfile, Trip, Parcel, DamageLog } = require('../models');
+const { DriverProfile, Trip, Parcel, DamageLog, Booking } = require('../models');
 const ApiError = require('../utils/ApiError');
 const driverProfileService = require('./driverProfile.service');
 const bookingSyncService = require('./bookingSync.service');
+
+const MARKETPLACE_SOURCES = ['woocommerce', 'shopify', 'wix', 'lovable'];
+
+const ALLOWED_NEXT_STATUS = {
+  assigned: ['picked_up'],
+  picked_up: ['in_transit'],
+  in_transit: ['delivered'],
+  delivered: [],
+  cancelled: [],
+};
 
 const formatTrip = (trip, parcelCodes = []) => ({
   id: trip.code,
@@ -23,22 +33,76 @@ const formatTrip = (trip, parcelCodes = []) => ({
   clientOrderId: trip.clientOrderId,
 });
 
-const formatParcel = (parcel) => ({
-  id: parcel.code,
-  parcelId: parcel.id,
-  tripId: parcel.trip?.code || null,
-  status: parcel.status,
-  weight: parcel.weight,
-  cargo: parcel.cargo,
-  pickup: parcel.pickup,
-  dropoff: parcel.dropoff,
-  recipientName: parcel.recipientName,
-  recipientPhone: parcel.recipientPhone,
-  clientName: parcel.clientName,
-  clientOrderId: parcel.clientOrderId,
-  barcode: parcel.barcode,
-  instructions: parcel.instructions,
-});
+const findBookingForDriverParcel = async (parcel) => {
+  if (!parcel?.clientOrderId) return null;
+  return Booking.findOne({ code: parcel.clientOrderId });
+};
+
+const enrichParcelFromBooking = (formatted, booking) => {
+  if (!booking) {
+    return {
+      ...formatted,
+      source: null,
+      externalOrderId: null,
+      paymentStatus: null,
+      trackingNumber: null,
+      logisticsBookingRef: null,
+      actionsBlocked: false,
+      actionsBlockedReason: null,
+    };
+  }
+
+  const source = booking.source || null;
+  const paymentStatus = booking.paymentStatus || null;
+  const logisticsBookingRef = booking.logisticsBookingRef || null;
+  const isMarketplace = MARKETPLACE_SOURCES.includes(String(source || ''));
+  const unpaidMarketplace = isMarketplace && paymentStatus !== 'paid';
+  const actionsBlocked = Boolean(logisticsBookingRef) || unpaidMarketplace;
+
+  let actionsBlockedReason = null;
+  if (logisticsBookingRef) {
+    actionsBlockedReason = `External courier booked (${logisticsBookingRef})`;
+  } else if (unpaidMarketplace) {
+    actionsBlockedReason = 'Marketplace order is not paid';
+  }
+
+  return {
+    ...formatted,
+    source,
+    externalOrderId: booking.externalOrderId || null,
+    paymentStatus,
+    trackingNumber: booking.trackingNumber || null,
+    logisticsBookingRef,
+    actionsBlocked,
+    actionsBlockedReason,
+  };
+};
+
+const formatParcel = (parcel, booking = null) => {
+  const base = {
+    id: parcel.code,
+    parcelId: parcel.id,
+    tripId: parcel.trip?.code || null,
+    status: parcel.status,
+    weight: parcel.weight,
+    cargo: parcel.cargo,
+    pickup: parcel.pickup,
+    dropoff: parcel.dropoff,
+    recipientName: parcel.recipientName,
+    recipientPhone: parcel.recipientPhone,
+    clientName: parcel.clientName,
+    clientOrderId: parcel.clientOrderId,
+    barcode: parcel.barcode,
+    instructions: parcel.instructions,
+  };
+  return enrichParcelFromBooking(base, booking);
+};
+
+const formatParcelWithBooking = async (parcelDoc) => {
+  const plain = parcelDoc.toJSON ? parcelDoc.toJSON() : parcelDoc;
+  const booking = await findBookingForDriverParcel(plain);
+  return formatParcel(plain, booking);
+};
 
 const formatDamageLog = (log) => ({
   id: log.code,
@@ -86,7 +150,7 @@ const syncTripFromParcelStatus = async (parcel, status) => {
     const remaining = await Parcel.countDocuments({
       trip: trip.id,
       _id: { $ne: parcel.id },
-      status: { $ne: 'delivered' },
+      status: { $nin: ['delivered', 'cancelled'] },
     });
     if (remaining === 0) {
       trip.status = 'completed';
@@ -103,6 +167,35 @@ const syncTripFromParcelStatus = async (parcel, status) => {
     trip.startAt = trip.startAt || new Date();
   }
   await trip.save();
+};
+
+const assertParcelStatusTransition = (currentStatus, nextStatus) => {
+  const allowed = ALLOWED_NEXT_STATUS[currentStatus] || [];
+  if (!allowed.includes(nextStatus)) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      `Invalid status transition: ${currentStatus} → ${nextStatus}. Allowed next: ${allowed.join(', ') || 'none'}`
+    );
+  }
+};
+
+const assertParcelNotStaleForDriver = (booking, parcelCode) => {
+  if (!booking) return;
+
+  if (booking.logisticsBookingRef) {
+    throw new ApiError(
+      httpStatus.CONFLICT,
+      `Parcel ${parcelCode} is fulfilled by external courier (${booking.logisticsBookingRef}) — driver cannot update status`
+    );
+  }
+
+  const isMarketplace = MARKETPLACE_SOURCES.includes(String(booking.source || ''));
+  if (isMarketplace && booking.paymentStatus !== 'paid') {
+    throw new ApiError(
+      httpStatus.CONFLICT,
+      `Parcel ${parcelCode} belongs to an unpaid marketplace order — driver cannot update status`
+    );
+  }
 };
 
 const getParcelCodesForTrip = async (tripId) => {
@@ -147,7 +240,7 @@ const getMyParcels = async (user, status) => {
   if (status) query.status = status;
 
   const parcels = await Parcel.find(query).populate('trip').sort({ updatedAt: -1 });
-  return parcels.map((parcel) => formatParcel(parcel.toJSON()));
+  return Promise.all(parcels.map((parcel) => formatParcelWithBooking(parcel)));
 };
 
 const updateMyParcelStatus = async (user, parcelCode, status) => {
@@ -158,12 +251,17 @@ const updateMyParcelStatus = async (user, parcelCode, status) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Parcel not found');
   }
 
+  assertParcelStatusTransition(parcel.status, status);
+
+  const booking = await findBookingForDriverParcel(parcel);
+  assertParcelNotStaleForDriver(booking, parcelCode);
+
   parcel.status = status;
   await parcel.save();
   await syncTripFromParcelStatus(parcel, status);
   await bookingSyncService.syncBookingFromParcelStatus(parcel.clientOrderId, status);
 
-  return formatParcel(parcel.toJSON());
+  return formatParcel(parcel.toJSON(), booking);
 };
 
 const getMyDamageLogs = async (user) => {
@@ -238,9 +336,11 @@ const getMyHistory = async (user) => {
     })
   );
 
+  const formattedParcels = await Promise.all(deliveredParcels.map((p) => formatParcelWithBooking(p)));
+
   return {
     completedTrips: formattedTrips,
-    deliveredParcels: deliveredParcels.map((p) => formatParcel(p.toJSON())),
+    deliveredParcels: formattedParcels,
     incidents: incidents.length,
     totalDeliveries: deliveredParcels.length,
     totalTrips: completedTrips.length,
@@ -290,4 +390,6 @@ module.exports = {
   createDamageLog,
   getMyHistory,
   getMyDashboard,
+  ALLOWED_NEXT_STATUS,
+  MARKETPLACE_SOURCES,
 };

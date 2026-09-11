@@ -2,6 +2,7 @@
 const { Booking } = require('../models');
 const { Parcel: WarehouseParcel } = require('../models/warehouse.model');
 const { TIMELINE_STAGE_ORDER } = require('./booking.service');
+const logger = require('../config/logger');
 
 // Driver Portal parcel status -> the furthest Booking timeline stage it implies.
 const STATUS_TO_STAGE = {
@@ -17,6 +18,8 @@ const STATUS_TO_BOOKING_STATUS = {
   in_transit: 'in_transit',
   delivered: 'completed',
 };
+
+const MARKETPLACE_SOURCES = ['woocommerce', 'shopify', 'wix', 'lovable'];
 
 /**
  * Propagate a driver/warehouse parcel status change back to the originating Booking
@@ -55,6 +58,22 @@ const syncBookingFromParcelStatus = async (clientOrderId, driverParcelStatus) =>
 
   if (warehouseStatus) {
     await WarehouseParcel.findOneAndUpdate({ orderId: clientOrderId }, { status: warehouseStatus });
+  }
+
+  // Best-effort marketplace push — never fail the driver/warehouse flow
+  if (MARKETPLACE_SOURCES.includes(String(booking.source || ''))) {
+    try {
+      // Lazy require avoids circular deps with orderBridge
+      const orderBridge = require('../integrations/bridge/orderBridge.service');
+      await orderBridge.pushStatusToShop(booking, {
+        status: driverParcelStatus === 'delivered' ? 'delivered' : driverParcelStatus,
+        trackingNumber: booking.trackingNumber,
+      });
+    } catch (err) {
+      logger.warn(
+        `pushStatusToShop failed for ${booking.code} (${driverParcelStatus}): ${err.message}`
+      );
+    }
   }
 };
 

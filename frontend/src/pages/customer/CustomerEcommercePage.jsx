@@ -459,6 +459,26 @@ export default function CustomerEcommercePage() {
     }
   }
 
+  const retryCourierBook = async (booking) => {
+    if (payingLock.current) return
+    if (!booking?.paymentIntentId) {
+      toast.error('No payment intent on this order — cannot retry book')
+      return
+    }
+    payingLock.current = true
+    setPayingId(booking.id)
+    setPayingQuoteId('retry-book')
+    try {
+      await portalService.confirmMarketplacePayment(token, booking.paymentIntentId)
+      toast.success('Courier booked. Tracking updated.')
+      refetchBookings()
+    } catch (err) {
+      toast.error(err.message || 'Courier book retry failed')
+    } finally {
+      clearPaying()
+    }
+  }
+
   const copyText = async (key, text) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -975,6 +995,7 @@ export default function CustomerEcommercePage() {
                       : 'Mock pay & book'
                   }
                   onPay={confirmPay}
+                  onRetryBook={retryCourierBook}
                 />
               )}
             </Card>

@@ -8,7 +8,7 @@ const getMyTrips = {
 
 const getMyParcels = {
   query: Joi.object().keys({
-    status: Joi.string().valid('assigned', 'picked_up', 'in_transit', 'delivered'),
+    status: Joi.string().valid('assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'),
   }),
 };
 
@@ -17,7 +17,7 @@ const updateParcelStatus = {
     parcelCode: Joi.string().required(),
   }),
   body: Joi.object().keys({
-    status: Joi.string().valid('assigned', 'picked_up', 'in_transit', 'delivered').required(),
+    status: Joi.string().valid('picked_up', 'in_transit', 'delivered').required(),
   }),
 };
 

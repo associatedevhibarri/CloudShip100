@@ -39,11 +39,34 @@ export default function CustomerBookingHistoryPage() {
             columns={[
               { key: 'code', label: 'Booking', render: (row) => row.code || row.id },
               { key: 'cargo', label: 'Cargo' },
+              {
+                key: 'source',
+                label: 'Channel',
+                render: (row) =>
+                  row.source && row.source !== 'portal' ? (
+                    <span className="capitalize">
+                      {row.source}
+                      {row.externalOrderId ? ` #${row.externalOrderId}` : ''}
+                    </span>
+                  ) : (
+                    'Portal'
+                  ),
+              },
               { key: 'mode', label: 'Mode' },
               { key: 'pickup', label: 'Pickup' },
               { key: 'dropoff', label: 'Dropoff' },
               { key: 'value', label: 'Value', render: (row) => `$${row.value.toLocaleString()}` },
               { key: 'bookedAt', label: 'Booked', render: (row) => row.bookedAt?.slice(0, 10) },
+              {
+                key: 'paymentStatus',
+                label: 'Payment',
+                render: (row) =>
+                  row.paymentStatus && row.paymentStatus !== 'not_required' ? (
+                    <StatusBadge status={row.paymentStatus} />
+                  ) : (
+                    '—'
+                  ),
+              },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
             ]}
             rows={rows}

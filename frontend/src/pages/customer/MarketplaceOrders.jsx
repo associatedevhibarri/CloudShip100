@@ -144,6 +144,7 @@ export function MarketplaceOrders({
   payConfig,
   payLabel,
   onPay,
+  onRetryBook,
 }) {
   const [openId, setOpenId] = useState(null)
   const [quotes, setQuotes] = useState({})
@@ -152,6 +153,9 @@ export function MarketplaceOrders({
 
   const canPay = (row) =>
     row.paymentStatus === 'awaiting' || (row.paymentStatus !== 'paid' && !row.logisticsBookingRef)
+
+  const needsRetryBook = (row) =>
+    row.paymentStatus === 'paid' && !row.logisticsBookingRef && Boolean(row.paymentIntentId)
 
   const shipmentStatus = (row) => displayShipmentStatus(row)
 
@@ -241,6 +245,7 @@ export function MarketplaceOrders({
           {rows.map((row) => {
             const open = openId === row.id
             const awaitingPay = canPay(row)
+            const retryBook = needsRetryBook(row)
             const panel = quotes[row.id]
             const warehouses = warehousesFor(row, stores)
             const shipFrom =
@@ -332,8 +337,22 @@ export function MarketplaceOrders({
                         {row.weightKg ? ` · ${row.weightKg} kg` : ''}
                         {awaitingPay
                           ? ' · Live rates from the courier engine. Pick one to pay and book.'
-                          : ` · ${courierLabel}${row.selectedService ? ` ${row.selectedService}` : ''} is booked.`}
+                          : retryBook
+                            ? ' · Payment captured but courier book failed — retry booking.'
+                            : ` · ${courierLabel}${row.selectedService ? ` ${row.selectedService}` : ''} is booked.`}
                       </p>
+                      {retryBook ? (
+                        <div className="mb-4" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            disabled={payingId === row.id || !onRetryBook}
+                            onClick={() => onRetryBook?.(row)}
+                            className="rounded-full bg-brand-gradient px-4 py-2 text-sm font-semibold text-white shadow-sm hover:brightness-105 disabled:opacity-50"
+                          >
+                            {payingId === row.id ? 'Retrying…' : 'Retry courier book'}
+                          </button>
+                        </div>
+                      ) : null}
                       {row.trackingNumber ? (
                         <p className="mb-3 text-sm text-ink">
                           Tracking <span className="font-mono font-semibold">{row.trackingNumber}</span>

@@ -16,6 +16,20 @@ const FILTERS = [
   { id: 'delivered', label: 'Delivered' },
 ]
 
+const NEXT_ACTION = {
+  assigned: { status: 'picked_up', label: 'Mark picked up', className: 'rounded-full bg-brand-gradient px-4 py-2 text-sm font-bold text-white disabled:opacity-50' },
+  picked_up: { status: 'in_transit', label: 'Mark in transit', className: 'rounded-full border border-brand px-4 py-2 text-sm font-bold text-brand disabled:opacity-50' },
+  in_transit: { status: 'delivered', label: 'Mark delivered', className: 'rounded-full border border-brand px-4 py-2 text-sm font-bold text-brand disabled:opacity-50' },
+}
+
+const marketplaceLine = (parcel) => {
+  if (!parcel?.source || parcel.source === 'portal') return null
+  const parts = [parcel.source]
+  if (parcel.externalOrderId) parts.push(`#${parcel.externalOrderId}`)
+  if (parcel.paymentStatus) parts.push(String(parcel.paymentStatus).replaceAll('_', ' '))
+  return parts.join(' · ')
+}
+
 export default function DriverParcelsPage() {
   const { parcels, loading, error, reload, token } = useDriverData()
   const toast = useToast()
@@ -76,38 +90,47 @@ export default function DriverParcelsPage() {
 
       <div className="space-y-3">
         {filtered.length ? (
-          filtered.map((parcel) => (
-            <Card
-              key={parcel.id}
-              className="cursor-pointer p-5 transition hover:border-brand/30"
-              onClick={() => setSelected(parcel)}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-bold text-brand">{parcel.id}</p>
-                  <h3 className="mt-1 text-lg font-extrabold">{parcel.cargo}</h3>
-                  <p className="mt-1 text-sm text-muted">
-                    {parcel.pickup} → {parcel.dropoff}
-                  </p>
+          filtered.map((parcel) => {
+            const shopLine = marketplaceLine(parcel)
+            return (
+              <Card
+                key={parcel.id}
+                className="cursor-pointer p-5 transition hover:border-brand/30"
+                onClick={() => setSelected(parcel)}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-brand">{parcel.id}</p>
+                    <h3 className="mt-1 text-lg font-extrabold">{parcel.cargo}</h3>
+                    <p className="mt-1 text-sm text-muted">
+                      {parcel.pickup} → {parcel.dropoff}
+                    </p>
+                    {shopLine ? <p className="mt-1 text-xs font-semibold capitalize text-muted">{shopLine}</p> : null}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {parcel.paymentStatus && parcel.paymentStatus !== 'not_required' ? (
+                      <StatusBadge status={parcel.paymentStatus} />
+                    ) : null}
+                    <StatusBadge status={parcel.status} />
+                  </div>
                 </div>
-                <StatusBadge status={parcel.status} />
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
-                <span className="flex items-center gap-1.5 font-semibold">
-                  <User size={14} className="text-brand" />
-                  {parcel.recipientName}
-                </span>
-                <a
-                  href={`tel:${parcel.recipientPhone}`}
-                  className="flex items-center gap-1.5 font-semibold text-brand"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Phone size={14} />
-                  {parcel.recipientPhone}
-                </a>
-              </div>
-            </Card>
-          ))
+                <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
+                  <span className="flex items-center gap-1.5 font-semibold">
+                    <User size={14} className="text-brand" />
+                    {parcel.recipientName}
+                  </span>
+                  <a
+                    href={`tel:${parcel.recipientPhone}`}
+                    className="flex items-center gap-1.5 font-semibold text-brand"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Phone size={14} />
+                    {parcel.recipientPhone}
+                  </a>
+                </div>
+              </Card>
+            )
+          })
         ) : (
           <Card className="p-5 text-sm text-muted">
             {filter === 'all' && !parcels.length ? (
@@ -132,6 +155,9 @@ export default function DriverParcelsPage() {
               <div>
                 <p className="text-sm font-bold text-brand">{selected.id}</p>
                 <h3 className="text-xl font-extrabold">{selected.cargo}</h3>
+                {marketplaceLine(selected) ? (
+                  <p className="mt-1 text-sm font-semibold capitalize text-muted">{marketplaceLine(selected)}</p>
+                ) : null}
               </div>
               <button type="button" className="text-sm font-semibold text-muted" onClick={() => setSelected(null)}>
                 Close
@@ -147,6 +173,32 @@ export default function DriverParcelsPage() {
                 <div>
                   <dt className="text-xs text-muted">Client order</dt>
                   <dd className="font-semibold">{selected.clientOrderId}</dd>
+                </div>
+              ) : null}
+              {selected.externalOrderId ? (
+                <div>
+                  <dt className="text-xs text-muted">Shop order</dt>
+                  <dd className="font-semibold">#{selected.externalOrderId}</dd>
+                </div>
+              ) : null}
+              {selected.source ? (
+                <div>
+                  <dt className="text-xs text-muted">Source</dt>
+                  <dd className="font-semibold capitalize">{selected.source}</dd>
+                </div>
+              ) : null}
+              {selected.paymentStatus ? (
+                <div>
+                  <dt className="text-xs text-muted">Payment</dt>
+                  <dd>
+                    <StatusBadge status={selected.paymentStatus} />
+                  </dd>
+                </div>
+              ) : null}
+              {selected.trackingNumber ? (
+                <div>
+                  <dt className="text-xs text-muted">Tracking</dt>
+                  <dd className="font-semibold">{selected.trackingNumber}</dd>
                 </div>
               ) : null}
               <div>
@@ -169,35 +221,21 @@ export default function DriverParcelsPage() {
               </div>
             </dl>
 
+            {selected.actionsBlocked ? (
+              <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+                {selected.actionsBlockedReason || 'Updates blocked for this parcel.'}
+              </p>
+            ) : null}
+
             <div className="mt-6 flex flex-wrap gap-2">
-              {selected.status === 'assigned' ? (
+              {!selected.actionsBlocked && NEXT_ACTION[selected.status] ? (
                 <button
                   type="button"
                   disabled={updating}
-                  className="rounded-full bg-brand-gradient px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
-                  onClick={() => updateStatus(selected.id, 'picked_up')}
+                  className={NEXT_ACTION[selected.status].className}
+                  onClick={() => updateStatus(selected.id, NEXT_ACTION[selected.status].status)}
                 >
-                  Mark picked up
-                </button>
-              ) : null}
-              {selected.status === 'picked_up' ? (
-                <button
-                  type="button"
-                  disabled={updating}
-                  className="rounded-full border border-brand px-4 py-2 text-sm font-bold text-brand disabled:opacity-50"
-                  onClick={() => updateStatus(selected.id, 'in_transit')}
-                >
-                  Mark in transit
-                </button>
-              ) : null}
-              {['picked_up', 'in_transit', 'assigned'].includes(selected.status) ? (
-                <button
-                  type="button"
-                  disabled={updating}
-                  className="rounded-full border border-brand px-4 py-2 text-sm font-bold text-brand disabled:opacity-50"
-                  onClick={() => updateStatus(selected.id, 'delivered')}
-                >
-                  Mark delivered
+                  {NEXT_ACTION[selected.status].label}
                 </button>
               ) : null}
             </div>
