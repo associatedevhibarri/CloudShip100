@@ -117,8 +117,18 @@ const NAV_GROUPS = [
   },
 ]
 
-function PlatformKeyGuide({ platform }) {
+function fillGuideStep(step, apiOrigin) {
+  const base = String(apiOrigin || '').replace(/\/$/, '')
+  return String(step)
+    .replaceAll('https://<NGROK_OR_DOMAIN>', base)
+    .replaceAll('<NGROK_OR_DOMAIN>', base.replace(/^https?:\/\//, ''))
+}
+
+function PlatformKeyGuide({ platform, apiOrigin, onCopy, copiedKey }) {
   if (!platform) return null
+  const base = String(apiOrigin || '').replace(/\/$/, '')
+  const isLocal = /localhost|127\.0\.0\.1/i.test(base)
+
   return (
     <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50/80 p-4 text-sm text-sky-950">
       <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -136,17 +146,36 @@ function PlatformKeyGuide({ platform }) {
         ) : null}
       </div>
       <p className="mb-2 text-xs text-muted">{platform.hint}</p>
+
+      <div className="mb-3 rounded-lg border border-brand/20 bg-white p-3">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Your CloudShip backend URL</p>
+        <p className="mt-1 break-all font-mono text-xs font-semibold text-ink">{base || '—'}</p>
+        <p className="mt-1 text-[11px] text-muted">
+          Put this in Woo / Shopify / Wix / Lovable where it asks for CloudShip API or webhook host.
+          {isLocal
+            ? ' Local only — for real shops use your deployed URL (or ngrok while testing).'
+            : ' This is your live/staging API — customers use this, not localhost.'}
+        </p>
+        <button
+          type="button"
+          className={`${btnGhost} mt-2`}
+          onClick={() => onCopy?.('api-origin', base)}
+        >
+          {copiedKey === 'api-origin' ? <Check size={12} /> : <Copy size={12} />} Copy backend URL
+        </button>
+      </div>
+
       <p className="mb-2 text-xs font-bold uppercase tracking-wide text-sky-800">
         You will paste: {platform.fieldsNeeded}
       </p>
       <ol className="list-decimal space-y-1.5 pl-5 text-xs leading-relaxed text-ink">
         {platform.steps.map((step) => (
-          <li key={step}>{step}</li>
+          <li key={step}>{fillGuideStep(step, base)}</li>
         ))}
       </ol>
       <p className="mt-3 text-[11px] font-semibold text-amber-800">
-        Tip: Shop keys go in this form only. CloudShip .env is for server settings (Mongo, JWT, margin) — not Woo/Shopify
-        tokens.
+        Tip: After you connect, open Connected stores and copy the full webhook URL (includes your connection ID).
+        Shop keys go in this form only — not in CloudShip .env.
       </p>
     </div>
   )
@@ -545,7 +574,12 @@ export default function CustomerEcommercePage() {
                 title={current.label}
                 description="Pick a platform — we show exactly where to copy keys from. Paste them here (not in .env)."
               />
-              <PlatformKeyGuide platform={PLATFORMS.find((p) => p.id === form.platform)} />
+              <PlatformKeyGuide
+                platform={PLATFORMS.find((p) => p.id === form.platform)}
+                apiOrigin={portalService.apiOrigin}
+                onCopy={copyText}
+                copiedKey={copied}
+              />
               <form onSubmit={connectStore} className="grid gap-4 md:grid-cols-2">
                 <FormField id="platform" label="Platform" required>
                   <select
@@ -730,6 +764,56 @@ export default function CustomerEcommercePage() {
                   rows={storeList}
                 />
               )}
+
+              {storeList.filter((s) => s.status === 'active').length > 0 ? (
+                <div className="mt-4 space-y-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                    Webhook URLs for your shops (copy into Shopify / Wix / Lovable)
+                  </p>
+                  {storeList
+                    .filter((s) => s.status === 'active')
+                    .map((s) => {
+                      const base = String(portalService.apiOrigin || '').replace(/\/$/, '')
+                      const ordersUrl = `${base}/v1/webhooks/${s.platform}/orders/${s.id}`
+                      const ratesUrl = `${base}/v1/webhooks/${s.platform}/rates/${s.id}`
+                      return (
+                        <div key={s.id} className="rounded-xl border border-line bg-surface p-3 text-xs">
+                          <p className="font-extrabold text-ink">
+                            {s.storeName} <span className="font-normal text-muted">({s.platform})</span>
+                          </p>
+                          <div className="mt-2 space-y-2">
+                            <div className="flex flex-wrap items-start gap-2">
+                              <span className="shrink-0 font-semibold text-muted">Orders</span>
+                              <code className="min-w-0 flex-1 break-all rounded bg-white px-2 py-1 font-mono text-[10px]">
+                                {ordersUrl}
+                              </code>
+                              <button
+                                type="button"
+                                className={btnGhost}
+                                onClick={() => copyText(`wh-o-${s.id}`, ordersUrl)}
+                              >
+                                {copied === `wh-o-${s.id}` ? <Check size={12} /> : <Copy size={12} />}
+                              </button>
+                            </div>
+                            <div className="flex flex-wrap items-start gap-2">
+                              <span className="shrink-0 font-semibold text-muted">Rates</span>
+                              <code className="min-w-0 flex-1 break-all rounded bg-white px-2 py-1 font-mono text-[10px]">
+                                {ratesUrl}
+                              </code>
+                              <button
+                                type="button"
+                                className={btnGhost}
+                                onClick={() => copyText(`wh-r-${s.id}`, ratesUrl)}
+                              >
+                                {copied === `wh-r-${s.id}` ? <Check size={12} /> : <Copy size={12} />}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              ) : null}
 
               {lastConnected?.webhookSecret || lastConnected?.publicApiKey ? (
                 <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
