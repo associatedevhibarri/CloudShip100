@@ -103,34 +103,24 @@ const ingestNormalizedOrder = async ({ storeConnection, normalized, quoteId, par
     };
     quoteMeta = { quoteId, pickup: q.doc.pickup, dropoff: q.doc.dropoff, weightKg: q.doc.weightKg, mode: q.doc.mode };
   } else {
-    const fresh = await quoteBridge.createMarketplaceQuote({
-      pickup: normalized.pickup,
-      dropoff: normalized.dropoff,
-      weightKg: normalized.weightKg || 1,
-      mode: (storeConnection.settings && storeConnection.settings.defaultMode) || 'Road',
-      currency: (storeConnection.settings && storeConnection.settings.currency) || 'ZAR',
-      storeConnection,
-      storeConnectionId: storeConnection.id || storeConnection._id,
-      companyId: storeConnection.company,
-      preferredPartner: partner,
-    });
+    // Webhook path: save the shop order first. Seller gets courier prices in CloudShip after.
     money = {
-      carrierCost: fresh.selected.carrierCost,
-      marginAmount: fresh.selected.marginAmount,
-      marginPercent: fresh.selected.marginPercent,
-      quotedPrice: fresh.selected.quotedPrice,
-      partner: fresh.selected.partner,
-      service: fresh.selected.service,
-      logisticsQuoteId: fresh.selected.logisticsQuoteId || null,
-      shopMarginAmount: fresh.selected.shopMarginAmount || 0,
-      pickupName: fresh.pickupName || null,
+      carrierCost: 0,
+      marginAmount: 0,
+      marginPercent: 0,
+      quotedPrice: 0,
+      partner: null,
+      service: null,
+      logisticsQuoteId: null,
+      shopMarginAmount: 0,
+      pickupName: null,
     };
     quoteMeta = {
-      quoteId: fresh.quoteId,
-      pickup: fresh.pickup,
-      dropoff: fresh.dropoff,
-      weightKg: fresh.weightKg,
-      mode: fresh.mode,
+      quoteId: null,
+      pickup: normalized.pickup,
+      dropoff: normalized.dropoff,
+      weightKg: normalized.weightKg,
+      mode: (storeConnection.settings && storeConnection.settings.defaultMode) || 'Road',
     };
   }
 

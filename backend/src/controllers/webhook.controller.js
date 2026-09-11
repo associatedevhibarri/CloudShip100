@@ -8,6 +8,7 @@ const orderBridge = require('../integrations/bridge/orderBridge.service');
 const paymentBridge = require('../integrations/bridge/paymentBridge.service');
 const { getAdapter } = require('../integrations/ecommerce');
 const { getStripe } = require('../integrations/bridge/stripeClient');
+const logger = require('../config/logger');
 
 const resolveConnection = async (platform, req) => {
   const connectionId =
@@ -118,13 +119,19 @@ const handleOrderWebhook = (platform) =>
     if (!normalized || !normalized.externalOrderId) {
       return res.status(httpStatus.OK).send({ ok: true, message: 'CloudShip webhook listener active' });
     }
-    const result = await orderBridge.ingestNormalizedOrder({
-      storeConnection: conn,
-      normalized,
-      quoteId: body.quoteId || req.query.quoteId,
-      partner: body.partner,
-      service: body.service,
-    });
+    let result;
+    try {
+      result = await orderBridge.ingestNormalizedOrder({
+        storeConnection: conn,
+        normalized,
+        quoteId: body.quoteId || req.query.quoteId,
+        partner: body.partner,
+        service: body.service,
+      });
+    } catch (err) {
+      logger.error(`Shop order ingest failed (${platform}): ${err.message}`);
+      throw new ApiError(httpStatus.BAD_REQUEST, err.message || 'Could not save the shop order in CloudShip');
+    }
     return res.status(result.duplicate ? httpStatus.OK : httpStatus.CREATED).send({
       duplicate: result.duplicate,
       bookingId: result.booking.id || result.booking._id,

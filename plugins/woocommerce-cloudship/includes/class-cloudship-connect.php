@@ -24,6 +24,7 @@ class CloudShip_Connect
                 'store_name' => '',
                 'email' => '',
                 'webhook_id' => 0,
+                'webhook_secret' => '',
                 'key_id' => 0,
                 'connected_at' => '',
             )
@@ -138,6 +139,7 @@ class CloudShip_Connect
                 'store_name' => $store_name,
                 'email' => $email,
                 'webhook_id' => (int) $webhook_id,
+                'webhook_secret' => $secret,
                 'key_id' => (int) $keys['key_id'],
                 'connected_at' => gmdate('c'),
             )
@@ -312,12 +314,39 @@ class CloudShip_Connect
         }
     }
 
+    private static function delete_all_cloudship_webhooks()
+    {
+        $ids = array();
+        if (function_exists('wc_get_webhooks')) {
+            $ids = wc_get_webhooks(array('limit' => -1));
+        } else {
+            global $wpdb;
+            $table = $wpdb->prefix . 'wc_webhooks';
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $ids = $wpdb->get_col("SELECT webhook_id FROM {$table}");
+        }
+        foreach ((array) $ids as $id) {
+            try {
+                $webhook = new WC_Webhook((int) $id);
+                $name = strtolower((string) $webhook->get_name());
+                $url = strtolower((string) $webhook->get_delivery_url());
+                if (
+                    strpos($name, 'cloudship') !== false ||
+                    strpos($url, 'cloudship') !== false ||
+                    strpos($url, '/webhooks/woocommerce/orders') !== false
+                ) {
+                    $webhook->delete(true);
+                }
+            } catch (Exception $e) {
+                // Skip.
+            }
+        }
+    }
+
     private static function cleanup_local_woo_artifacts()
     {
+        self::delete_all_cloudship_webhooks();
         $state = self::get_state();
-        if (!empty($state['webhook_id'])) {
-            self::delete_webhook($state['webhook_id']);
-        }
         if (!empty($state['key_id'])) {
             self::delete_rest_key($state['key_id']);
         }
