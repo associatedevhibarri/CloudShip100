@@ -9,6 +9,8 @@ import { DriverLayout } from './components/layout/DriverLayout'
 import { RequireAuth } from './components/RequireAuth'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
+import OpsLoginPage from './pages/ops/OpsLoginPage'
+import OpsRegisterPage from './pages/ops/OpsRegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import MapPage from './pages/MapPage'
 import TripsPage from './pages/TripsPage'
@@ -76,6 +78,9 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/ops" element={<Navigate to="/ops/login" replace />} />
+          <Route path="/ops/login" element={<OpsLoginPage />} />
+          <Route path="/ops/register" element={<OpsRegisterPage />} />
           <Route path="/embed/track" element={<EmbedTrackPage />} />
 
           <Route

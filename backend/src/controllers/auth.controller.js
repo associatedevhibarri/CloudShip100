@@ -8,6 +8,12 @@ const register = catchAsync(async (req, res) => {
   res.status(httpStatus.CREATED).send({ user, tokens });
 });
 
+const registerOperator = catchAsync(async (req, res) => {
+  const user = await userService.createUser({ ...req.body, role: 'operator' });
+  const tokens = await tokenService.generateAuthTokens(user);
+  res.status(httpStatus.CREATED).send({ user, tokens });
+});
+
 const login = catchAsync(async (req, res) => {
   const { email, password } = req.body;
   const user = await authService.loginUserWithEmailAndPassword(email, password);
@@ -53,6 +59,7 @@ const getMe = catchAsync(async (req, res) => {
 
 module.exports = {
   register,
+  registerOperator,
   login,
   logout,
   refreshTokens,

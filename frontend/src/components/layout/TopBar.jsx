@@ -50,7 +50,7 @@ export function TopBar({ onMenu }) {
         title="Sign out"
         onClick={() => {
           logout()
-          navigate('/login')
+          navigate('/ops/login')
         }}
         className="rounded-full border border-line p-2 text-muted hover:bg-surface"
       >

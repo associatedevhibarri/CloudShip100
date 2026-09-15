@@ -27,12 +27,11 @@ const stamp = Date.now();
 const password = 'Test1234';
 
 const main = async () => {
-  const operator = await request('POST', '/auth/register', {
+  const operator = await request('POST', '/auth/ops/register', {
     body: {
       name: 'E2E Operator',
       email: `e2e.ops.${stamp}@example.com`,
       password,
-      role: 'operator',
     },
   });
   const driver = await request('POST', '/auth/register', {
