@@ -1,7 +1,5 @@
 import { kpis, activitySeries, lostBookings, lostBookingsTotal } from '../data/kpis'
-import { trips } from '../data/trips'
 import { yards, vehicles, trailers, roadEquipment, checkIns } from '../data/road'
-import { drivers, driverShifts } from '../data/drivers'
 import {
   aircraftTypes,
   airports,
@@ -11,11 +9,8 @@ import {
   pilotCheckIns,
 } from '../data/air'
 import { railSidings, locomotives, railYards, ports } from '../data/railMaritime'
-import { customers, orders, invoices } from '../data/orders'
 import { fuelLogs, yardFees, airportFees, salaries } from '../data/expenses'
-import { geofences, routeOptimization, weatherAnalytics } from '../data/geo'
-import { mapAssets } from '../data/mapAssets'
-import { wallet, earnings, notifications } from '../data/finance'
+import { geofences, weatherAnalytics } from '../data/geo'
 import {
   parcels,
   batches,
@@ -117,18 +112,91 @@ const postWarehouse = async (path, body) => {
   return apiFetch('/warehouse')
 }
 
+const companyName = (company) => {
+  if (!company) return '—'
+  if (typeof company === 'string') return company
+  return company.name || '—'
+}
+
+const formatDate = (value) => {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toISOString().slice(0, 10)
+}
+
+const formatWhen = (value) => {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleString()
+}
+
+const mapOrder = (booking) => ({
+  id: booking.code || booking.id,
+  customer: companyName(booking.company),
+  status: booking.status,
+  mode: booking.mode,
+  cargo: booking.cargo,
+  value: Number(booking.value) || 0,
+  createdAt: formatDate(booking.bookedAt),
+  pickup: booking.pickup,
+  dropoff: booking.dropoff,
+})
+
+const mapInvoice = (invoice) => ({
+  id: invoice.id,
+  customer: companyName(invoice.company),
+  amount: Number(invoice.amount) || 0,
+  status: invoice.status,
+  due: formatDate(invoice.due),
+})
+
+const mapDriver = (driver) => ({
+  id: driver.id,
+  employeeId: driver.employeeId || '',
+  name: driver.name,
+  email: driver.email || '',
+  phone: driver.phone || '',
+  address: driver.address || '',
+  license: driver.license || '',
+  licenceExpiry: formatDate(driver.licenceExpiry),
+  restrictions: driver.restrictions || 'None',
+  assignedVehicle: driver.assignedVehicle || '',
+  idDocumentStatus: driver.idDocumentStatus || 'Pending',
+  status: driver.status || 'Available',
+  completeness: Number(driver.completeness) || 0,
+  profileComplete: Boolean(driver.profileComplete),
+})
+
+const mapNotification = (notification) => ({
+  id: notification.id,
+  title: notification.title,
+  body: notification.body,
+  unread: Boolean(notification.unread),
+  type: notification.type,
+  time: formatWhen(notification.sentAt),
+  customer: companyName(notification.company),
+})
+
 export const api = {
   getKpis: () => kpis,
   getActivity: () => activitySeries,
   getLostBookings: () => ({ items: lostBookings, total: lostBookingsTotal }),
-  getTrips: (status) => (status ? trips.filter((t) => t.status === status) : trips),
+  getTrips: async (status) => {
+    const query = status ? `?status=${encodeURIComponent(status)}` : ''
+    const rows = await apiFetch(`/trips${query}`)
+    return Array.isArray(rows) ? rows : []
+  },
   getYards: () => yards,
   getVehicles: () => vehicles,
   getTrailers: () => trailers,
   getRoadEquipment: () => roadEquipment,
   getCheckIns: () => checkIns,
-  getDrivers: () => drivers,
-  getDriverShifts: () => driverShifts,
+  getDrivers: async () => {
+    const rows = await apiFetch('/drivers')
+    return (Array.isArray(rows) ? rows : []).map(mapDriver)
+  },
   getAircraftTypes: (category) =>
     category ? aircraftTypes.filter((t) => t.category === category) : aircraftTypes,
   getAirports: () => airports,
@@ -140,13 +208,28 @@ export const api = {
   getLocomotives: () => locomotives,
   getRailYards: () => railYards,
   getPorts: () => ports,
-  getCustomers: () => customers,
-  getOrders: (status) => {
-    if (!status) return orders
-    if (status === 'history') return orders.filter((o) => o.status === 'completed' || o.status === 'history')
-    return orders.filter((o) => o.status === status)
+  getCustomers: async () => {
+    const rows = await apiFetch('/companies')
+    return (Array.isArray(rows) ? rows : []).map((company) => ({
+      id: company.id,
+      name: company.name,
+      contact: company.contact,
+      email: company.email,
+      phone: company.phone || '',
+      tier: company.tier || 'Standard',
+      outstanding: Number(company.outstanding) || 0,
+    }))
   },
-  getInvoices: () => invoices,
+  getOrders: async (status) => {
+    const query = status ? `?status=${encodeURIComponent(status)}` : ''
+    const rows = await apiFetch(`/bookings${query}`)
+    return (Array.isArray(rows) ? rows : []).map(mapOrder)
+  },
+  getInvoices: async () => {
+    const rows = await apiFetch('/invoices')
+    return (Array.isArray(rows) ? rows : []).map(mapInvoice)
+  },
+  getOpsDashboard: async () => apiFetch('/dashboard'),
   getLeads: async () => {
     if (!isLiveSession()) return []
     return apiFetch('/leads')
@@ -249,12 +332,26 @@ export const api = {
     }
     return apiFetch('/geofences/evaluate', { method: 'POST', body: JSON.stringify({ lat, lng }) })
   },
-  getRouteOptimization: () => routeOptimization,
+  getRouteOptimization: async () => {
+    const snapshot = await apiFetch('/warehouse')
+    return (Array.isArray(snapshot?.routes) ? snapshot.routes : []).map((route) => ({
+      id: route.id,
+      route: route.name || route.id,
+      baselineHrs: route.baselineHrs,
+      optimizedHrs: route.optimizedHrs,
+      fuelSavePct: route.fuelSavePct || 0,
+    }))
+  },
   getWeatherAnalytics: () => weatherAnalytics,
-  getMapAssets: () => mapAssets,
-  getWallet: () => wallet,
-  getEarnings: () => earnings,
-  getNotifications: () => notifications,
+  getMapAssets: async () => {
+    const snapshot = await apiFetch('/warehouse')
+    return Array.isArray(snapshot?.mapAssets) ? snapshot.mapAssets : []
+  },
+  getFinanceSummary: async () => apiFetch('/finance'),
+  getNotifications: async () => {
+    const rows = await apiFetch('/notifications')
+    return (Array.isArray(rows) ? rows : []).map(mapNotification)
+  },
   getWarehouseSnapshot: async () => {
     if (!isLiveSession()) return localWarehouseSnapshot()
     try {

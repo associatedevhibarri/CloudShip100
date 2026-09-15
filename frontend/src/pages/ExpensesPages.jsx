@@ -1,11 +1,11 @@
 import { api } from '../services/api'
-import { PageHeader } from '../components/ui/PageHeader'
+import { DEMO_REASONS, PageHeader } from '../components/ui/PageHeader'
 import { DataTable } from '../components/ui/DataTable'
 
 export function FuelLogsPage() {
   return (
     <div>
-      <PageHeader title="Fuel Logs" subtitle="Road and air fuel purchases." />
+      <PageHeader demo={DEMO_REASONS.fuel} title="Fuel Logs" subtitle="Road and air fuel purchases." />
       <DataTable
         columns={[
           { key: 'date', label: 'Date' },
@@ -23,7 +23,7 @@ export function FuelLogsPage() {
 export function YardFeesPage() {
   return (
     <div>
-      <PageHeader title="Yard Fees" subtitle="Parking and handling charges." />
+      <PageHeader demo={DEMO_REASONS.yardFees} title="Yard Fees" subtitle="Parking and handling charges." />
       <DataTable
         columns={[
           { key: 'date', label: 'Date' },
@@ -40,7 +40,7 @@ export function YardFeesPage() {
 export function AirportFeesPage() {
   return (
     <div>
-      <PageHeader title="Airport Fees" subtitle="Landing, parking, and cargo handling." />
+      <PageHeader demo={DEMO_REASONS.airportFees} title="Airport Fees" subtitle="Landing, parking, and cargo handling." />
       <DataTable
         columns={[
           { key: 'date', label: 'Date' },
@@ -57,7 +57,7 @@ export function AirportFeesPage() {
 export function SalariesPage() {
   return (
     <div>
-      <PageHeader title="Salaries" subtitle="Driver and crew payroll snapshot." />
+      <PageHeader demo={DEMO_REASONS.salaries} title="Salaries" subtitle="Driver and crew payroll snapshot." />
       <DataTable
         columns={[
           { key: 'period', label: 'Period' },

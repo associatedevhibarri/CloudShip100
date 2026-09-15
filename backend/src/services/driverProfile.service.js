@@ -1,5 +1,5 @@
 const httpStatus = require('http-status');
-const { DriverProfile } = require('../models');
+const { DriverProfile, User, Trip } = require('../models');
 const ApiError = require('../utils/ApiError');
 const { getProfileCompleteness } = require('../utils/driverProfileCompleteness');
 const cloudinaryService = require('./cloudinary.service');
@@ -114,11 +114,55 @@ const deleteDocument = async (user, documentId) => {
   return formatProfileResponse(profile, user);
 };
 
+/**
+ * Operator list of registered driver accounts with profile and trip status.
+ * @returns {Promise<Array>}
+ */
+const listDriversForOperator = async () => {
+  const users = await User.find({ role: 'driver' }).sort('name');
+  const userIds = users.map((user) => user._id);
+  const profiles = await DriverProfile.find({ user: { $in: userIds } });
+  const profileByUser = new Map(profiles.map((profile) => [String(profile.user), profile]));
+  const profileIds = profiles.map((profile) => profile._id);
+
+  const activeTrips = profileIds.length
+    ? await Trip.find({
+        driverProfile: { $in: profileIds },
+        status: { $in: ['starting_soon', 'in_progress', 'ending_soon'] },
+      }).select('driverProfile')
+    : [];
+  const onTrip = new Set(activeTrips.map((trip) => String(trip.driverProfile)));
+
+  return users.map((user) => {
+    const profile = profileByUser.get(String(user._id));
+    const plain = profile ? profile.toJSON() : {};
+    const completeness = getProfileCompleteness(plain);
+    const profileId = profile ? String(profile._id || profile.id) : null;
+    return {
+      id: user.id,
+      employeeId: plain.employeeId || '',
+      name: user.name,
+      email: user.email,
+      phone: plain.phone || '',
+      address: plain.address || '',
+      license: plain.licenseClass || '',
+      licenceExpiry: plain.licenceExpiry || null,
+      restrictions: plain.restrictions || 'None',
+      assignedVehicle: plain.assignedVehicle || '',
+      idDocumentStatus: plain.idDocumentStatus || 'Pending',
+      status: profileId && onTrip.has(profileId) ? 'On Trip' : 'Available',
+      completeness: completeness.percentage,
+      profileComplete: completeness.isComplete,
+    };
+  });
+};
+
 module.exports = {
   getOrCreateProfileByUserId,
   updateProfileByUserId,
   addDocument,
   deleteDocument,
+  listDriversForOperator,
 };
 
 // Support both: require('./driverProfile.service') and { driverProfileService } = require(...)

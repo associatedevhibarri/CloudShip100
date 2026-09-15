@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api } from '../services/api'
 import { PageHeader } from '../components/ui/PageHeader'
 import { FilterBar, FilterButton } from '../components/ui/FilterBar'
 import { Card } from '../components/ui/Card'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { DataTable } from '../components/ui/DataTable'
+import { ErrorState, LoadingState } from '../components/ui/LoadingState'
 
 function TripQueue({ title, items, tone }) {
   return (
@@ -15,30 +16,58 @@ function TripQueue({ title, items, tone }) {
           {items.length}
         </span>
       </div>
-      <ul className="space-y-2">
-        {items.slice(0, 4).map((trip) => (
-          <li key={trip.id} className="rounded-xl border border-line/80 bg-white px-3 py-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-bold">{trip.id}</p>
-              <StatusBadge status={trip.status} />
-            </div>
-            <p className="mt-1 text-xs text-muted">
-              {trip.driver} · {trip.vehicle}
-            </p>
-            <p className="mt-1 truncate text-xs text-ink">
-              {trip.pickup} → {trip.dropoff}
-            </p>
-          </li>
-        ))}
-      </ul>
+      {items.length === 0 ? (
+        <p className="text-xs text-muted">None right now.</p>
+      ) : (
+        <ul className="space-y-2">
+          {items.slice(0, 4).map((trip) => (
+            <li key={trip.tripId || trip.id} className="rounded-xl border border-line/80 bg-white px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-bold">{trip.id}</p>
+                <StatusBadge status={trip.status} />
+              </div>
+              <p className="mt-1 text-xs text-muted">
+                {trip.driver} · {trip.vehicle || 'No vehicle'}
+              </p>
+              <p className="mt-1 truncate text-xs text-ink">
+                {trip.pickup} → {trip.dropoff}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
     </Card>
   )
 }
 
 export default function TripsPage() {
-  const trips = api.getTrips()
+  const [trips, setTrips] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [mode, setMode] = useState('all')
   const [selected, setSelected] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const rows = await api.getTrips()
+        if (!cancelled) setTrips(Array.isArray(rows) ? rows : [])
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || 'Failed to load trips')
+          setTrips([])
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const filtered = useMemo(
     () => (mode === 'all' ? trips : trips.filter((t) => t.mode === mode)),
@@ -83,12 +112,19 @@ export default function TripsPage() {
     },
   ]
 
+  if (loading) return <LoadingState label="Loading trips..." />
+
   return (
     <div>
       <PageHeader
         title="Trips"
-        subtitle="Driver + vehicle + cargo with live starting, ending, and in-progress queues."
+        subtitle="Driver trips created when warehouse parcels are assigned."
       />
+      {error ? (
+        <div className="mb-4">
+          <ErrorState message={error} />
+        </div>
+      ) : null}
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Card className="p-4">
@@ -112,14 +148,20 @@ export default function TripsPage() {
       </div>
 
       <FilterBar>
-        {['all', 'road', 'air', 'maritime'].map((m) => (
+        {['all', 'road', 'air', 'maritime', 'rail'].map((m) => (
           <FilterButton key={m} active={mode === m} onClick={() => setMode(m)}>
             {m === 'all' ? 'All modes' : m}
           </FilterButton>
         ))}
       </FilterBar>
 
-      <DataTable columns={columns} rows={filtered} />
+      {filtered.length === 0 && !error ? (
+        <Card className="mt-4 p-8 text-center text-sm text-muted">
+          No trips yet. Assign a warehouse parcel to a registered driver to create one.
+        </Card>
+      ) : (
+        <DataTable columns={columns} rows={filtered} rowKey="tripId" />
+      )}
 
       {selected ? (
         <div className="fixed inset-0 z-50 flex justify-end bg-ink/30 backdrop-blur-sm">
@@ -134,12 +176,13 @@ export default function TripsPage() {
             <dl className="mt-4 space-y-3 text-sm">
               {[
                 ['Driver', selected.driver],
-                ['Vehicle', selected.vehicle],
+                ['Vehicle', selected.vehicle || '—'],
                 ['Cargo', selected.cargo],
                 ['Pickup', selected.pickup],
                 ['Dropoff', selected.dropoff],
-                ['Distance', `${selected.distanceKm.toLocaleString()} km`],
+                ['Distance', `${Number(selected.distanceKm || 0).toLocaleString()} km`],
                 ['Mode', selected.mode],
+                ['Order', selected.clientOrderId || '—'],
               ].map(([k, v]) => (
                 <div key={k}>
                   <dt className="text-xs font-semibold uppercase tracking-wide text-muted">{k}</dt>

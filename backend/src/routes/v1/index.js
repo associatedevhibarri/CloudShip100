@@ -8,6 +8,7 @@ const companyRoute = require('./company.route');
 const bookingRoute = require('./booking.route');
 const invoiceRoute = require('./invoice.route');
 const contractRoute = require('./contract.route');
+const dashboardRoute = require('./dashboard.route');
 const kycDocumentRoute = require('./kycDocument.route');
 const paymentRequestRoute = require('./paymentRequest.route');
 const notificationRoute = require('./notification.route');
@@ -17,6 +18,8 @@ const placesRoute = require('./places.route');
 const leadRoute = require('./lead.route');
 const geofenceRoute = require('./geofence.route');
 const ecommerceRoute = require('./ecommerce.route');
+const financeRoute = require('./finance.route');
+const tripsRoute = require('./trips.route');
 const webhooksRoute = require('./webhooks.route');
 const config = require('../../config/config');
 
@@ -46,6 +49,18 @@ const defaultRoutes = [
   {
     path: '/bookings',
     route: bookingRoute,
+  },
+  {
+    path: '/dashboard',
+    route: dashboardRoute,
+  },
+  {
+    path: '/finance',
+    route: financeRoute,
+  },
+  {
+    path: '/trips',
+    route: tripsRoute,
   },
   {
     path: '/invoices',

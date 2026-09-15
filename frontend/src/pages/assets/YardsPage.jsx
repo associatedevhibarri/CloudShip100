@@ -1,5 +1,5 @@
 import { api } from '../../services/api'
-import { PageHeader } from '../../components/ui/PageHeader'
+import { DEMO_REASONS, PageHeader } from '../../components/ui/PageHeader'
 import { DataTable } from '../../components/ui/DataTable'
 
 export default function YardsPage() {
@@ -14,7 +14,7 @@ export default function YardsPage() {
   ]
   return (
     <div>
-      <PageHeader title="Yards and Depots" subtitle="Warehouses, yards, depots, and terminals." />
+      <PageHeader demo={DEMO_REASONS.fleet} title="Yards and Depots" subtitle="Warehouses, yards, depots, and terminals." />
       <DataTable columns={columns} rows={yards} />
     </div>
   )

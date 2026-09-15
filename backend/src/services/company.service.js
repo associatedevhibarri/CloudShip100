@@ -64,9 +64,27 @@ const getOutstandingBalance = async (companyId) => {
   return (result[0] && result[0].total) || 0;
 };
 
+/**
+ * Operator list of all companies with outstanding AR from open invoices.
+ * @returns {Promise<Array>}
+ */
+const queryCompaniesWithOutstanding = async () => {
+  const companies = await Company.find().sort('-createdAt');
+  const outstanding = await Invoice.aggregate([
+    { $match: { status: 'Open' } },
+    { $group: { _id: '$company', total: { $sum: '$amount' } } },
+  ]);
+  const byCompany = new Map(outstanding.map((row) => [String(row._id), row.total]));
+  return companies.map((company) => {
+    const json = company.toJSON();
+    return { ...json, outstanding: byCompany.get(json.id) || 0 };
+  });
+};
+
 module.exports = {
   createCompany,
   getOrCreateCompanyForUser,
   updateCompanyById,
   getOutstandingBalance,
+  queryCompaniesWithOutstanding,
 };

@@ -11,6 +11,8 @@ const driverOperationsController = require('../../controllers/driverOperations.c
 
 const router = express.Router();
 
+router.get('/', auth('viewAllDrivers'), driverProfileController.listDrivers);
+
 router.use(auth(), requireDriver);
 
 router.get('/me/dashboard', driverOperationsController.getMyDashboard);

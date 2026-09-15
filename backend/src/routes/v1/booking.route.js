@@ -11,6 +11,9 @@ router
   .get(auth('viewOwnBookings'), bookingController.getMyBookings)
   .post(auth('manageOwnBookings'), validate(bookingValidation.createBooking), bookingController.createBooking);
 
-router.post('/', auth('manageOwnBookings'), validate(bookingValidation.createBooking), bookingController.createBooking);
+router
+  .route('/')
+  .get(auth('viewAllBookings'), validate(bookingValidation.listBookings), bookingController.getAllBookings)
+  .post(auth('manageOwnBookings'), validate(bookingValidation.createBooking), bookingController.createBooking);
 
 module.exports = router;

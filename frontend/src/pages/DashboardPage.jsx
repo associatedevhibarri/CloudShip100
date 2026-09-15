@@ -12,12 +12,14 @@ import {
   YAxis,
 } from 'recharts'
 import { Link } from 'react-router-dom'
-import { Users, Truck, Gauge, Wallet } from 'lucide-react'
+import { Users, Truck, Gauge, Wallet, UserRound, ClipboardList, Receipt } from 'lucide-react'
 import { api } from '../services/api'
 import { StatCard } from '../components/ui/StatCard'
 import { Card } from '../components/ui/Card'
 import { LogisticsMap } from '../components/map/LogisticsMap'
 import { Logo } from '../components/Logo'
+import { ErrorState, LoadingState } from '../components/ui/LoadingState'
+import { DEMO_REASONS, DemoDataNote } from '../components/ui/PageHeader'
 
 function formatWhen(value) {
   if (!value) return '—'
@@ -26,27 +28,68 @@ function formatWhen(value) {
   return d.toLocaleString()
 }
 
+const EMPTY_DASHBOARD = {
+  kpis: {
+    totalRevenue: 0,
+    deliveries: 0,
+    newCustomers: 0,
+    inTransit: 0,
+    drivers: 0,
+    driversOnTrip: 0,
+    pendingBookings: 0,
+    openInvoices: 0,
+  },
+  activity: [],
+  statusMix: [],
+  totalBookings: 0,
+}
+
 export default function DashboardPage() {
-  const kpis = api.getKpis()
-  const activity = api.getActivity()
-  const lost = api.getLostBookings()
-  const mapAssets = api.getMapAssets()
+  const [mapAssets, setMapAssets] = useState([])
+  const [dashboard, setDashboard] = useState(EMPTY_DASHBOARD)
   const [leads, setLeads] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
+      setLoading(true)
+      setError('')
       try {
-        const rows = await api.getLeads()
-        if (!cancelled) setLeads(Array.isArray(rows) ? rows.slice(0, 5) : [])
-      } catch {
-        if (!cancelled) setLeads([])
+        const [summary, leadRows, mapRows] = await Promise.all([
+          api.getOpsDashboard(),
+          api.getLeads().catch(() => []),
+          api.getMapAssets().catch(() => []),
+        ])
+        if (cancelled) return
+        setDashboard({
+          kpis: { ...EMPTY_DASHBOARD.kpis, ...(summary?.kpis || {}) },
+          activity: Array.isArray(summary?.activity) ? summary.activity : [],
+          statusMix: Array.isArray(summary?.statusMix) ? summary.statusMix : [],
+          totalBookings: summary?.totalBookings || 0,
+        })
+        setLeads(Array.isArray(leadRows) ? leadRows.slice(0, 5) : [])
+        setMapAssets(Array.isArray(mapRows) ? mapRows : [])
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || 'Failed to load dashboard')
+          setDashboard(EMPTY_DASHBOARD)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
       }
     })()
     return () => {
       cancelled = true
     }
   }, [])
+
+  if (loading) return <LoadingState label="Loading dashboard..." />
+
+  const { kpis, activity, statusMix, totalBookings } = dashboard
+  const activityRange =
+    activity.length > 1 ? `${activity[0].month} — ${activity[activity.length - 1].month}` : 'Last 7 months'
 
   return (
     <div>
@@ -73,43 +116,90 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {error ? (
+        <div className="mb-4">
+          <ErrorState message={error} />
+        </div>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Total Revenue"
-          value={kpis.totalRevenue.value}
-          change={kpis.totalRevenue.change}
-          label={kpis.totalRevenue.label}
+          value={kpis.totalRevenue}
+          change={0}
+          label="paid invoices"
           prefix="$"
           icon={Wallet}
           tone="brand"
         />
         <StatCard
           title="Deliveries"
-          value={kpis.deliveries.value}
-          change={kpis.deliveries.change}
-          label={kpis.deliveries.label}
+          value={kpis.deliveries}
+          change={0}
+          label="completed bookings"
           icon={Truck}
         />
         <StatCard
           title="New Customers"
-          value={kpis.newCustomers.value}
-          change={kpis.newCustomers.change}
-          label={kpis.newCustomers.label}
+          value={kpis.newCustomers}
+          change={0}
+          label="this week"
           icon={Users}
         />
         <StatCard
-          title="Traffic"
-          value={kpis.traffic.value}
-          change={kpis.traffic.change}
-          label={kpis.traffic.label}
-          suffix="%"
+          title="In transit"
+          value={kpis.inTransit}
+          change={0}
+          label="active shipments"
           icon={Gauge}
         />
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Link to="/app/drivers">
+          <Card className="p-4 transition hover:border-brand">
+            <p className="flex items-center gap-2 text-xs uppercase text-muted">
+              <UserRound size={14} /> Drivers
+            </p>
+            <p className="mt-1 text-2xl font-extrabold">{kpis.drivers || 0}</p>
+            <p className="mt-1 text-xs text-muted">{kpis.driversOnTrip || 0} on trip</p>
+          </Card>
+        </Link>
+        <Link to="/app/orders/pending">
+          <Card className="p-4 transition hover:border-brand">
+            <p className="flex items-center gap-2 text-xs uppercase text-muted">
+              <ClipboardList size={14} /> Pending bookings
+            </p>
+            <p className="mt-1 text-2xl font-extrabold">{kpis.pendingBookings || 0}</p>
+            <p className="mt-1 text-xs text-muted">awaiting movement</p>
+          </Card>
+        </Link>
+        <Link to="/app/orders/invoices">
+          <Card className="p-4 transition hover:border-brand">
+            <p className="flex items-center gap-2 text-xs uppercase text-muted">
+              <Receipt size={14} /> Open invoices
+            </p>
+            <p className="mt-1 text-2xl font-extrabold">{kpis.openInvoices || 0}</p>
+            <p className="mt-1 text-xs text-muted">outstanding AR</p>
+          </Card>
+        </Link>
+        <Link to="/app/customers">
+          <Card className="p-4 transition hover:border-brand">
+            <p className="flex items-center gap-2 text-xs uppercase text-muted">
+              <Users size={14} /> New customers
+            </p>
+            <p className="mt-1 text-2xl font-extrabold">{kpis.newCustomers || 0}</p>
+            <p className="mt-1 text-xs text-muted">last 7 days</p>
+          </Card>
+        </Link>
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.6fr_0.7fr]">
         <div className="relative">
           <LogisticsMap assets={mapAssets} height="360px" />
+          <div className="pointer-events-none absolute left-4 top-4 z-[500]">
+            <DemoDataNote>{DEMO_REASONS.mapGps}</DemoDataNote>
+          </div>
           <p className="pointer-events-none absolute bottom-5 left-1/2 z-[500] -translate-x-1/2 text-sm font-extrabold tracking-wide text-ink drop-shadow">
             Road Cargo
           </p>
@@ -146,7 +236,7 @@ export default function DashboardPage() {
         <Card className="p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-extrabold">Activity</h2>
-            <span className="text-xs font-semibold text-muted">Jan — Jul</span>
+            <span className="text-xs font-semibold text-muted">{activityRange}</span>
           </div>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -164,6 +254,7 @@ export default function DashboardPage() {
                 <Area type="monotone" dataKey="road" stroke="#007BFF" fill="url(#roadFill)" strokeWidth={2.5} />
                 <Area type="monotone" dataKey="air" stroke="#4DA3FF" fill="transparent" strokeWidth={2} />
                 <Area type="monotone" dataKey="maritime" stroke="#94A3B8" fill="transparent" strokeWidth={2} />
+                <Area type="monotone" dataKey="rail" stroke="#64748B" fill="transparent" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -171,47 +262,57 @@ export default function DashboardPage() {
 
         <Card className="p-5">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-lg font-extrabold">Lost Bookings</h2>
+            <h2 className="text-lg font-extrabold">Booking mix</h2>
             <Link to="/app/orders" className="text-sm font-semibold text-brand">
               View Details
             </Link>
           </div>
-          <div className="relative mx-auto h-56 w-full max-w-[240px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={lost.items}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={55}
-                  outerRadius={85}
-                  paddingAngle={2}
-                >
-                  {lost.items.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <p className="text-3xl font-extrabold">{lost.total}</p>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Total</p>
+          {totalBookings === 0 ? (
+            <p className="rounded-xl border border-dashed border-line bg-surface px-4 py-16 text-center text-sm text-muted">
+              No bookings yet. Customer portal bookings will appear here.
+            </p>
+          ) : (
+            <>
+              <div className="relative mx-auto h-56 w-full max-w-[240px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={statusMix}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={55}
+                      outerRadius={85}
+                      paddingAngle={2}
+                    >
+                      {statusMix.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-3xl font-extrabold">{totalBookings}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">Total</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <ul className="mt-2 space-y-1.5 text-sm">
-            {lost.items.slice(0, 4).map((item) => (
-              <li key={item.name} className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-2 text-muted">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: item.color }} />
-                  {item.name}
-                </span>
-                <span className="font-semibold">{item.value}%</span>
-              </li>
-            ))}
-          </ul>
+              <ul className="mt-2 space-y-1.5 text-sm">
+                {statusMix.map((item) => (
+                  <li key={item.name} className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2 text-muted">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: item.color }} />
+                      {item.name}
+                    </span>
+                    <span className="font-semibold">
+                      {item.value} · {item.percent}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </Card>
       </div>
 

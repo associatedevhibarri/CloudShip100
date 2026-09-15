@@ -4,6 +4,7 @@ const notificationController = require('../../controllers/notification.controlle
 
 const router = express.Router();
 
+router.get('/', auth('viewAllNotifications'), notificationController.getAllNotifications);
 router.get('/mine', auth('viewOwnNotifications'), notificationController.getMyNotifications);
 
 module.exports = router;

@@ -1,43 +1,84 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../services/api'
-import { PageHeader } from '../components/ui/PageHeader'
+import { DEMO_REASONS, PageHeader, DemoDataNote } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { DataTable } from '../components/ui/DataTable'
+import { ErrorState, LoadingState } from '../components/ui/LoadingState'
 
 export default function GeoAnalyticsPage() {
-  const routes = api.getRouteOptimization()
+  const [routes, setRoutes] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const weather = api.getWeatherAnalytics()
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const rows = await api.getRouteOptimization()
+        if (!cancelled) setRoutes(Array.isArray(rows) ? rows : [])
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || 'Failed to load routes')
+          setRoutes([])
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  if (loading) return <LoadingState label="Loading geo analytics..." />
 
   return (
     <div>
       <PageHeader
         title="GeoSpatial Analytics"
-        subtitle="Route optimization and weather impact on logistics corridors."
+        subtitle="Warehouse route optimisation. Weather remains sample data."
         actions={
           <Link to="/app/warehouse/routes" className="text-sm font-bold text-brand hover:underline">
             Warehouse route optimisation →
           </Link>
         }
       />
+      {error ? (
+        <div className="mb-4">
+          <ErrorState message={error} />
+        </div>
+      ) : null}
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
           <h3 className="mb-3 font-extrabold">Route optimization</h3>
-          <DataTable
-            columns={[
-              { key: 'route', label: 'Route' },
-              { key: 'baselineHrs', label: 'Baseline (h)' },
-              { key: 'optimizedHrs', label: 'Optimized (h)' },
-              {
-                key: 'fuelSavePct',
-                label: 'Fuel save',
-                render: (r) => `${r.fuelSavePct}%`,
-              },
-            ]}
-            rows={routes}
-          />
+          {routes.length === 0 && !error ? (
+            <p className="text-sm text-muted">No warehouse routes yet.</p>
+          ) : (
+            <DataTable
+              columns={[
+                { key: 'route', label: 'Route' },
+                { key: 'baselineHrs', label: 'Baseline (h)' },
+                { key: 'optimizedHrs', label: 'Optimized (h)' },
+                {
+                  key: 'fuelSavePct',
+                  label: 'Fuel save',
+                  render: (r) => `${r.fuelSavePct}%`,
+                },
+              ]}
+              rows={routes}
+              rowKey="id"
+            />
+          )}
         </Card>
         <Card className="p-5">
-          <h3 className="mb-3 font-extrabold">Weather analytics</h3>
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <h3 className="font-extrabold">Weather analytics</h3>
+            <DemoDataNote>{DEMO_REASONS.weather}</DemoDataNote>
+          </div>
           <ul className="space-y-3">
             {weather.map((w) => (
               <li key={w.region} className="rounded-xl border border-line p-3">

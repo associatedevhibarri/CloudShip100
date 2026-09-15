@@ -40,6 +40,13 @@ const createBooking = {
     .or('weightKg', 'value', 'quoteId'),
 };
 
+const listBookings = {
+  query: Joi.object().keys({
+    status: Joi.string().valid('pending', 'in_transit', 'completed', 'history'),
+  }),
+};
+
 module.exports = {
   createBooking,
+  listBookings,
 };

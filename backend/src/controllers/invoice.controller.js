@@ -7,6 +7,12 @@ const getMyInvoices = catchAsync(async (req, res) => {
   res.send(invoices);
 });
 
+const getAllInvoices = catchAsync(async (req, res) => {
+  const invoices = await invoiceService.queryAllInvoices();
+  res.send(invoices);
+});
+
 module.exports = {
   getMyInvoices,
+  getAllInvoices,
 };

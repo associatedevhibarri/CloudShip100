@@ -1,5 +1,5 @@
 import { api } from '../../services/api'
-import { PageHeader } from '../../components/ui/PageHeader'
+import { DEMO_REASONS, PageHeader } from '../../components/ui/PageHeader'
 import { DataTable } from '../../components/ui/DataTable'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 
@@ -7,7 +7,7 @@ export default function TrailersPage() {
   const trailers = api.getTrailers()
   return (
     <div>
-      <PageHeader title="Trailers" subtitle="Tankers, flatbeds, reefers, and curtainsiders." />
+      <PageHeader demo={DEMO_REASONS.fleet} title="Trailers" subtitle="Tankers, flatbeds, reefers, and curtainsiders." />
       <DataTable
         columns={[
           { key: 'id', label: 'ID' },

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { api } from '../../services/api'
-import { PageHeader } from '../../components/ui/PageHeader'
+import { DEMO_REASONS, PageHeader } from '../../components/ui/PageHeader'
 import { FilterBar, FilterButton } from '../../components/ui/FilterBar'
 import { DataTable } from '../../components/ui/DataTable'
 import { StatusBadge } from '../../components/ui/StatusBadge'
@@ -20,6 +20,7 @@ export default function AeroplanesPage() {
   return (
     <div>
       <PageHeader
+        demo={DEMO_REASONS.fleet}
         title="Aeroplanes"
         subtitle="Cargo / passenger fleet, schedules, documents, and compliance."
       />

@@ -25,6 +25,22 @@ const queryBookingsByCompany = async (companyId) => {
   return Booking.find({ company: companyId }).sort('-bookedAt');
 };
 
+/**
+ * Operator list of all bookings, optionally filtered by status.
+ * `history` includes both completed and history statuses.
+ * @param {string} [status]
+ * @returns {Promise<Booking[]>}
+ */
+const queryAllBookings = async (status) => {
+  const filter = {};
+  if (status === 'history') {
+    filter.status = { $in: ['completed', 'history'] };
+  } else if (status) {
+    filter.status = status;
+  }
+  return Booking.find(filter).populate('company', 'name').sort('-bookedAt');
+};
+
 const generateBookingCode = async () => {
   const count = await Booking.countDocuments();
   return `BKG-${String(count + 1).padStart(4, '0')}`;
@@ -168,6 +184,7 @@ const createBooking = async (company, body) => {
 
 module.exports = {
   queryBookingsByCompany,
+  queryAllBookings,
   createBooking,
   TIMELINE_STAGE_ORDER,
 };

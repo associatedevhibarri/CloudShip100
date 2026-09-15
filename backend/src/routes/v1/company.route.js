@@ -6,6 +6,8 @@ const companyController = require('../../controllers/company.controller');
 
 const router = express.Router();
 
+router.get('/', auth('viewAllCompanies'), companyController.getCompanies);
+
 router
   .route('/me')
   .get(auth('viewOwnCompany'), companyController.getMyCompany)

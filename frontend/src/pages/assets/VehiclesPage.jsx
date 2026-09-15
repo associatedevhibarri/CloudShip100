@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { api } from '../../services/api'
-import { PageHeader } from '../../components/ui/PageHeader'
+import { DEMO_REASONS, PageHeader } from '../../components/ui/PageHeader'
 import { DataTable } from '../../components/ui/DataTable'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { Card } from '../../components/ui/Card'
@@ -45,6 +45,7 @@ export default function VehiclesPage() {
   return (
     <div>
       <PageHeader
+        demo={DEMO_REASONS.fleet}
         title="Vehicles"
         subtitle="Registration, permits, insurance, and roadworthiness."
       />

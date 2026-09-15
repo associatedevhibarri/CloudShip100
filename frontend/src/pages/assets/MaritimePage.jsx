@@ -1,5 +1,5 @@
 import { api } from '../../services/api'
-import { PageHeader } from '../../components/ui/PageHeader'
+import { DEMO_REASONS, PageHeader } from '../../components/ui/PageHeader'
 import { DataTable } from '../../components/ui/DataTable'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { LogisticsMap } from '../../components/map/LogisticsMap'
@@ -17,7 +17,7 @@ export default function MaritimePage() {
 
   return (
     <div>
-      <PageHeader title="Maritime" subtitle="Ports across the Southern African corridor." />
+      <PageHeader demo={DEMO_REASONS.fleet} title="Maritime" subtitle="Ports across the Southern African corridor." />
       <div className="mb-4">
         <LogisticsMap assets={mapAssets} height="320px" center={[-30, 28]} zoom={4} showLegend={false} />
       </div>

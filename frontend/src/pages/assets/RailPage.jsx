@@ -1,5 +1,5 @@
 import { api } from '../../services/api'
-import { PageHeader } from '../../components/ui/PageHeader'
+import { DEMO_REASONS, PageHeader } from '../../components/ui/PageHeader'
 import { DataTable } from '../../components/ui/DataTable'
 import { Card } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/StatusBadge'
@@ -7,7 +7,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge'
 export default function RailPage() {
   return (
     <div>
-      <PageHeader title="Rail" subtitle="Sidings, locomotives, and rail yards." />
+      <PageHeader demo={DEMO_REASONS.fleet} title="Rail" subtitle="Sidings, locomotives, and rail yards." />
       <div className="space-y-6">
         <section>
           <h3 className="mb-2 font-extrabold">Rail Sidings</h3>

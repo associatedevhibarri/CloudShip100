@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Truck, Plane, Ship, TrainFront, Warehouse, Forklift } from 'lucide-react'
-import { PageHeader } from '../../components/ui/PageHeader'
+import { DEMO_REASONS, PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { api } from '../../services/api'
 
@@ -23,7 +23,7 @@ export default function AssetsOverviewPage() {
 
   return (
     <div>
-      <PageHeader title="Assets" subtitle="Road, rail, maritime, and air asset categories." />
+      <PageHeader demo={DEMO_REASONS.fleet} title="Assets" subtitle="Road, rail, maritime, and air asset categories." />
       <div className="mb-6 grid gap-3 sm:grid-cols-4">
         {[
           ['Yards', yards],
