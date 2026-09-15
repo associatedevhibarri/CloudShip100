@@ -1,10 +1,13 @@
 import { createClient } from '@sanity/client'
 
+const token = import.meta.env.VITE_SANITY_API_TOKEN
+
 export const sanity = createClient({
   projectId: import.meta.env.VITE_SANITY_PROJECT_ID,
   dataset: import.meta.env.VITE_SANITY_DATASET,
   apiVersion: '2021-06-07',
   useCdn: true,
+  token: token || undefined,
 })
 
 export const POSTS_QUERY = `*[_type == "post" && defined(slug.current)] | order(publishedAt desc) {
