@@ -8,6 +8,8 @@ import { CustomerLayout } from './components/layout/CustomerLayout'
 import { DriverLayout } from './components/layout/DriverLayout'
 import { RequireAuth } from './components/RequireAuth'
 import HomePage from './pages/HomePage'
+import BlogPage from './pages/blog/BlogPage'
+import BlogPostPage from './pages/blog/BlogPostPage'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import MapPage from './pages/MapPage'
@@ -75,6 +77,8 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/embed/track" element={<EmbedTrackPage />} />
 
