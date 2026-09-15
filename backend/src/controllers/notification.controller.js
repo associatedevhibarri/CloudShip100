@@ -7,6 +7,12 @@ const getMyNotifications = catchAsync(async (req, res) => {
   res.send(notifications);
 });
 
+const getAllNotifications = catchAsync(async (req, res) => {
+  const notifications = await notificationService.queryAllNotifications();
+  res.send(notifications);
+});
+
 module.exports = {
   getMyNotifications,
+  getAllNotifications,
 };

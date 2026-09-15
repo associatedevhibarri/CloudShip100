@@ -27,6 +27,13 @@ const allRoles = {
     'managePricing',
     'viewPromotions',
     'managePromotions',
+    'viewAllBookings',
+    'viewAllCompanies',
+    'viewAllInvoices',
+    'viewAllNotifications',
+    'viewOpsDashboard',
+    'viewAllDrivers',
+    'viewAllTrips',
   ],
   admin: [
     'getUsers',
@@ -39,6 +46,13 @@ const allRoles = {
     'managePromotions',
     'viewOwnEcommerce',
     'manageOwnEcommerce',
+    'viewAllBookings',
+    'viewAllCompanies',
+    'viewAllInvoices',
+    'viewAllNotifications',
+    'viewOpsDashboard',
+    'viewAllDrivers',
+    'viewAllTrips',
   ],
 };
 

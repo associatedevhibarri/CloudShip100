@@ -1,12 +1,12 @@
 import { api } from '../../services/api'
-import { PageHeader } from '../../components/ui/PageHeader'
+import { DEMO_REASONS, PageHeader } from '../../components/ui/PageHeader'
 import { DataTable } from '../../components/ui/DataTable'
 
 export default function CheckInPage() {
   const rows = api.getCheckIns()
   return (
     <div>
-      <PageHeader title="Driver Check In / Check Out" subtitle="Yard gate activity log." />
+      <PageHeader demo={DEMO_REASONS.fleet} title="Driver Check In / Check Out" subtitle="Yard gate activity log." />
       <DataTable
         columns={[
           { key: 'driver', label: 'Driver' },

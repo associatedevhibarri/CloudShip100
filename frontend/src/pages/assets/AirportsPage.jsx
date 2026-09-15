@@ -1,5 +1,5 @@
 import { api } from '../../services/api'
-import { PageHeader } from '../../components/ui/PageHeader'
+import { DEMO_REASONS, PageHeader } from '../../components/ui/PageHeader'
 import { DataTable } from '../../components/ui/DataTable'
 import { Card } from '../../components/ui/Card'
 
@@ -9,7 +9,7 @@ export default function AirportsPage() {
 
   return (
     <div>
-      <PageHeader title="Airports" subtitle="Airport locations, hangars, and pilot check-in." />
+      <PageHeader demo={DEMO_REASONS.fleet} title="Airports" subtitle="Airport locations, hangars, and pilot check-in." />
       <DataTable
         columns={[
           { key: 'name', label: 'Airport Name' },

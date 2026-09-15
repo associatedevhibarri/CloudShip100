@@ -21,7 +21,14 @@ const createBooking = catchAsync(async (req, res) => {
   res.status(httpStatus.CREATED).send(booking);
 });
 
+const getAllBookings = catchAsync(async (req, res) => {
+  const bookings = await bookingService.queryAllBookings(req.query.status);
+  await orderBridge.hydrateShopOrderTotals(bookings);
+  res.send(bookings);
+});
+
 module.exports = {
   getMyBookings,
+  getAllBookings,
   createBooking,
 };

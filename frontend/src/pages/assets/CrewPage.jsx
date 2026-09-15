@@ -1,5 +1,5 @@
 import { api } from '../../services/api'
-import { PageHeader } from '../../components/ui/PageHeader'
+import { DEMO_REASONS, PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 
@@ -8,6 +8,7 @@ export default function CrewPage() {
   return (
     <div>
       <PageHeader
+        demo={DEMO_REASONS.fleet}
         title="Crew"
         subtitle="Pilot & crew profiles, licences, scheduling signals, and performance."
       />

@@ -1,5 +1,5 @@
 import { api } from '../../services/api'
-import { PageHeader } from '../../components/ui/PageHeader'
+import { DEMO_REASONS, PageHeader } from '../../components/ui/PageHeader'
 import { DataTable } from '../../components/ui/DataTable'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { FilterBar, FilterButton } from '../../components/ui/FilterBar'
@@ -17,6 +17,7 @@ export default function EquipmentPage() {
   return (
     <div>
       <PageHeader
+        demo={DEMO_REASONS.fleet}
         title="Equipment / Assets"
         subtitle="Moving & lifting, packaging, and production lines."
       />

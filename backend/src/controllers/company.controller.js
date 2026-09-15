@@ -14,7 +14,13 @@ const updateMyCompany = catchAsync(async (req, res) => {
   res.send({ ...updated.toJSON(), outstanding });
 });
 
+const getCompanies = catchAsync(async (req, res) => {
+  const companies = await companyService.queryCompaniesWithOutstanding();
+  res.send(companies);
+});
+
 module.exports = {
   getMyCompany,
   updateMyCompany,
+  getCompanies,
 };

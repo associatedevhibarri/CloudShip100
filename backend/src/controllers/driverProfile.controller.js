@@ -26,7 +26,13 @@ const deleteDocument = catchAsync(async (req, res) => {
   res.send(profile);
 });
 
+const listDrivers = catchAsync(async (req, res) => {
+  const drivers = await driverProfileService.listDriversForOperator();
+  res.send(drivers);
+});
+
 module.exports = {
+  listDrivers,
   getMyProfile,
   updateMyProfile,
   uploadDocument,
