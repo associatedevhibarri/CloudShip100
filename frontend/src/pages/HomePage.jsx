@@ -605,7 +605,7 @@ export default function HomePage() {
                 One system for every mode of transport
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted sm:text-base">
-                Mission control for operators who need live visibility across fleets, trips, and
+                Mission control for teams who need live visibility across fleets, trips, and
                 customer deliveries — without switching tools.
               </p>
             </div>
@@ -699,7 +699,7 @@ export default function HomePage() {
               See Cloud Ship in action
             </h2>
             <p className="max-w-lg text-sm leading-relaxed text-muted sm:text-base">
-              Explore the operator ERP demo, customer portal, or driver portal — no setup required.
+              Explore the customer portal or driver portal — no setup required.
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <Link

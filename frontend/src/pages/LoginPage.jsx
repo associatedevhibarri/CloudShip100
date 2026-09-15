@@ -1,29 +1,34 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import { dashboardPathForRole } from '../utils/authRouting'
+
+const PUBLIC_ROLES = [
+  { id: 'customer', label: 'Customer / Buyer Portal' },
+  { id: 'driver', label: 'Driver Portal' },
+]
 
 export default function LoginPage() {
-  const { login, register } = useAuth()
+  const { user, loading, login, register } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
   const [params] = useSearchParams()
 
-  const [mode, setMode] = useState('login') // 'login' | 'register'
-  const [role, setRole] = useState(
-    params.get('role') === 'customer'
-      ? 'customer'
-      : params.get('role') === 'driver'
-        ? 'driver'
-        : 'operator',
-  )
+  const [mode, setMode] = useState('login')
+  const [role, setRole] = useState(params.get('role') === 'driver' ? 'driver' : 'customer')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [companyName, setCompanyName] = useState('')
-  
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate(dashboardPathForRole(user.role), { replace: true })
+    }
+  }, [loading, user, navigate])
 
   const onSubmit = async (e) => {
     e.preventDefault()
@@ -32,24 +37,10 @@ export default function LoginPage() {
     try {
       if (mode === 'login') {
         const authenticatedUser = await login(email, password)
-        const targetRole = authenticatedUser?.role || role
-        navigate(
-          targetRole === 'customer'
-            ? '/customer/overview'
-            : targetRole === 'driver'
-              ? '/driver/trips'
-              : '/app/dashboard',
-        )
+        navigate(dashboardPathForRole(authenticatedUser?.role || role), { replace: true })
       } else {
         const newUser = await register(name, email, password, role, companyName)
-        const targetRole = newUser?.role || role
-        navigate(
-          targetRole === 'customer'
-            ? '/customer/overview'
-            : targetRole === 'driver'
-              ? '/driver/trips'
-              : '/app/dashboard',
-        )
+        navigate(dashboardPathForRole(newUser?.role || role), { replace: true })
       }
     } catch (err) {
       toast.error(err.message || 'Authentication failed. Please check your credentials or server connection.')
@@ -61,7 +52,6 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-brand-soft-gradient px-4 py-8">
       <div className="grid w-full max-w-4xl overflow-hidden rounded-[1.5rem] border border-line bg-white shadow-[var(--shadow-card)] md:grid-cols-[0.95fr_1.05fr]">
-        {/* Left Hero Panel */}
         <div className="relative hidden flex-col justify-between bg-brand-gradient p-8 text-white md:flex">
           <div className="absolute inset-0 opacity-30 [background:radial-gradient(circle_at_20%_20%,#ffffff55,transparent_45%)]" />
           <div className="relative">
@@ -80,7 +70,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Right Form Panel */}
         <div className="p-8">
           <div className="mb-6 flex justify-center md:justify-start">
             <Logo />
@@ -117,7 +106,7 @@ export default function LoginPage() {
           <p className="mt-1 text-sm text-muted">
             {mode === 'login'
               ? 'Enter your registered credentials to access your dashboard.'
-              : 'Sign up to manage logistics orders, fleets, and portals.'}
+              : 'Sign up for the customer or driver portal.'}
           </p>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
@@ -176,12 +165,8 @@ export default function LoginPage() {
                 <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted">
                   Account Role
                 </label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {[
-                    { id: 'operator', label: 'Ops / Logistics Operator' },
-                    { id: 'customer', label: 'Customer / Buyer Portal' },
-                    { id: 'driver', label: 'Driver Portal' },
-                  ].map((r) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {PUBLIC_ROLES.map((r) => (
                     <button
                       key={r.id}
                       type="button"

@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { dashboardPathForRole, normalizeRole, signInPathForRole } from '../utils/authRouting'
 
 export function RequireAuth({ role, children }) {
   const { user, loading } = useAuth()
@@ -15,19 +16,12 @@ export function RequireAuth({ role, children }) {
     )
   }
 
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to={signInPathForRole(role)} replace />
 
-  // Support operator / admin matching
-  const userRole = user.role === 'admin' ? 'operator' : user.role
+  const userRole = normalizeRole(user.role)
 
   if (role && userRole !== role) {
-    const fallback =
-      userRole === 'customer'
-        ? '/customer/overview'
-        : userRole === 'driver'
-          ? '/driver/trips'
-          : '/app/dashboard'
-    return <Navigate to={fallback} replace />
+    return <Navigate to={dashboardPathForRole(userRole)} replace />
   }
 
   return children

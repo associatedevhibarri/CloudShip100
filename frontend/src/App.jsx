@@ -11,6 +11,8 @@ import HomePage from './pages/HomePage'
 import BlogPage from './pages/blog/BlogPage'
 import BlogPostPage from './pages/blog/BlogPostPage'
 import LoginPage from './pages/LoginPage'
+import OpsLoginPage from './pages/ops/OpsLoginPage'
+import OpsRegisterPage from './pages/ops/OpsRegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import MapPage from './pages/MapPage'
 import TripsPage from './pages/TripsPage'
@@ -80,6 +82,9 @@ export default function App() {
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/ops" element={<Navigate to="/ops/login" replace />} />
+          <Route path="/ops/login" element={<OpsLoginPage />} />
+          <Route path="/ops/register" element={<OpsRegisterPage />} />
           <Route path="/embed/track" element={<EmbedTrackPage />} />
 
           <Route

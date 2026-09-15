@@ -6,12 +6,20 @@ const register = {
     email: Joi.string().required().email(),
     password: Joi.string().required().custom(password),
     name: Joi.string().required(),
-    role: Joi.string().valid('user', 'admin', 'operator', 'customer', 'driver'),
+    role: Joi.string().valid('user', 'customer', 'driver'),
     companyName: Joi.string().when('role', {
       is: 'customer',
       then: Joi.required(),
       otherwise: Joi.optional().allow('', null),
     }),
+  }),
+};
+
+const registerOperator = {
+  body: Joi.object().keys({
+    email: Joi.string().required().email(),
+    password: Joi.string().required().custom(password),
+    name: Joi.string().required(),
   }),
 };
 
@@ -57,6 +65,7 @@ const verifyEmail = {
 
 module.exports = {
   register,
+  registerOperator,
   login,
   logout,
   refreshTokens,
