@@ -34,6 +34,8 @@ const allRoles = {
     'viewOpsDashboard',
     'viewAllDrivers',
     'viewAllTrips',
+    'manageExpenses',
+    'manageFleet',
   ],
   admin: [
     'getUsers',
@@ -53,6 +55,8 @@ const allRoles = {
     'viewOpsDashboard',
     'viewAllDrivers',
     'viewAllTrips',
+    'manageExpenses',
+    'manageFleet',
   ],
 };
 

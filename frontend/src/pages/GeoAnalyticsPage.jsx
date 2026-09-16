@@ -8,9 +8,9 @@ import { ErrorState, LoadingState } from '../components/ui/LoadingState'
 
 export default function GeoAnalyticsPage() {
   const [routes, setRoutes] = useState([])
+  const [weather, setWeather] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const weather = api.getWeatherAnalytics()
 
   useEffect(() => {
     let cancelled = false
@@ -18,12 +18,18 @@ export default function GeoAnalyticsPage() {
       setLoading(true)
       setError('')
       try {
-        const rows = await api.getRouteOptimization()
-        if (!cancelled) setRoutes(Array.isArray(rows) ? rows : [])
+        const [routeRows, weatherRows] = await Promise.all([
+          api.getRouteOptimization(),
+          api.getWeatherAnalytics(),
+        ])
+        if (cancelled) return
+        setRoutes(Array.isArray(routeRows) ? routeRows : [])
+        setWeather(Array.isArray(weatherRows) ? weatherRows : [])
       } catch (err) {
         if (!cancelled) {
           setError(err.message || 'Failed to load routes')
           setRoutes([])
+          setWeather([])
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -40,7 +46,7 @@ export default function GeoAnalyticsPage() {
     <div>
       <PageHeader
         title="GeoSpatial Analytics"
-        subtitle="Warehouse route optimisation. Weather remains sample data."
+        subtitle="Warehouse route optimisation. Weather needs an external weather API."
         actions={
           <Link to="/app/warehouse/routes" className="text-sm font-bold text-brand hover:underline">
             Warehouse route optimisation →
@@ -79,6 +85,9 @@ export default function GeoAnalyticsPage() {
             <h3 className="font-extrabold">Weather analytics</h3>
             <DemoDataNote>{DEMO_REASONS.weather}</DemoDataNote>
           </div>
+          {weather.length === 0 ? (
+            <p className="text-sm text-muted">No weather feed connected yet. Live GPS and weather stay pending external APIs.</p>
+          ) : (
           <ul className="space-y-3">
             {weather.map((w) => (
               <li key={w.region} className="rounded-xl border border-line p-3">
@@ -101,6 +110,7 @@ export default function GeoAnalyticsPage() {
               </li>
             ))}
           </ul>
+          )}
         </Card>
       </div>
     </div>

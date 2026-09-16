@@ -22,3 +22,5 @@ module.exports.driverProfileService = require('./driverProfile.service');
 module.exports.driverOperationsService = require('./driverOperations.service');
 module.exports.warehouseService = require('./warehouse.service');
 module.exports.storeConnectionService = require('./storeConnection.service');
+module.exports.expenseService = require('./expense.service');
+module.exports.fleetService = require('./fleet.service');

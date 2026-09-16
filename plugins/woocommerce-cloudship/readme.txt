@@ -1,29 +1,32 @@
 === CloudShip – Shipping, Logistics & Delivery ===
 Contributors: cloudship
-Tags: shipping, logistics, delivery, woocommerce, international shipping
+Tags: shipping, logistics, delivery, woocommerce, freight
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-International logistics, local shipping, deliveries, and package management for WooCommerce. Connect your store to CloudShip.
+WooCommerce shipping, freight, courier booking, parcel tracking, and international logistics. Connect your store to CloudShip.
 
 == Description ==
 
-CloudShip is shipping, logistics, and delivery software for WooCommerce stores.
+CloudShip is WooCommerce shipping and logistics software for stores that need local delivery, regional freight, and international shipping.
 
-Use it for:
+Use CloudShip for:
 
-* Local shipping
-* International shipping and international logistics
-* Deliveries and delivery tracking
-* Package management
+* WooCommerce shipping and delivery management
+* Local shipping and last-mile deliveries
+* International shipping, freight, and cross-border logistics
+* Parcel tracking and package management
+* Courier booking (DHL, FedEx, and other carriers) after the order is placed
 
-Install the plugin, sign in with your CloudShip account, and your store is connected. CloudShip creates the WooCommerce REST keys and the order webhook for you.
+Install the plugin, sign in with your CloudShip seller account, and your store is connected. CloudShip creates the WooCommerce REST API keys and the order webhook for you. New WooCommerce orders appear in CloudShip so you can compare courier rates and book the shipment.
 
-Customers keep the shipping you already set at checkout (for example Flat rate or free shipping). After they place an order, the shipment appears in CloudShip. There you — the seller — see courier prices (DHL, FedEx, and others) plus CloudShip’s fee, and you book the delivery.
+Shoppers keep the shipping method you already set at checkout (for example Flat rate or free shipping). Courier prices are for the seller in CloudShip — not a live rate table on the cart.
+
+Built for merchants moving goods locally and across Southern Africa / SADC corridors, as well as international lanes.
 
 This plugin does not replace your checkout shipping options with live courier rates.
 
@@ -39,15 +42,30 @@ You need a CloudShip seller account. Pickup defaults to the WooCommerce store ad
 
 == Frequently Asked Questions ==
 
-= Does the shopper see DHL or FedEx prices? =
+= Does this plugin add live DHL or FedEx rates at WooCommerce checkout? =
 
-No. Checkout shipping stays yours. Courier prices show in CloudShip to the seller after the order is placed.
+No. Checkout shipping stays yours (Flat rate, free shipping, or your existing methods). After the customer places the order, you see courier and freight prices in CloudShip and book delivery there.
+
+= Can I track parcels after I book a courier? =
+
+Yes. Booked shipments are managed in CloudShip with parcel / package tracking for the seller.
+
+= Does CloudShip handle international shipping and freight? =
+
+Yes. Use it for local delivery, regional freight, and international logistics. Courier options such as DHL and FedEx appear to the seller after checkout.
 
 = Is my CloudShip password saved in WordPress? =
 
 No. It is used once to connect, then discarded.
 
+= Do I need to create WooCommerce REST keys by hand? =
+
+No. The plugin creates the REST keys and the order webhook when you connect the store.
+
 == Changelog ==
+
+= 1.1.2 =
+* Clarify shipping, freight, courier, and parcel-tracking wording for WordPress.org search.
 
 = 1.1.0 =
 * Connect the store from WordPress (login, REST keys, order webhook).
