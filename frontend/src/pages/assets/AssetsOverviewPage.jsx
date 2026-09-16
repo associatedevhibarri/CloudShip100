@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
 import { Truck, Plane, Ship, TrainFront, Warehouse, Forklift } from 'lucide-react'
-import { DEMO_REASONS, PageHeader } from '../../components/ui/PageHeader'
+import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { api } from '../../services/api'
+import { ErrorState, LoadingState } from '../../components/ui/LoadingState'
+import { useLiveList } from '../../hooks/useLiveList'
 
 const links = [
   { to: '/app/assets/yards', title: 'Yards & Depots', desc: 'Capacity, truck & container slots', icon: Warehouse },
@@ -16,20 +18,29 @@ const links = [
 ]
 
 export default function AssetsOverviewPage() {
-  const vehicles = api.getVehicles().length
-  const planes = api.getAeroplanes().length
-  const yards = api.getYards().length
-  const ports = api.getPorts().length
+  const vehicles = useLiveList(() => api.getVehicles(), 'vehicle')
+  const planes = useLiveList(() => api.getAeroplanes(), 'aeroplane')
+  const yards = useLiveList(() => api.getYards(), 'yard')
+  const ports = useLiveList(() => api.getPorts(), 'port')
+  const loading = vehicles.loading || planes.loading || yards.loading || ports.loading
+  const error = vehicles.error || planes.error || yards.error || ports.error
+
+  if (loading) return <LoadingState label="Loading assets..." />
 
   return (
     <div>
-      <PageHeader demo={DEMO_REASONS.fleet} title="Assets" subtitle="Road, rail, maritime, and air asset categories." />
+      <PageHeader title="Assets" subtitle="Road, rail, maritime, and air fleet registry." />
+      {error ? (
+        <div className="mb-4">
+          <ErrorState message={error} />
+        </div>
+      ) : null}
       <div className="mb-6 grid gap-3 sm:grid-cols-4">
         {[
-          ['Yards', yards],
-          ['Vehicles', vehicles],
-          ['Aircraft', planes],
-          ['Ports', ports],
+          ['Yards', yards.rows.length],
+          ['Vehicles', vehicles.rows.length],
+          ['Aircraft', planes.rows.length],
+          ['Ports', ports.rows.length],
         ].map(([label, value]) => (
           <Card key={label} className="p-4">
             <p className="text-xs font-semibold uppercase text-muted">{label}</p>

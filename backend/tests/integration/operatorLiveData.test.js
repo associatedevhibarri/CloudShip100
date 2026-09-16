@@ -63,6 +63,8 @@ describe('Operator live data routes', () => {
     await request(app).get('/v1/drivers').set(...auth(userOneAccessToken)).expect(httpStatus.FORBIDDEN);
     await request(app).get('/v1/trips').set(...auth(userOneAccessToken)).expect(httpStatus.FORBIDDEN);
     await request(app).get('/v1/finance').set(...auth(userOneAccessToken)).expect(httpStatus.FORBIDDEN);
+    await request(app).get('/v1/expenses').set(...auth(userOneAccessToken)).expect(httpStatus.FORBIDDEN);
+    await request(app).get('/v1/fleet').set(...auth(userOneAccessToken)).expect(httpStatus.FORBIDDEN);
   });
 
   test('should list live bookings, companies, invoices, and notifications for admin', async () => {
@@ -318,5 +320,71 @@ describe('Operator live data routes', () => {
     expect(mapIds).not.toContain('MAP-01');
     expect(labels).not.toContain('AfriMetals');
     expect((res.body.routes || []).some((route) => route.id === 'RTE-01' || route.name)).toBe(true);
+  });
+
+  test('should return empty expenses and fleet without dummy rows, then persist created records', async () => {
+    await insertUsers([admin]);
+
+    const emptyFuel = await request(app)
+      .get('/v1/expenses')
+      .query({ kind: 'fuel' })
+      .set(...auth(adminAccessToken))
+      .expect(httpStatus.OK);
+    expect(emptyFuel.body).toEqual([]);
+    expect(emptyFuel.body.some((row) => row.id === 'FL-01')).toBe(false);
+
+    const createdFuel = await request(app)
+      .post('/v1/expenses')
+      .set(...auth(adminAccessToken))
+      .send({ kind: 'fuel', asset: 'GP 111 GP', liters: 40, cost: 800, location: 'Durban', date: '2026-09-16' })
+      .expect(httpStatus.CREATED);
+    expect(createdFuel.body.asset).toBe('GP 111 GP');
+    expect(createdFuel.body.cost).toBe(800);
+
+    const fuel = await request(app)
+      .get('/v1/expenses')
+      .query({ kind: 'fuel' })
+      .set(...auth(adminAccessToken))
+      .expect(httpStatus.OK);
+    expect(fuel.body).toHaveLength(1);
+
+    const emptyFleet = await request(app)
+      .get('/v1/fleet')
+      .query({ type: 'vehicle' })
+      .set(...auth(adminAccessToken))
+      .expect(httpStatus.OK);
+    expect(emptyFleet.body).toEqual([]);
+    expect(emptyFleet.body.some((row) => row.id === 'VEH-01')).toBe(false);
+
+    const createdVehicle = await request(app)
+      .post('/v1/fleet')
+      .set(...auth(adminAccessToken))
+      .send({ type: 'vehicle', name: 'Volvo FH16', numberplate: 'GP 111 GP', yard: 'Durban Central Yard' })
+      .expect(httpStatus.CREATED);
+    expect(createdVehicle.body.name).toBe('Volvo FH16');
+    expect(createdVehicle.body.numberplate).toBe('GP 111 GP');
+
+    const vehicles = await request(app)
+      .get('/v1/fleet')
+      .query({ type: 'vehicle' })
+      .set(...auth(adminAccessToken))
+      .expect(httpStatus.OK);
+    expect(vehicles.body).toHaveLength(1);
+    expect(vehicles.body[0].numberplate).toBe('GP 111 GP');
+
+    const createdTrailer = await request(app)
+      .post('/v1/fleet')
+      .set(...auth(adminAccessToken))
+      .send({
+        type: 'trailer',
+        name: 'TNK-01',
+        fields: { type: 'Tanker' },
+        capacity: '30kl',
+        yard: 'Durban Central Yard',
+        status: 'available',
+      })
+      .expect(httpStatus.CREATED);
+    expect(createdTrailer.body.fleetType).toBe('trailer');
+    expect(createdTrailer.body.type).toBe('Tanker');
   });
 });

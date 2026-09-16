@@ -2,7 +2,7 @@
 /**
  * Plugin Name: CloudShip – Shipping, Logistics & Delivery
  * Plugin URI: https://github.com/hibarriassistantdev/CloudShip100
- * Description: WooCommerce shipping, logistics, local and international delivery, and package management. Install, sign in, and CloudShip connects your store. The seller sees courier prices in CloudShip after the customer places the order — not at checkout.
+ * Description: WooCommerce shipping, freight, courier booking, parcel tracking, and international logistics. Install, sign in, and CloudShip connects your store. The seller sees DHL/FedEx courier prices in CloudShip after checkout — not on the cart.
  * Version: 1.1.2
  * Requires at least: 6.0
  * Requires PHP: 7.4

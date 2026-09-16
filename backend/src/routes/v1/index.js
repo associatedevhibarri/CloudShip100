@@ -20,6 +20,8 @@ const geofenceRoute = require('./geofence.route');
 const ecommerceRoute = require('./ecommerce.route');
 const financeRoute = require('./finance.route');
 const tripsRoute = require('./trips.route');
+const expenseRoute = require('./expense.route');
+const fleetRoute = require('./fleet.route');
 const webhooksRoute = require('./webhooks.route');
 const config = require('../../config/config');
 
@@ -61,6 +63,14 @@ const defaultRoutes = [
   {
     path: '/trips',
     route: tripsRoute,
+  },
+  {
+    path: '/expenses',
+    route: expenseRoute,
+  },
+  {
+    path: '/fleet',
+    route: fleetRoute,
   },
   {
     path: '/invoices',
