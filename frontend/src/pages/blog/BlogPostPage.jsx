@@ -55,10 +55,10 @@ export default function BlogPostPage() {
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand transition hover:underline"
         >
           <ArrowLeft size={14} />
-          Back to blog
+          Blog
         </Link>
 
-        {loading ? <LoadingState label="Loading post..." /> : null}
+        {loading ? <LoadingState label="Loading…" /> : null}
         {error ? (
           <div className="mt-8">
             <ErrorState message={error} />
@@ -76,7 +76,6 @@ export default function BlogPostPage() {
           <article className="mt-8">
             {date ? <p className="text-xs font-bold uppercase tracking-wide text-brand">{date}</p> : null}
             <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">{post.title}</h1>
-            {post.excerpt ? <p className="mt-4 text-lg leading-relaxed text-muted">{post.excerpt}</p> : null}
             {image ? (
               <img
                 src={`${image}?w=1400&auto=format`}
@@ -85,7 +84,7 @@ export default function BlogPostPage() {
               />
             ) : null}
             <div className="mt-8">
-              <PortablePostBody value={post.body} />
+              <PortablePostBody value={post.body} title={post.title} />
             </div>
           </article>
         ) : null}

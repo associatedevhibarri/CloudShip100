@@ -17,12 +17,12 @@ export const sanity = projectId
         Promise.reject(new Error('Sanity is not configured. Set VITE_SANITY_PROJECT_ID in frontend/.env')),
     }
 
-export const POSTS_QUERY = `*[_type == "post" && defined(slug.current)] | order(publishedAt desc) {
-  title, slug, excerpt, publishedAt, mainImage, body
+export const POSTS_QUERY = `*[_type in ["post", "page"] && defined(slug.current)] | order(publishedAt desc) {
+  title, slug, excerpt, keyword, publishedAt, mainImage, body
 }`
 
-export const POST_BY_SLUG_QUERY = `*[_type == "post" && slug.current == $slug][0]{
-  title, slug, excerpt, publishedAt, mainImage, body
+export const POST_BY_SLUG_QUERY = `*[_type in ["post", "page"] && slug.current == $slug][0]{
+  title, slug, excerpt, keyword, publishedAt, mainImage, body
 }`
 
 export function urlFor(source) {

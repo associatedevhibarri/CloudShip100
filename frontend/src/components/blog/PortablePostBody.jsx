@@ -4,11 +4,13 @@ import { urlFor } from '../../lib/sanity'
 const components = {
   types: {
     image: ({ value }) => {
-      const src = urlFor(value)
+      const src = value?.url || urlFor(value)
       if (!src) return null
+      const href = src.startsWith('http') || src.startsWith('/') ? src : `${src}`
+      if (/\/callback\//i.test(href) || /\/uploads\/generated-images\//i.test(href)) return null
       return (
         <img
-          src={`${src}?w=1400&auto=format`}
+          src={href.includes('cdn.sanity.io') ? `${href}?w=1400&auto=format` : href}
           alt={value.alt || ''}
           className="my-8 w-full rounded-2xl border border-line object-cover"
         />
@@ -55,7 +57,27 @@ const components = {
   },
 }
 
-export function PortablePostBody({ value }) {
-  if (!value?.length) return null
-  return <div className="max-w-none">{value ? <PortableText value={value} components={components} /> : null}</div>
+function blockText(block) {
+  return (block?.children || []).map((child) => child?.text || '').join('').trim()
+}
+
+function withoutDuplicateTitle(value = [], title = '') {
+  const blocks = Array.isArray(value) ? [...value] : []
+  const expected = String(title || '').trim().toLowerCase()
+  if (!blocks.length) return blocks
+  const first = blocks[0]
+  if (first?.style === 'h1' && expected && blockText(first).toLowerCase() === expected) {
+    blocks.shift()
+  }
+  return blocks
+}
+
+export function PortablePostBody({ value, title }) {
+  const blocks = withoutDuplicateTitle(value, title)
+  if (!blocks.length) return null
+  return (
+    <div className="max-w-none">
+      <PortableText value={blocks} components={components} />
+    </div>
+  )
 }
