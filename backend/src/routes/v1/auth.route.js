@@ -7,13 +7,38 @@ const auth = require('../../middlewares/auth');
 const router = express.Router();
 
 router.post('/register', validate(authValidation.register), authController.register);
-router.post('/ops/register', validate(authValidation.registerOperator), authController.registerOperator);
+router.post('/ops/invite', auth('manageUsers'), validate(authValidation.inviteOperator), authController.inviteOperator);
+router.post(
+  '/ops/:userId/resend-invite',
+  auth('manageUsers'),
+  validate(authValidation.operatorUserId),
+  authController.resendOperatorInvite
+);
+router.post(
+  '/ops/:userId/verify-email',
+  auth('manageUsers'),
+  validate(authValidation.operatorUserId),
+  authController.verifyOperatorEmail
+);
+router.post(
+  '/customers/:userId/verify-email',
+  auth('manageUsers'),
+  validate(authValidation.operatorUserId),
+  authController.verifyCustomerEmail
+);
+router.post(
+  '/customers/:userId/resend-verify',
+  auth('manageUsers'),
+  validate(authValidation.operatorUserId),
+  authController.resendCustomerVerify
+);
 router.post('/login', validate(authValidation.login), authController.login);
 router.post('/logout', validate(authValidation.logout), authController.logout);
 router.post('/refresh-tokens', validate(authValidation.refreshTokens), authController.refreshTokens);
 router.post('/forgot-password', validate(authValidation.forgotPassword), authController.forgotPassword);
 router.post('/reset-password', validate(authValidation.resetPassword), authController.resetPassword);
 router.post('/send-verification-email', auth(), authController.sendVerificationEmail);
+router.post('/resend-verification-email', validate(authValidation.resendVerificationEmail), authController.resendVerificationEmail);
 router.post('/verify-email', validate(authValidation.verifyEmail), authController.verifyEmail);
 router.get('/me', auth(), authController.getMe);
 

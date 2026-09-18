@@ -57,8 +57,18 @@ const deleteDocument = {
   }),
 };
 
+const setApprovalStatus = {
+  params: Joi.object().keys({
+    employeeId: Joi.string().required(),
+  }),
+  body: Joi.object().keys({
+    approvalStatus: Joi.string().valid('pending', 'active', 'rejected').required(),
+  }),
+};
+
 module.exports = {
   updateMyProfile,
   uploadDocument,
   deleteDocument,
+  setApprovalStatus,
 };

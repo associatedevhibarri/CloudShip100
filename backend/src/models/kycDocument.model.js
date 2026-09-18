@@ -43,6 +43,11 @@ const kycDocumentSchema = mongoose.Schema(
       type: Date,
       default: null,
     },
+    reminderStatus: {
+      type: String,
+      default: null,
+      trim: true,
+    },
   },
   {
     timestamps: true,

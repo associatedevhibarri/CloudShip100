@@ -27,23 +27,23 @@ async function fetchTracking(code) {
 
 export default function EmbedTrackPage() {
   const [params] = useSearchParams()
-  const code = (params.get('code') || '').trim()
+  const token = (params.get('token') || params.get('code') || '').trim()
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!code) {
-      setError('Add ?code=BOOKING_CODE to the URL')
+    if (!token) {
+      setError('Add ?token=TRACKING_TOKEN to the URL')
       return
     }
     setLoading(true)
     setError('')
-    fetchTracking(code)
+    fetchTracking(token)
       .then(setData)
       .catch((err) => setError(err.message || 'Unable to load tracking'))
       .finally(() => setLoading(false))
-  }, [code])
+  }, [token])
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] p-4 text-slate-900">
@@ -54,7 +54,7 @@ export default function EmbedTrackPage() {
           </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500">CloudShip tracking</p>
-            <p className="font-mono text-sm font-semibold">{code || '—'}</p>
+            <p className="font-mono text-sm font-semibold">{data?.code || token || '—'}</p>
           </div>
         </div>
 
@@ -68,10 +68,6 @@ export default function EmbedTrackPage() {
               <span className="font-semibold capitalize">
                 {data.statusLabel || displayShipmentLabel(data)}
               </span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-slate-500">Payment</span>
-              <span className="font-semibold capitalize">{String(data.paymentStatus || '—').replaceAll('_', ' ')}</span>
             </div>
             <div className="flex justify-between gap-3">
               <span className="text-slate-500">Route</span>

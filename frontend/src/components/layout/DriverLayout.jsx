@@ -2,10 +2,12 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Logo } from '../Logo'
 import { useAuth } from '../../context/AuthContext'
 import { driverNav } from '../../navigation/driverNav'
+import { useDriverGps } from '../../hooks/useDriverGps'
 
 export function DriverLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const gpsStatus = useDriverGps()
 
   const handleSignOut = () => {
     logout()
@@ -41,6 +43,7 @@ export function DriverLayout() {
         {user ? (
           <div className="border-t border-line bg-brand-light/40 px-4 py-2 text-center text-xs font-semibold text-brand-dark">
             Driver · {user.name} · {user.email}
+            {gpsStatus === 'live' ? ' · GPS sharing' : gpsStatus === 'denied' ? ' · GPS blocked' : ''}
           </div>
         ) : null}
       </header>

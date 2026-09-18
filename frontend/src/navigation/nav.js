@@ -27,6 +27,7 @@ import {
   UserCircle,
   PackagePlus,
   ShoppingBag,
+  UserPlus,
 } from 'lucide-react'
 
 export const operatorNav = [
@@ -69,6 +70,7 @@ export const operatorNav = [
     ],
   },
   { label: 'Drivers', path: '/app/drivers', icon: Users },
+  { label: 'Operators', path: '/app/operators', icon: UserPlus },
   {
     label: 'Orders',
     icon: Package,

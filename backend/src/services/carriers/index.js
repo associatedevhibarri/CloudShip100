@@ -28,9 +28,9 @@ const unavailable = (adapter, error) => [
   },
 ];
 
-const priceOption = (adapter, shipment, option) => {
+const priceOption = async (adapter, shipment, option) => {
   const priced = applyMargin(option.partnerPrice, config.margin);
-  const stored = quoteStore.put({
+  const stored = await quoteStore.put({
     partnerId: adapter.id,
     partnerName: adapter.name,
     shipment,
@@ -75,7 +75,7 @@ const quoteAdapter = async (adapter, shipment) => {
     if (!options.length) {
       return unavailable(adapter, 'No rates returned');
     }
-    return options.map((option) => priceOption(adapter, shipment, option));
+    return Promise.all(options.map((option) => priceOption(adapter, shipment, option)));
   } catch (err) {
     return unavailable(adapter, err.message || 'Quote failed');
   }
@@ -94,7 +94,7 @@ const quoteAll = async (shipment) => {
 };
 
 const bookStoredQuote = async (quoteId, extras = {}) => {
-  const stored = quoteStore.get(quoteId);
+  const stored = await quoteStore.get(quoteId);
   if (!stored) {
     throw new Error('Quote expired or not found. Request a new price.');
   }
@@ -110,6 +110,7 @@ const bookStoredQuote = async (quoteId, extras = {}) => {
     dropoffName: stored.shipment.dropoffName || extras.dropoffName,
   };
   const booked = await adapter.book(shipment, stored);
+  await quoteStore.consume(quoteId);
   return {
     ...booked,
     partnerId: stored.partnerId,

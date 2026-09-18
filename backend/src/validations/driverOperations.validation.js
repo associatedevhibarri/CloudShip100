@@ -18,6 +18,11 @@ const updateParcelStatus = {
   }),
   body: Joi.object().keys({
     status: Joi.string().valid('picked_up', 'in_transit', 'delivered').required(),
+    recipientName: Joi.string().trim().when('status', { is: 'delivered', then: Joi.required(), otherwise: Joi.optional() }),
+    signatureName: Joi.string().trim().when('status', { is: 'delivered', then: Joi.required(), otherwise: Joi.optional() }),
+    notes: Joi.string().trim().allow('', null),
+    lat: Joi.number().min(-90).max(90).allow(null),
+    lng: Joi.number().min(-180).max(180).allow(null),
   }),
 };
 
@@ -31,9 +36,21 @@ const createDamageLog = {
   }),
 };
 
+const pingLocation = {
+  body: Joi.object().keys({
+    lat: Joi.number().min(-90).max(90).required(),
+    lng: Joi.number().min(-180).max(180).required(),
+    heading: Joi.number().allow(null),
+    speed: Joi.number().allow(null),
+    accuracy: Joi.number().allow(null),
+    at: Joi.date().iso().allow(null),
+  }),
+};
+
 module.exports = {
   getMyTrips,
   getMyParcels,
   updateParcelStatus,
   createDamageLog,
+  pingLocation,
 };

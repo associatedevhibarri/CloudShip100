@@ -15,7 +15,8 @@ const updateParcelStatus = catchAsync(async (req, res) => {
   const parcel = await driverOperationsService.updateMyParcelStatus(
     req.user,
     req.params.parcelCode,
-    req.body.status
+    req.body.status,
+    req.body
   );
   res.send(parcel);
 });

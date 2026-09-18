@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const httpStatus = require('http-status');
 const ApiError = require('../../utils/ApiError');
 const config = require('../../config/config');
@@ -12,8 +13,26 @@ const logger = require('../../config/logger');
  */
 
 const verifyWebhook = (storeConnection, req) => {
-  const secret = storeConnection.webhookSecret;
-  if (!secret) return true;
+  const creds = safeDecrypt(storeConnection);
+  const secret = creds.appSecret || storeConnection.webhookSecret;
+  const raw = req.rawBody ? req.rawBody.toString('utf8') : typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+  if (!secret) {
+    if (config.env === 'production') {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Wix webhook secret is not configured');
+    }
+    return true;
+  }
+
+  const token = String(raw || '').trim();
+  if (token.startsWith('eyJ')) {
+    try {
+      jwt.verify(token, secret);
+      return true;
+    } catch (err) {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid Wix webhook JWT');
+    }
+  }
+
   const signature =
     req.headers['x-wix-signature'] ||
     req.headers['x-cloudship-signature'] ||
@@ -27,10 +46,8 @@ const verifyWebhook = (storeConnection, req) => {
     }
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Missing Wix webhook signature');
   }
-  const raw = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
   const expected = hmacSha256Hex(secret, raw);
   if (!safeEqualString(String(signature).toLowerCase(), expected.toLowerCase())) {
-    // Some Wix payloads use the raw secret compare of JWT — Stage 1 accepts hex HMAC
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid Wix webhook signature');
   }
   return true;

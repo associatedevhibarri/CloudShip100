@@ -16,23 +16,27 @@ export default function MapPage() {
 
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      setLoading(true)
+    const load = async () => {
       setError('')
       try {
         const rows = await api.getMapAssets()
-        if (!cancelled) setAssets(Array.isArray(rows) ? rows : [])
+        if (!cancelled) {
+          setAssets(Array.isArray(rows) ? rows : [])
+          setLoading(false)
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err.message || 'Failed to load map assets')
           setAssets([])
+          setLoading(false)
         }
-      } finally {
-        if (!cancelled) setLoading(false)
       }
-    })()
+    }
+    load()
+    const timer = window.setInterval(load, 15000)
     return () => {
       cancelled = true
+      window.clearInterval(timer)
     }
   }, [])
 
@@ -47,11 +51,17 @@ export default function MapPage() {
     <div>
       <PageHeader
         title="Live Map"
-        subtitle="Warehouse dispatch markers from assigned and dispatched parcels."
+        subtitle="Driver phone GPS. Empty until a driver shares location from the portal."
       />
-      <div className="mb-4">
-        <DemoDataNote>{DEMO_REASONS.mapGps}</DemoDataNote>
-      </div>
+      {assets.some((a) => a.fresh) ? null : (
+        <div className="mb-4">
+          <DemoDataNote>
+            {assets.length
+              ? 'Last pings are older than 2 minutes. Ask the driver to keep the portal open with location allowed.'
+              : DEMO_REASONS.mapGps}
+          </DemoDataNote>
+        </div>
+      )}
       {error ? (
         <div className="mb-4">
           <ErrorState message={error} />
@@ -67,7 +77,7 @@ export default function MapPage() {
 
       {filtered.length === 0 && !error ? (
         <Card className="p-8 text-center text-sm text-muted">
-          No map markers yet. Dispatch a warehouse parcel to place a vehicle marker.
+          No map markers yet. A driver must keep the portal open and allow location.
         </Card>
       ) : (
         <div className="grid gap-4 xl:grid-cols-[1fr_280px]">

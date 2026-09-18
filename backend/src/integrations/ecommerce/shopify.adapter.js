@@ -14,9 +14,15 @@ const logger = require('../../config/logger');
  */
 
 const verifyWebhook = (storeConnection, req) => {
-  const secret = storeConnection.webhookSecret;
-  if (!secret) return true;
+  const creds = safeDecrypt(storeConnection);
+  const secret = creds.clientSecret || creds.apiSecret || creds.webhookSecret || storeConnection.webhookSecret;
   const hmacHeader = req.headers['x-shopify-hmac-sha256'];
+  if (!secret) {
+    if (config.env === 'production') {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Shopify webhook secret is not configured');
+    }
+    return true;
+  }
   if (!hmacHeader) {
     if (config.env === 'development' || config.env === 'test') {
       logger.warn(`Shopify HMAC missing for connection ${storeConnection.id || storeConnection._id} — allowed in ${config.env}`);
@@ -27,10 +33,6 @@ const verifyWebhook = (storeConnection, req) => {
   const raw = req.rawBody || Buffer.from(JSON.stringify(req.body));
   const digest = crypto.createHmac('sha256', secret).update(raw).digest('base64');
   if (!safeEqualString(hmacHeader, digest)) {
-    if (config.env === 'development' || config.env === 'test') {
-      logger.warn(`Shopify HMAC mismatch for connection ${storeConnection.id || storeConnection._id} — allowed in ${config.env}`);
-      return true;
-    }
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid Shopify HMAC');
   }
   return true;

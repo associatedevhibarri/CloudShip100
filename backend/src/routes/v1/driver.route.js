@@ -12,8 +12,21 @@ const driverOperationsController = require('../../controllers/driverOperations.c
 const router = express.Router();
 
 router.get('/', auth('viewAllDrivers'), driverProfileController.listDrivers);
+router.get('/locations', auth('viewAllDrivers'), driverProfileController.listLiveLocations);
+router.patch(
+  '/:employeeId/approval',
+  auth('viewAllDrivers'),
+  validate(driverProfileValidation.setApprovalStatus),
+  driverProfileController.setApprovalStatus
+);
 
 router.use(auth(), requireDriver);
+
+router.post(
+  '/me/location',
+  validate(driverOperationsValidation.pingLocation),
+  driverProfileController.pingMyLocation
+);
 
 router.get('/me/dashboard', driverOperationsController.getMyDashboard);
 

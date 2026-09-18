@@ -26,6 +26,10 @@ const notificationSchema = mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    dismissed: {
+      type: Boolean,
+      default: false,
+    },
     sentAt: {
       type: Date,
       default: Date.now,

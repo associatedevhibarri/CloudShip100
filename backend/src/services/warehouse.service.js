@@ -132,6 +132,7 @@ const findBookingForParcel = async (parcel) => {
 const markBookingStage = async (parcel, stage, extra = {}) => {
   const booking = await findBookingForParcel(parcel);
   if (!booking) return;
+  if (!Array.isArray(booking.timeline)) booking.timeline = [];
   const step = booking.timeline.find((item) => item.stage === stage);
   if (!step || (step.done && !Object.keys(extra).length)) return;
   booking.timeline.forEach((item) => {
@@ -143,6 +144,11 @@ const markBookingStage = async (parcel, stage, extra = {}) => {
   Object.assign(booking, extra);
   booking.markModified('timeline');
   await booking.save();
+  await bookingSyncService.notifyBookingStatus(
+    booking,
+    extra.status || stage,
+    extra.detail || `Shipment is at ${String(stage).replaceAll('_', ' ')}`
+  );
 };
 
 const MARKETPLACE_SOURCES = ['woocommerce', 'shopify', 'wix', 'lovable'];
@@ -418,8 +424,6 @@ const mergeDriverBoard = (warehouseDrivers, registeredDrivers, parcels) => {
 };
 
 const getSnapshot = async () => {
-  await ensureSeed();
-  await ensureExpectedParcels();
   await syncExpectedFromBookings();
   const [parcels, batches, suggestions, zones, events, routes, drivers, mapAssets, registeredDrivers] = await Promise.all([
     Parcel.find(),
@@ -483,8 +487,6 @@ const appendEvent = async (parcelId, title, detail) => {
 };
 
 const findWarehouseParcel = async (parcelCode) => {
-  await ensureSeed();
-  await ensureExpectedParcels();
   const parcel = await Parcel.findOne({ code: parcelCode });
   if (!parcel) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Parcel not found');
@@ -583,7 +585,6 @@ const labelParcel = async (parcelCode) => {
 };
 
 const createBatch = async ({ name, warehouse, destination }) => {
-  await ensureSeed();
   const batch = await WarehouseBatch.create({
     code: await nextBatchCode(),
     name,
@@ -635,7 +636,6 @@ const addParcelToBatch = async (parcelCode, batchId) => {
 };
 
 const closeBatch = async (batchId) => {
-  await ensureSeed();
   const batch = await WarehouseBatch.findOne({ code: batchId });
   if (!batch) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Batch not found');
@@ -648,12 +648,17 @@ const closeBatch = async (batchId) => {
 };
 
 const upsertDispatchAsset = async (parcel, zone) => {
+  const lat = zone && zone.lat;
+  const lng = zone && zone.lng;
+  if (lat == null || lng == null) {
+    return null;
+  }
   const payload = {
     type: 'vehicle',
     label: parcel.truck || parcel.code,
     status: 'dispatched',
-    lat: (zone && zone.lat) || -28.1,
-    lng: (zone && zone.lng) || 29.6,
+    lat,
+    lng,
     driver: parcel.driver || '—',
     payload: `${parcel.cargo || 'Cargo'} · ${parcel.code}`,
     distance: 'En route',
@@ -824,6 +829,9 @@ const assignParcelToRegisteredDriver = async (parcelCode, employeeId) => {
   if (!profile || !profile.user || profile.user.role !== 'driver') {
     throw new ApiError(httpStatus.NOT_FOUND, `No registered driver with ID ${employeeId}`);
   }
+  if (profile.approvalStatus && profile.approvalStatus !== 'active') {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Driver ${employeeId} is not approved yet`);
+  }
 
   const existing = await Parcel.findOne({ code: parcelCode });
   if (!existing) {
@@ -852,12 +860,17 @@ const assignParcelToRegisteredDriver = async (parcelCode, employeeId) => {
     'Smart assigned',
     `Own fleet · ${updated.truck} · ${profile.user.name} (${profile.employeeId})`
   );
+  const emailService = require('./email.service');
+  await emailService.sendDriverAssignedEmail({
+    booking: { code: updated.orderId || parcelCode, pickup: updated.pickup, dropoff: updated.dropoff },
+    to: profile.user.email,
+    driverName: profile.user.name,
+  });
 
   return updated.toJSON();
 };
 
 const assignParcel = async (parcelCode, { employeeId, fleetType, truck, driver, partner } = {}) => {
-  await ensureSeed();
   const parcel = await Parcel.findOne({ code: parcelCode });
   if (!parcel) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Parcel not found');
@@ -877,7 +890,6 @@ const assignParcel = async (parcelCode, { employeeId, fleetType, truck, driver, 
 };
 
 const autoAssignParcels = async () => {
-  await ensureSeed();
   const registered = await listRegisteredDrivers();
   const open = await Parcel.find({
     status: { $nin: ['expected', 'dispatched'] },
@@ -928,7 +940,6 @@ const applyOptimizedHours = (baselineHrs, durationMinutes) => {
 };
 
 const optimizeRoute = async (routeCode) => {
-  await ensureSeed();
   const route = await WarehouseRoute.findOne({ code: routeCode });
   if (!route) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Route not found');
@@ -988,7 +999,6 @@ const attachParcelsToRoute = async (route) => {
 };
 
 const autoAssignRoutes = async () => {
-  await ensureSeed();
   const routes = await WarehouseRoute.find({ status: { $in: ['suggested', 'assigned'] } });
   for (const route of routes) {
     if (route.status === 'suggested') {
@@ -1017,7 +1027,6 @@ const haversineM = (lat1, lng1, lat2, lng2) => {
  * @param {{ lat: number, lng: number }} point
  */
 const evaluateZones = async ({ lat, lng }) => {
-  await ensureSeed();
   const zones = await WarehouseZone.find({ active: true });
   const matched = [];
   const exclusions = new Set();
@@ -1048,7 +1057,6 @@ const evaluateZones = async ({ lat, lng }) => {
 };
 
 const toggleZone = async (zoneId, active) => {
-  await ensureSeed();
   const zone = await WarehouseZone.findOne({ code: zoneId });
   if (!zone) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Zone not found');

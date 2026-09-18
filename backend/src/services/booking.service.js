@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const httpStatus = require('http-status');
 const { Booking, Contract, Invoice, PaymentRequest, Notification } = require('../models');
 const pricingService = require('./pricing.service');
@@ -5,6 +6,8 @@ const carriers = require('./carriers');
 const ApiError = require('../utils/ApiError');
 const logger = require('../config/logger');
 const { progressTimeline, courierStatusToStage, bookingStatusFromStage } = require('../integrations/utils/shipmentProgress');
+const { generateTrackingToken } = require('../utils/trackingToken');
+const emailService = require('./email.service');
 
 const TIMELINE_STAGE_ORDER = ['booked', 'warehouse', 'in_transit', 'out_for_delivery', 'delivered'];
 
@@ -41,9 +44,13 @@ const queryAllBookings = async (status) => {
   return Booking.find(filter).populate('company', 'name').sort('-bookedAt');
 };
 
-const generateBookingCode = async () => {
-  const count = await Booking.countDocuments();
-  return `BKG-${String(count + 1).padStart(4, '0')}`;
+const generateBookingCode = async (prefix = 'BKG') => {
+  for (let i = 0; i < 8; i += 1) {
+    const code = `${prefix}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+    const exists = await Booking.exists({ code });
+    if (!exists) return code;
+  }
+  return `${prefix}-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
 };
 
 /**
@@ -54,8 +61,12 @@ const generateBookingCode = async () => {
  * @param {Object} body - { pickup, dropoff, cargo, mode, weightKg?, value? }
  * @returns {Promise<Booking>}
  */
-const createBooking = async (company, body) => {
-  const { pickup, dropoff, cargo, weightKg, mode, value, quoteId } = body;
+const createBooking = async (company, body, actor = {}) => {
+  if (actor.role === 'customer' && body.value != null && !body.quoteId && !(Number(body.weightKg) > 0)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Get a live quote before booking. Customer price is not accepted.');
+  }
+  const { pickup, dropoff, cargo, weightKg, mode, quoteId } = body;
+  const value = actor.role === 'customer' ? undefined : body.value;
 
   let quotedPickup = pickup;
   let quotedDropoff = dropoff;
@@ -120,6 +131,7 @@ const createBooking = async (company, body) => {
   const booking = await Booking.create({
     company: company.id,
     code,
+    trackingToken: generateTrackingToken(),
     status,
     mode,
     cargo,
@@ -130,6 +142,7 @@ const createBooking = async (company, body) => {
     durationMinutes,
     timeline,
     bookedAt: now,
+    lastNotifiedStatus: 'booked',
     ...partnerFields,
   });
 
@@ -178,6 +191,9 @@ const createBooking = async (company, body) => {
   // eslint-disable-next-line global-require
   const warehouseService = require('./warehouse.service');
   await warehouseService.ingestBooking(booking, company, { weightKg });
+
+  const to = company.email;
+  await emailService.sendBookingConfirmationEmail({ booking, to });
 
   return booking;
 };

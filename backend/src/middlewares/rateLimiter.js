@@ -11,6 +11,11 @@ const quoteLimiter = rateLimit({
   max: 20,
 });
 
+const trackLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+});
+
 const placesLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
@@ -20,4 +25,5 @@ module.exports = {
   authLimiter,
   quoteLimiter,
   placesLimiter,
+  trackLimiter,
 };

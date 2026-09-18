@@ -38,9 +38,12 @@ export default function OpsLoginPage() {
       title="Sign in"
       subtitle="Use your staff credentials to continue."
       footer={
-        <Link to="/ops/register" className="font-semibold text-white/70 transition hover:text-white">
-          Create an account
-        </Link>
+        <div className="space-y-2">
+          <Link to="/forgot-password" className="block font-semibold text-white/70 transition hover:text-white">
+            Forgot password?
+          </Link>
+          <p className="text-white/45">Need an operator account? Ask a logged-in operator to invite you from Operators.</p>
+        </div>
       }
     >
       <form onSubmit={onSubmit} className="space-y-4">

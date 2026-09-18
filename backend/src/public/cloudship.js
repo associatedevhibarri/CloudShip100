@@ -1,29 +1,15 @@
 /**
  * CloudShip universal embed for Lovable / custom stores.
+ * Browser usage must only use the public API key — never a webhook signing secret.
+ *
  * Usage:
  *   <script src="https://YOUR_API/v1/public/cloudship.js"></script>
- *   CloudShip.init({ apiBase, apiKey, connectionId?, webhookSecret? })
+ *   CloudShip.init({ apiBase, apiKey, connectionId? })
  *   const rates = await CloudShip.quote({ pickup, dropoff, weightKg })
  *   const order = await CloudShip.createShipment({ ...order, quoteId })
  */
 (function (root) {
-  const state = { apiBase: '', apiKey: '', connectionId: '', webhookSecret: '' };
-
-  async function hmacHex(secret, body) {
-    if (!secret || !root.crypto || !root.crypto.subtle) return null;
-    const enc = new TextEncoder();
-    const key = await root.crypto.subtle.importKey(
-      'raw',
-      enc.encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    const sig = await root.crypto.subtle.sign('HMAC', key, enc.encode(body));
-    return Array.from(new Uint8Array(sig))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('');
-  }
+  const state = { apiBase: '', apiKey: '', connectionId: '' };
 
   async function request(path, payload) {
     const body = JSON.stringify(payload || {});
@@ -32,8 +18,6 @@
       'X-CloudShip-Key': state.apiKey,
     };
     if (state.connectionId) headers['X-CloudShip-Connection-Id'] = state.connectionId;
-    const sig = await hmacHex(state.webhookSecret, body);
-    if (sig) headers['X-CloudShip-Signature'] = sig;
     const res = await fetch(`${state.apiBase.replace(/\/$/, '')}${path}`, {
       method: 'POST',
       headers,
@@ -54,7 +38,6 @@
       state.apiBase = opts.apiBase || '';
       state.apiKey = opts.apiKey || '';
       state.connectionId = opts.connectionId || '';
-      state.webhookSecret = opts.webhookSecret || '';
       return root.CloudShip;
     },
     quote(payload) {

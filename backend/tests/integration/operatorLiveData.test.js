@@ -319,7 +319,7 @@ describe('Operator live data routes', () => {
     const labels = JSON.stringify(res.body.mapAssets || []);
     expect(mapIds).not.toContain('MAP-01');
     expect(labels).not.toContain('AfriMetals');
-    expect((res.body.routes || []).some((route) => route.id === 'RTE-01' || route.name)).toBe(true);
+    expect(res.body.routes || []).toEqual([]);
   });
 
   test('should return empty expenses and fleet without dummy rows, then persist created records', async () => {

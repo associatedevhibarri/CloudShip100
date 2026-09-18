@@ -1,96 +1,4 @@
-import { kpis, activitySeries, lostBookings, lostBookingsTotal } from '../data/kpis'
-import {
-  parcels,
-  batches,
-  assignmentSuggestions,
-  warehouseZones,
-  dispatchEvents,
-  warehouseRoutes,
-  warehouseDrivers,
-  warehouseMapAssets,
-} from '../data/warehouse'
-import { apiFetch, isLiveSession } from './http'
-
-const localKpis = (list) => {
-  const isToday = (iso) => {
-    if (!iso) return false
-    const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return false
-    return d.toDateString() === new Date().toDateString()
-  }
-  const awaitingReceive = list.filter((p) => p.status === 'expected').length
-  const inboundToday = list.filter((p) => p.status !== 'expected' && isToday(p.receivedAt)).length
-  const labelled = list.filter((p) => p.labelCode).length
-  const awaitingAssign = list.filter((p) => !p.fleetType && p.status !== 'expected' && p.status !== 'dispatched').length
-  const dispatched = list.filter((p) => p.status === 'dispatched').length
-  const assigned = list.filter((p) => p.fleetType)
-  const own = assigned.filter((p) => p.fleetType === 'own').length
-  const ownFleetShare = assigned.length ? Math.round((own / assigned.length) * 100) : 0
-  return {
-    awaitingReceive,
-    inboundToday,
-    labelled,
-    awaitingAssign,
-    dispatched,
-    ownFleetShare,
-    partnerShare: assigned.length ? 100 - ownFleetShare : 0,
-  }
-}
-
-const localWarehouseSnapshot = () => ({
-  kpis: localKpis(parcels),
-  parcels: parcels.map((p) => ({ ...p })),
-  batches: batches.map((b) => ({ ...b })),
-  suggestions: assignmentSuggestions.map((s) => ({ ...s })),
-  zones: warehouseZones.map((z) => ({ ...z })),
-  events: [...dispatchEvents],
-  routes: warehouseRoutes.map((r) => ({ ...r })),
-  drivers: warehouseDrivers.map((d) => ({ ...d })),
-  registeredDrivers: [],
-  mapAssets: warehouseMapAssets.map((a) => ({ ...a })),
-})
-
-const pushLocalEvent = (parcelId, title, detail) => {
-  dispatchEvents.push({
-    id: `EVT-L-${Date.now()}`,
-    parcelId,
-    time: new Date().toTimeString().slice(0, 5),
-    title,
-    detail,
-  })
-}
-
-const makeLocalLabel = (parcel) => {
-  if (parcel.labelCode) return parcel.labelCode
-  const num = String(parcel.id || '').replace(/\D/g, '').slice(-4).padStart(4, '0')
-  const slug =
-    String(parcel.cargo || 'GEN')
-      .split(/[\s—-]/)[0]
-      .replace(/[^A-Za-z]/g, '')
-      .slice(0, 5)
-      .toUpperCase() || 'GEN'
-  return `CS-ZA-${num}-${slug}`
-}
-
-const applyLocalParcelAssign = (parcelId) => {
-  const hint = assignmentSuggestions.find((s) => s.parcelId === parcelId)
-  const parcel = parcels.find((p) => p.id === parcelId)
-  if (hint && parcel) {
-    Object.assign(parcel, {
-      status: 'assigned',
-      fleetType: hint.fleetType,
-      truck: hint.truck,
-      driver: hint.driver,
-      partner: hint.partner,
-    })
-    pushLocalEvent(
-      parcelId,
-      'Smart assigned',
-      `${hint.fleetType === 'own' ? 'Own fleet' : hint.partner} · ${hint.truck} · ${hint.driver}`,
-    )
-  }
-  return parcel
-}
+import { apiFetch } from './http'
 
 const postWarehouse = async (path, body) => {
   await apiFetch(path, {
@@ -155,6 +63,7 @@ const mapDriver = (driver) => ({
   status: driver.status || 'Available',
   completeness: Number(driver.completeness) || 0,
   profileComplete: Boolean(driver.profileComplete),
+  approvalStatus: driver.approvalStatus || 'pending',
 })
 
 const mapNotification = (notification) => ({
@@ -168,9 +77,6 @@ const mapNotification = (notification) => ({
 })
 
 export const api = {
-  getKpis: () => kpis,
-  getActivity: () => activitySeries,
-  getLostBookings: () => ({ items: lostBookings, total: lostBookingsTotal }),
   getTrips: async (status) => {
     const query = status ? `?status=${encodeURIComponent(status)}` : ''
     const rows = await apiFetch(`/trips${query}`)
@@ -251,8 +157,14 @@ export const api = {
       phone: company.phone || '',
       tier: company.tier || 'Standard',
       outstanding: Number(company.outstanding) || 0,
+      ownerId: company.ownerId || null,
+      isEmailVerified: Boolean(company.isEmailVerified),
     }))
   },
+  verifyCustomerEmail: async (userId) =>
+    apiFetch(`/auth/customers/${userId}/verify-email`, { method: 'POST' }),
+  resendCustomerVerify: async (userId) =>
+    apiFetch(`/auth/customers/${userId}/resend-verify`, { method: 'POST' }),
   getOrders: async (status) => {
     const query = status ? `?status=${encodeURIComponent(status)}` : ''
     const rows = await apiFetch(`/bookings${query}`)
@@ -263,25 +175,9 @@ export const api = {
     return (Array.isArray(rows) ? rows : []).map(mapInvoice)
   },
   getOpsDashboard: async () => apiFetch('/dashboard'),
-  getLeads: async () => {
-    if (!isLiveSession()) return []
-    return apiFetch('/leads')
-  },
-  getPricingRates: async () => {
-    if (!isLiveSession()) {
-      return [
-        { mode: 'Road', baseFee: 50, perKm: 1.2, perKg: 0.5, active: true },
-        { mode: 'Air', baseFee: 200, perKm: 3.5, perKg: 2, active: true },
-        { mode: 'Maritime', baseFee: 150, perKm: 0.3, perKg: 0.8, active: true },
-        { mode: 'Rail', baseFee: 80, perKm: 0.6, perKg: 0.6, active: true },
-      ]
-    }
-    return apiFetch('/pricing/rates')
-  },
-  savePricingRates: async (body) => {
-    if (!isLiveSession()) return body.rates || []
-    return apiFetch('/pricing/rates', { method: 'PUT', body: JSON.stringify(body) })
-  },
+  getLeads: async () => apiFetch('/leads'),
+  getPricingRates: async () => apiFetch('/pricing/rates'),
+  savePricingRates: async (body) => apiFetch('/pricing/rates', { method: 'PUT', body: JSON.stringify(body) }),
   getFuelLogs: async () => {
     const rows = await apiFetch('/expenses?kind=fuel')
     return Array.isArray(rows) ? rows : []
@@ -318,159 +214,66 @@ export const api = {
       fuelSavePct: route.fuelSavePct || 0,
     }))
   },
-  getWeatherAnalytics: async () => [],
+  getWeatherAnalytics: async () => {
+    const rows = await apiFetch('/weather')
+    return Array.isArray(rows) ? rows : []
+  },
   getMapAssets: async () => {
-    const snapshot = await apiFetch('/warehouse')
-    return Array.isArray(snapshot?.mapAssets) ? snapshot.mapAssets : []
+    const rows = await apiFetch('/drivers/locations')
+    return Array.isArray(rows) ? rows : []
   },
   getFinanceSummary: async () => apiFetch('/finance'),
   getNotifications: async () => {
     const rows = await apiFetch('/notifications')
     return (Array.isArray(rows) ? rows : []).map(mapNotification)
   },
-  getWarehouseSnapshot: async () => apiFetch('/warehouse'),
-  receiveParcel: async (parcelId) => {
-    if (!isLiveSession()) {
-      const parcel = parcels.find((p) => p.id === parcelId)
-      if (parcel && (parcel.status === 'expected' || !parcel.status)) {
-        parcel.status = 'received'
-        parcel.zone = 'Receiving dock'
-        parcel.receivedAt = new Date().toISOString()
-        pushLocalEvent(
-          parcelId,
-          'Received at warehouse',
-          `${parcel.warehouse || 'Yard'} — receiving dock${parcel.orderId ? ` · ${parcel.orderId}` : ''}`,
-        )
-      }
-      return localWarehouseSnapshot()
-    }
-    return postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/receive`)
-  },
-  assignParcel: async (parcelId, employeeId, extra = {}) => {
-    if (!isLiveSession()) {
-      applyLocalParcelAssign(parcelId)
-      if (extra.driver) {
-        const parcel = parcels.find((p) => p.id === parcelId)
-        if (parcel) {
-          Object.assign(parcel, {
-            status: 'assigned',
-            fleetType: extra.fleetType || parcel.fleetType,
-            truck: extra.truck || parcel.truck,
-            driver: extra.driver,
-            partner: extra.partner ?? parcel.partner,
-          })
-        }
-      }
-      return localWarehouseSnapshot()
-    }
-    return postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/assign`, {
-      ...(employeeId ? { employeeId } : {}),
-      ...extra,
+  markNotificationRead: async (id) => apiFetch(`/notifications/${id}/read`, { method: 'PATCH' }),
+  dismissNotification: async (id) => apiFetch(`/notifications/${id}`, { method: 'DELETE' }),
+  inviteOperator: async (body) => apiFetch('/auth/ops/invite', { method: 'POST', body: JSON.stringify(body) }),
+  resendOperatorInvite: async (userId) =>
+    apiFetch(`/auth/ops/${userId}/resend-invite`, { method: 'POST' }),
+  verifyOperatorEmail: async (userId) =>
+    apiFetch(`/auth/ops/${userId}/verify-email`, { method: 'POST' }),
+  getOperators: async () => {
+    const [ops, admins] = await Promise.all([
+      apiFetch('/users?role=operator&limit=100&sortBy=name:asc'),
+      apiFetch('/users?role=admin&limit=100&sortBy=name:asc'),
+    ])
+    const rows = [...(admins.results || []), ...(ops.results || [])]
+    const seen = new Set()
+    return rows.filter((user) => {
+      if (!user?.id || seen.has(user.id)) return false
+      seen.add(user.id)
+      return true
     })
   },
-  autoAssignParcels: async () => {
-    if (!isLiveSession()) {
-      assignmentSuggestions.forEach((s) => applyLocalParcelAssign(s.parcelId))
-      return localWarehouseSnapshot()
-    }
-    return postWarehouse('/warehouse/parcels/auto-assign')
-  },
-  autoAssignRoutes: async () => {
-    if (!isLiveSession()) {
-      warehouseRoutes.forEach((r) => {
-        if (r.status === 'suggested' || r.status === 'assigned') {
-          r.status = 'assigned'
-          r.optimized = true
-          r.optimizedHrs = Math.round((r.baselineHrs || r.optimizedHrs || 8) * 0.85 * 10) / 10
-          r.fuelSavePct = Math.max(r.fuelSavePct || 0, 15)
-        }
-      })
-      return localWarehouseSnapshot()
-    }
-    return postWarehouse('/warehouse/routes/auto-assign')
-  },
-  labelParcel: async (parcelId) => {
-    if (!isLiveSession()) {
-      const parcel = parcels.find((p) => p.id === parcelId)
-      if (parcel) {
-        parcel.labelCode = makeLocalLabel(parcel)
-        if (parcel.status === 'received') parcel.status = 'labelled'
-        pushLocalEvent(parcelId, 'Labelled', parcel.labelCode)
-      }
-      return localWarehouseSnapshot()
-    }
-    return postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/label`)
-  },
-  addParcelToBatch: async (parcelId, batchId) => {
-    if (!isLiveSession()) {
-      const parcel = parcels.find((p) => p.id === parcelId)
-      const batch = batches.find((b) => b.id === batchId)
-      if (parcel && batch) {
-        parcel.batchId = batchId
-        if (!batch.parcelIds.includes(parcelId)) batch.parcelIds.push(parcelId)
-        if (batch.status === 'open') batch.status = 'ready'
-        if (parcel.status === 'received') parcel.status = 'labelled'
-        pushLocalEvent(parcelId, 'Batched', batchId)
-      }
-      return localWarehouseSnapshot()
-    }
-    return postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/batch`, { batchId })
-  },
-  closeBatch: async (batchId) => {
-    if (!isLiveSession()) {
-      const batch = batches.find((b) => b.id === batchId)
-      if (batch && batch.status !== 'dispatched') batch.status = 'ready'
-      return localWarehouseSnapshot()
-    }
-    return postWarehouse(`/warehouse/batches/${encodeURIComponent(batchId)}/close`)
-  },
-  dispatchParcel: async (parcelId) => {
-    if (!isLiveSession()) {
-      const parcel = parcels.find((p) => p.id === parcelId)
-      if (parcel && (parcel.driver || parcel.fleetType)) {
-        parcel.status = 'dispatched'
-        parcel.zone = 'Dispatch bay'
-        pushLocalEvent(parcelId, 'Dispatched', 'Left dispatch bay geofence')
-      }
-      return localWarehouseSnapshot()
-    }
-    return postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/dispatch`)
-  },
-  createBatch: async ({ name, warehouse, destination }) => {
-    if (!isLiveSession()) {
-      const id = `BAT-${String(batches.length + 1).padStart(3, '0')}`
-      batches.push({
-        id,
-        name,
-        warehouse,
-        destination,
-        parcelIds: [],
-        status: 'open',
-        createdAt: new Date().toISOString(),
-      })
-      return localWarehouseSnapshot()
-    }
-    return postWarehouse('/warehouse/batches', { name, warehouse, destination })
-  },
-  optimizeRoute: async (routeId) => {
-    if (!isLiveSession()) {
-      const route = warehouseRoutes.find((r) => r.id === routeId)
-      if (route) {
-        route.status = 'assigned'
-        route.optimized = true
-        route.optimizedHrs = Math.round((route.baselineHrs || 8) * 0.85 * 10) / 10
-        route.fuelSavePct = 15
-      }
-      return localWarehouseSnapshot()
-    }
-    return postWarehouse(`/warehouse/routes/${encodeURIComponent(routeId)}/optimize`)
-  },
-  toggleZone: async (zoneId, active) => {
-    if (!isLiveSession()) {
-      const zone = warehouseZones.find((z) => z.id === zoneId)
-      if (zone) zone.active = active
-      return localWarehouseSnapshot()
-    }
-    return postWarehouse(`/warehouse/zones/${encodeURIComponent(zoneId)}/toggle`, { active })
-  },
+  setDriverApproval: async (employeeId, approvalStatus) =>
+    apiFetch(`/drivers/${encodeURIComponent(employeeId)}/approval`, {
+      method: 'PATCH',
+      body: JSON.stringify({ approvalStatus }),
+    }),
+  createTrip: async (body) => apiFetch('/trips', { method: 'POST', body: JSON.stringify(body) }),
+  updateTrip: async (tripId, body) => apiFetch(`/trips/${tripId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  reassignTrip: async (tripId, employeeId) =>
+    apiFetch(`/trips/${tripId}/reassign`, { method: 'PATCH', body: JSON.stringify({ employeeId }) }),
+  cancelTrip: async (tripId) => apiFetch(`/trips/${tripId}/cancel`, { method: 'POST' }),
+  getWarehouseSnapshot: async () => apiFetch('/warehouse'),
+  receiveParcel: async (parcelId) => postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/receive`),
+  assignParcel: async (parcelId, employeeId, extra = {}) =>
+    postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/assign`, {
+      ...(employeeId ? { employeeId } : {}),
+      ...extra,
+    }),
+  autoAssignParcels: async () => postWarehouse('/warehouse/parcels/auto-assign'),
+  autoAssignRoutes: async () => postWarehouse('/warehouse/routes/auto-assign'),
+  labelParcel: async (parcelId) => postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/label`),
+  addParcelToBatch: async (parcelId, batchId) =>
+    postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/batch`, { batchId }),
+  closeBatch: async (batchId) => postWarehouse(`/warehouse/batches/${encodeURIComponent(batchId)}/close`),
+  dispatchParcel: async (parcelId) => postWarehouse(`/warehouse/parcels/${encodeURIComponent(parcelId)}/dispatch`),
+  createBatch: async ({ name, warehouse, destination }) =>
+    postWarehouse('/warehouse/batches', { name, warehouse, destination }),
+  optimizeRoute: async (routeId) => postWarehouse(`/warehouse/routes/${encodeURIComponent(routeId)}/optimize`),
+  toggleZone: async (zoneId, active) =>
+    postWarehouse(`/warehouse/zones/${encodeURIComponent(zoneId)}/toggle`, { active }),
 }

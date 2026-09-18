@@ -6,15 +6,14 @@ import { Card } from '../components/ui/Card'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { DataTable } from '../components/ui/DataTable'
 import { ErrorState, LoadingState } from '../components/ui/LoadingState'
+import { useToast } from '../context/ToastContext'
 
 function TripQueue({ title, items, tone }) {
   return (
     <Card className={`p-4 ${tone}`}>
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-extrabold text-ink">{title}</h3>
-        <span className="rounded-full bg-white/80 px-2.5 py-0.5 text-xs font-bold text-brand">
-          {items.length}
-        </span>
+        <span className="rounded-full bg-white/80 px-2.5 py-0.5 text-xs font-bold text-brand">{items.length}</span>
       </div>
       {items.length === 0 ? (
         <p className="text-xs text-muted">None right now.</p>
@@ -40,43 +39,129 @@ function TripQueue({ title, items, tone }) {
   )
 }
 
+const EMPTY_FORM = {
+  employeeId: '',
+  cargo: '',
+  pickup: '',
+  dropoff: '',
+  vehicle: '',
+  mode: 'road',
+}
+
 export default function TripsPage() {
+  const toast = useToast()
   const [trips, setTrips] = useState([])
+  const [drivers, setDrivers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [mode, setMode] = useState('all')
   const [selected, setSelected] = useState(null)
+  const [creating, setCreating] = useState(false)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [reassignId, setReassignId] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const load = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [tripRows, driverRows] = await Promise.all([api.getTrips(), api.getDrivers()])
+      setTrips(Array.isArray(tripRows) ? tripRows : [])
+      setDrivers(Array.isArray(driverRows) ? driverRows : [])
+    } catch (err) {
+      setError(err.message || 'Failed to load trips')
+      setTrips([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError('')
-      try {
-        const rows = await api.getTrips()
-        if (!cancelled) setTrips(Array.isArray(rows) ? rows : [])
-      } catch (err) {
-        if (!cancelled) {
-          setError(err.message || 'Failed to load trips')
-          setTrips([])
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
+    load()
   }, [])
+
+  const approvedDrivers = drivers.filter((d) => d.approvalStatus === 'active' && d.employeeId)
 
   const filtered = useMemo(
     () => (mode === 'all' ? trips : trips.filter((t) => t.mode === mode)),
-    [trips, mode],
+    [trips, mode]
   )
 
   const starting = filtered.filter((t) => t.status === 'starting_soon')
   const ending = filtered.filter((t) => t.status === 'ending_soon')
   const progress = filtered.filter((t) => t.status === 'in_progress')
+
+  const refreshSelected = (nextTrips, current) => {
+    if (!current) return
+    const updated = nextTrips.find((t) => t.tripId === current.tripId)
+    setSelected(updated || null)
+  }
+
+  const createTrip = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    try {
+      await api.createTrip(form)
+      toast.success('Trip created.')
+      setCreating(false)
+      setForm(EMPTY_FORM)
+      await load()
+    } catch (err) {
+      toast.error(err.message || 'Failed to create trip')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const updateStatus = async (status) => {
+    if (!selected) return
+    setSaving(true)
+    try {
+      const updated = await api.updateTrip(selected.tripId, { status })
+      toast.success(`Trip marked ${status.replaceAll('_', ' ')}.`)
+      const rows = await api.getTrips()
+      setTrips(Array.isArray(rows) ? rows : [])
+      setSelected(updated)
+    } catch (err) {
+      toast.error(err.message || 'Failed to update trip')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const reassign = async () => {
+    if (!selected || !reassignId) return
+    setSaving(true)
+    try {
+      const updated = await api.reassignTrip(selected.tripId, reassignId)
+      toast.success('Trip reassigned.')
+      const rows = await api.getTrips()
+      setTrips(Array.isArray(rows) ? rows : [])
+      setSelected(updated)
+      setReassignId('')
+    } catch (err) {
+      toast.error(err.message || 'Failed to reassign trip')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const cancel = async () => {
+    if (!selected) return
+    setSaving(true)
+    try {
+      const updated = await api.cancelTrip(selected.tripId)
+      toast.success('Trip cancelled.')
+      const rows = await api.getTrips()
+      setTrips(Array.isArray(rows) ? rows : [])
+      refreshSelected(Array.isArray(rows) ? rows : [], updated)
+      setSelected(updated)
+    } catch (err) {
+      toast.error(err.message || 'Failed to cancel trip')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const columns = [
     { key: 'id', label: 'Trip' },
@@ -101,11 +186,7 @@ export default function TripsPage() {
       key: 'actions',
       label: '',
       render: (row) => (
-        <button
-          type="button"
-          className="text-sm font-semibold text-brand"
-          onClick={() => setSelected(row)}
-        >
+        <button type="button" className="text-sm font-semibold text-brand" onClick={() => setSelected(row)}>
           Details
         </button>
       ),
@@ -114,11 +195,22 @@ export default function TripsPage() {
 
   if (loading) return <LoadingState label="Loading trips..." />
 
+  const canMutate = selected && selected.status !== 'cancelled' && selected.status !== 'completed'
+
   return (
     <div>
       <PageHeader
         title="Trips"
-        subtitle="Driver trips created when warehouse parcels are assigned."
+        subtitle="Create, reassign, cancel, or correct driver trips."
+        actions={
+          <button
+            type="button"
+            className="rounded-full bg-brand-gradient px-4 py-2 text-sm font-bold text-white"
+            onClick={() => setCreating(true)}
+          >
+            New trip
+          </button>
+        }
       />
       {error ? (
         <div className="mb-4">
@@ -157,11 +249,74 @@ export default function TripsPage() {
 
       {filtered.length === 0 && !error ? (
         <Card className="mt-4 p-8 text-center text-sm text-muted">
-          No trips yet. Assign a warehouse parcel to a registered driver to create one.
+          No trips yet. Create one here or assign a warehouse parcel to an approved driver.
         </Card>
       ) : (
         <DataTable columns={columns} rows={filtered} rowKey="tripId" />
       )}
+
+      {creating ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm">
+          <Card className="w-full max-w-lg p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-extrabold">New trip</h3>
+              <button type="button" className="text-sm font-semibold text-muted" onClick={() => setCreating(false)}>
+                Close
+              </button>
+            </div>
+            <form className="space-y-3" onSubmit={createTrip}>
+              <label className="block text-xs font-semibold text-muted">
+                Driver
+                <select
+                  required
+                  className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-semibold text-ink"
+                  value={form.employeeId}
+                  onChange={(e) => setForm((f) => ({ ...f, employeeId: e.target.value }))}
+                >
+                  <option value="">Select an approved driver</option>
+                  {approvedDrivers.map((driver) => (
+                    <option key={driver.employeeId} value={driver.employeeId}>
+                      {driver.name} ({driver.employeeId})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {['cargo', 'pickup', 'dropoff', 'vehicle'].map((field) => (
+                <label key={field} className="block text-xs font-semibold capitalize text-muted">
+                  {field}
+                  <input
+                    required={field !== 'vehicle'}
+                    className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-semibold text-ink"
+                    value={form[field]}
+                    onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
+                  />
+                </label>
+              ))}
+              <label className="block text-xs font-semibold text-muted">
+                Mode
+                <select
+                  className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-semibold text-ink"
+                  value={form.mode}
+                  onChange={(e) => setForm((f) => ({ ...f, mode: e.target.value }))}
+                >
+                  {['road', 'air', 'maritime', 'rail'].map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-full bg-brand-gradient px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              >
+                Create trip
+              </button>
+            </form>
+          </Card>
+        </div>
+      ) : null}
 
       {selected ? (
         <div className="fixed inset-0 z-50 flex justify-end bg-ink/30 backdrop-blur-sm">
@@ -176,6 +331,7 @@ export default function TripsPage() {
             <dl className="mt-4 space-y-3 text-sm">
               {[
                 ['Driver', selected.driver],
+                ['Employee ID', selected.employeeId || '—'],
                 ['Vehicle', selected.vehicle || '—'],
                 ['Cargo', selected.cargo],
                 ['Pickup', selected.pickup],
@@ -190,6 +346,58 @@ export default function TripsPage() {
                 </div>
               ))}
             </dl>
+
+            {canMutate ? (
+              <div className="mt-6 space-y-4">
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase text-muted">Correct status</p>
+                  <div className="flex flex-wrap gap-2">
+                    {['starting_soon', 'in_progress', 'ending_soon', 'completed'].map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        disabled={saving || selected.status === status}
+                        className="rounded-full border border-line px-3 py-1.5 text-xs font-bold disabled:opacity-50"
+                        onClick={() => updateStatus(status)}
+                      >
+                        {status.replaceAll('_', ' ')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase text-muted">Reassign</p>
+                  <select
+                    className="w-full rounded-lg border border-line px-3 py-2 text-sm font-semibold"
+                    value={reassignId}
+                    onChange={(e) => setReassignId(e.target.value)}
+                  >
+                    <option value="">Approved driver</option>
+                    {approvedDrivers.map((driver) => (
+                      <option key={driver.employeeId} value={driver.employeeId}>
+                        {driver.name} ({driver.employeeId})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={saving || !reassignId}
+                    className="mt-2 rounded-full border border-brand px-3 py-1.5 text-xs font-bold text-brand disabled:opacity-50"
+                    onClick={reassign}
+                  >
+                    Reassign driver
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  disabled={saving}
+                  className="rounded-full border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-700 disabled:opacity-50"
+                  onClick={cancel}
+                >
+                  Cancel trip
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

@@ -145,14 +145,7 @@ const handleRates = (platform) =>
   catchAsync(async (req, res) => {
     const conn = await resolveConnection(platform, req);
     const adapter = getAdapter(platform);
-    // Rate callbacks are often unsigned (Shopify CarrierService) — verify only if secret + signature present
-    try {
-      if (conn.webhookSecret && (req.headers['x-shopify-hmac-sha256'] || req.headers['x-cloudship-signature'])) {
-        adapter.verifyWebhook(conn, req);
-      }
-    } catch (e) {
-      // CarrierService from Shopify may not HMAC the same way; continue for Stage 1 with connectionId auth
-    }
+    adapter.verifyWebhook(conn, req);
 
     const parsed = adapter.parseRateRequest(req.body, conn);
     if (!parsed.dropoff) {

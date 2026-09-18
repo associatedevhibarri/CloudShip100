@@ -30,8 +30,10 @@ export const registerUser = createAsyncThunk(
   async ({ name, email, password, role, companyName }, { rejectWithValue }) => {
     try {
       const data = await authService.register({ name, email, password, role, companyName })
-      localStorage.setItem('cloudship_user', JSON.stringify(data.user))
-      localStorage.setItem('cloudship_tokens', JSON.stringify(data.tokens))
+      if (data.tokens) {
+        localStorage.setItem('cloudship_user', JSON.stringify(data.user))
+        localStorage.setItem('cloudship_tokens', JSON.stringify(data.tokens))
+      }
       return data
     } catch (err) {
       return rejectWithValue(err.message || 'Registration failed')
@@ -134,8 +136,10 @@ const authSlice = createSlice({
       })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading = false
-        state.user = action.payload.user
-        state.tokens = action.payload.tokens
+        if (action.payload?.tokens) {
+          state.user = action.payload.user
+          state.tokens = action.payload.tokens
+        }
         state.error = null
       })
       .addCase(registerUser.rejected, (state, action) => {

@@ -39,8 +39,9 @@ export default function LoginPage() {
         const authenticatedUser = await login(email, password)
         navigate(dashboardPathForRole(authenticatedUser?.role || role), { replace: true })
       } else {
-        const newUser = await register(name, email, password, role, companyName)
-        navigate(dashboardPathForRole(newUser?.role || role), { replace: true })
+        await register(name, email, password, role, companyName)
+        toast.success('Check your email to verify the account before signing in.')
+        navigate(`/check-email?email=${encodeURIComponent(email)}`, { replace: true })
       }
     } catch (err) {
       toast.error(err.message || 'Authentication failed. Please check your credentials or server connection.')
@@ -214,6 +215,13 @@ export default function LoginPage() {
                 ? 'Sign In'
                 : 'Create Account'}
             </button>
+            {mode === 'login' ? (
+              <p className="text-center text-sm">
+                <Link to="/forgot-password" className="font-semibold text-brand">
+                  Forgot password?
+                </Link>
+              </p>
+            ) : null}
           </form>
 
           <p className="mt-6 text-center text-sm text-muted md:text-left">

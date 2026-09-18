@@ -17,7 +17,7 @@ const getMyBookings = catchAsync(async (req, res) => {
 
 const createBooking = catchAsync(async (req, res) => {
   const company = await companyService.getOrCreateCompanyForUser(req.user);
-  const booking = await bookingService.createBooking(company, req.body);
+  const booking = await bookingService.createBooking(company, req.body, req.user);
   res.status(httpStatus.CREATED).send(booking);
 });
 

@@ -13,7 +13,7 @@ const setupTestDB = require('../utils/setupTestDB');
 const { User, Token } = require('../../src/models');
 const { roleRights } = require('../../src/config/roles');
 const { tokenTypes } = require('../../src/config/tokens');
-const { userOne, admin, insertUsers } = require('../fixtures/user.fixture');
+const { userOne, userTwo, admin, insertUsers } = require('../fixtures/user.fixture');
 const { userOneAccessToken, adminAccessToken } = require('../fixtures/token.fixture');
 
 setupTestDB();
@@ -27,9 +27,11 @@ describe('Auth routes', () => {
         email: faker.internet.email().toLowerCase(),
         password: 'password1',
       };
+      jest.spyOn(emailService.transport, 'sendMail').mockResolvedValue();
     });
 
     test('should return 201 and successfully register user if request data is ok', async () => {
+      const sendVerificationEmailSpy = jest.spyOn(emailService, 'sendVerificationEmail');
       const res = await request(app).post('/v1/auth/register').send(newUser).expect(httpStatus.CREATED);
 
       expect(res.body.user).not.toHaveProperty('password');
@@ -41,16 +43,14 @@ describe('Auth routes', () => {
         isEmailVerified: false,
         company: null,
       });
+      expect(res.body.tokens).toBeUndefined();
+      expect(res.body.message).toMatch(/verify/i);
+      expect(sendVerificationEmailSpy).toHaveBeenCalledWith(newUser.email, expect.any(String));
 
       const dbUser = await User.findById(res.body.user.id);
       expect(dbUser).toBeDefined();
       expect(dbUser.password).not.toBe(newUser.password);
       expect(dbUser).toMatchObject({ name: newUser.name, email: newUser.email, role: 'user', isEmailVerified: false });
-
-      expect(res.body.tokens).toEqual({
-        access: { token: expect.anything(), expires: expect.anything() },
-        refresh: { token: expect.anything(), expires: expect.anything() },
-      });
     });
 
     test('should return 400 error if email is invalid', async () => {
@@ -96,48 +96,52 @@ describe('Auth routes', () => {
   });
 
   describe('POST /v1/auth/ops/register', () => {
-    let newOperator;
+    test('should return 404 because public operator signup is closed', async () => {
+      await request(app)
+        .post('/v1/auth/ops/register')
+        .send({
+          name: faker.name.findName(),
+          email: faker.internet.email().toLowerCase(),
+          password: 'password1',
+        })
+        .expect(httpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('POST /v1/auth/ops/invite', () => {
     beforeEach(() => {
-      newOperator = {
+      jest.spyOn(emailService.transport, 'sendMail').mockResolvedValue();
+    });
+
+    test('should return 201 and invite an operator when an admin requests it', async () => {
+      await insertUsers([admin]);
+      const body = {
         name: faker.name.findName(),
         email: faker.internet.email().toLowerCase(),
-        password: 'password1',
       };
-    });
+      const sendInviteSpy = jest.spyOn(emailService, 'sendOperatorInviteEmail');
 
-    test('should return 201 and create an operator if request data is ok', async () => {
-      const res = await request(app).post('/v1/auth/ops/register').send(newOperator).expect(httpStatus.CREATED);
+      const res = await request(app)
+        .post('/v1/auth/ops/invite')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send(body)
+        .expect(httpStatus.CREATED);
 
-      expect(res.body.user).not.toHaveProperty('password');
-      expect(res.body.user).toEqual({
-        id: expect.anything(),
-        name: newOperator.name,
-        email: newOperator.email,
-        role: 'operator',
-        isEmailVerified: false,
-        company: null,
-      });
-
-      const dbUser = await User.findById(res.body.user.id);
-      expect(dbUser).toBeDefined();
-      expect(dbUser).toMatchObject({
-        name: newOperator.name,
-        email: newOperator.email,
+      expect(res.body.user).toMatchObject({
+        name: body.name,
+        email: body.email,
         role: 'operator',
         isEmailVerified: false,
       });
-
-      expect(res.body.tokens).toEqual({
-        access: { token: expect.anything(), expires: expect.anything() },
-        refresh: { token: expect.anything(), expires: expect.anything() },
-      });
+      expect(res.body.tokens).toBeUndefined();
+      expect(sendInviteSpy).toHaveBeenCalledWith(body.email, body.name, expect.any(String));
     });
 
-    test('should return 400 error if email is already used', async () => {
-      await insertUsers([userOne]);
-      newOperator.email = userOne.email;
-
-      await request(app).post('/v1/auth/ops/register').send(newOperator).expect(httpStatus.BAD_REQUEST);
+    test('should return 401 without an admin token', async () => {
+      await request(app)
+        .post('/v1/auth/ops/invite')
+        .send({ name: 'Ops', email: faker.internet.email().toLowerCase() })
+        .expect(httpStatus.UNAUTHORIZED);
     });
   });
 
@@ -164,6 +168,15 @@ describe('Auth routes', () => {
         access: { token: expect.anything(), expires: expect.anything() },
         refresh: { token: expect.anything(), expires: expect.anything() },
       });
+    });
+
+    test('should return 403 if the email is not verified', async () => {
+      const unverified = { ...userTwo, isEmailVerified: false };
+      await insertUsers([unverified]);
+      await request(app)
+        .post('/v1/auth/login')
+        .send({ email: userTwo.email, password: userTwo.password })
+        .expect(httpStatus.FORBIDDEN);
     });
 
     test('should return 401 error if there are no users with that email', async () => {

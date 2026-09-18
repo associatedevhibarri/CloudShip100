@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const httpStatus = require('http-status');
 const { Booking, IntegrationEvent } = require('../../models');
 const ApiError = require('../../utils/ApiError');
@@ -6,6 +7,7 @@ const quoteBridge = require('./quoteBridge.service');
 const paymentBridge = require('./paymentBridge.service');
 const { getAdapter } = require('../ecommerce');
 const { extractShopTotals } = require('../ecommerce/normalize');
+const { generateTrackingToken } = require('../../utils/trackingToken');
 const { displayShipmentStatus, displayShipmentLabel, progressTimeline } = require('../utils/shipmentProgress');
 
 const TIMELINE_TEMPLATE = [
@@ -17,8 +19,12 @@ const TIMELINE_TEMPLATE = [
 ];
 
 const generateBookingCode = async () => {
-  const count = await Booking.countDocuments();
-  return `BKG-MKT-${String(count + 1).padStart(5, '0')}`;
+  for (let i = 0; i < 8; i += 1) {
+    const code = `BKG-MKT-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+    const exists = await Booking.exists({ code });
+    if (!exists) return code;
+  }
+  return `BKG-MKT-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
 };
 
 /**
@@ -137,6 +143,7 @@ const ingestNormalizedOrder = async ({ storeConnection, normalized, quoteId, par
     booking = await Booking.create({
       company: storeConnection.company,
       code,
+      trackingToken: generateTrackingToken(),
       status: 'pending',
       mode: quoteMeta.mode || 'Road',
       cargo: normalized.cargo || `Order ${normalized.externalOrderId}`,
