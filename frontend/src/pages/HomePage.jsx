@@ -19,6 +19,7 @@ import {
   Send,
 } from 'lucide-react'
 import { MarketingLayout } from '../components/layout/MarketingLayout'
+import { ShippingDemandPartners } from '../components/marketing/ShippingDemandPartners'
 import { portalService } from '../services/portalService'
 import { ErrorState } from '../components/ui/LoadingState'
 import { PartnerQuoteCard } from '../components/quotes/PartnerQuoteCard'
@@ -445,7 +446,7 @@ export default function HomePage() {
   return (
     <MarketingLayout>
       <main>
-        <section className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-10 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pb-24 lg:pt-16">
+        <section className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 pb-12 pt-10 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pb-14 lg:pt-16">
           <div className="max-w-xl lg:max-w-none">
             <p className="inline-flex items-center rounded-full border border-brand/15 bg-brand-light/80 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.22em] text-brand">
               Cloud Ship 100
@@ -577,6 +578,8 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        <ShippingDemandPartners />
 
         <section className="border-t border-line/70 bg-surface py-20">
           <div className="mx-auto max-w-6xl px-5 sm:px-6">
