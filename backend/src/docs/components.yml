@@ -47,6 +47,273 @@ components:
         message:
           type: string
 
+    PartnerAddress:
+      description: Street string or structured object. We join non-empty parts.
+      oneOf:
+        - type: string
+          example: '12 Rivonia Road, Sandton, 2196, South Africa'
+        - type: object
+          properties:
+            address1:
+              type: string
+            address2:
+              type: string
+            city:
+              type: string
+            province:
+              type: string
+            postcode:
+              type: string
+            country:
+              type: string
+
+    PartnerLineItem:
+      type: object
+      properties:
+        name:
+          type: string
+        title:
+          type: string
+        quantity:
+          type: number
+          default: 1
+        price:
+          type: number
+        total:
+          type: number
+
+    PartnerRateRequest:
+      type: object
+      required: [dropoff]
+      properties:
+        pickup:
+          $ref: '#/components/schemas/PartnerAddress'
+        dropoff:
+          $ref: '#/components/schemas/PartnerAddress'
+        origin:
+          $ref: '#/components/schemas/PartnerAddress'
+        destination:
+          $ref: '#/components/schemas/PartnerAddress'
+        shippingAddress:
+          $ref: '#/components/schemas/PartnerAddress'
+        to:
+          type: string
+        weightKg:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+          description: Kilograms. Invalid or missing defaults to 1.
+        weight:
+          type: number
+          description: Alias of weightKg
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          default: ZAR
+
+    PartnerOrderRequest:
+      allOf:
+        - $ref: '#/components/schemas/PartnerRateRequest'
+        - type: object
+          required: [externalOrderId]
+          properties:
+            externalOrderId:
+              type: string
+              description: Unique id in the other project. Required.
+            orderId:
+              type: string
+              description: Alias of externalOrderId
+            id:
+              type: string
+              description: Alias of externalOrderId
+            buyerEmail:
+              type: string
+              format: email
+            buyerPhone:
+              type: string
+            buyer:
+              type: object
+              properties:
+                email:
+                  type: string
+                phone:
+                  type: string
+            cargo:
+              type: string
+            description:
+              type: string
+              description: Alias of cargo
+            quoteId:
+              type: string
+              description: From the rates response. Locks price if still valid.
+            partner:
+              type: string
+            service:
+              type: string
+            lineItems:
+              type: array
+              items:
+                $ref: '#/components/schemas/PartnerLineItem'
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/PartnerLineItem'
+            orderTotal:
+              type: number
+            itemsTotal:
+              type: number
+            shippingTotal:
+              type: number
+            total:
+              type: number
+
+    QuoteOption:
+      type: object
+      properties:
+        partner:
+          type: string
+        service:
+          type: string
+        quotedPrice:
+          type: number
+          description: Price to show the buyer
+        etaHours:
+          type: number
+          nullable: true
+        currency:
+          type: string
+
+    PartnerQuoteResponse:
+      type: object
+      properties:
+        quoteId:
+          type: string
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        pickup:
+          type: string
+        dropoff:
+          type: string
+        weightKg:
+          type: number
+        mode:
+          type: string
+          enum: [Road, Air, Maritime, Rail]
+        currency:
+          type: string
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuoteOption'
+        selected:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/QuoteOption'
+
+    PartnerOrderResponse:
+      type: object
+      properties:
+        duplicate:
+          type: boolean
+        bookingId:
+          type: string
+        bookingCode:
+          type: string
+        paymentStatus:
+          type: string
+          example: awaiting
+        payment:
+          nullable: true
+
+    PublicTrack:
+      type: object
+      properties:
+        code:
+          type: string
+        status:
+          type: string
+        statusLabel:
+          type: string
+        pickup:
+          type: string
+        dropoff:
+          type: string
+        trackingNumber:
+          type: string
+          nullable: true
+        trackingUrl:
+          type: string
+          nullable: true
+        timeline:
+          type: array
+          items:
+            type: object
+        updatedAt:
+          type: string
+          format: date-time
+
+    PublicQuoteRequest:
+      type: object
+      required: [pickup, dropoff, weightKg]
+      properties:
+        pickup:
+          type: string
+        dropoff:
+          type: string
+        weightKg:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        mode:
+          type: string
+          enum: [Road, Air, Maritime, Rail]
+        cargo:
+          type: string
+        lengthCm:
+          type: number
+        widthCm:
+          type: number
+        heightCm:
+          type: number
+        declaredValue:
+          type: number
+        pickupDate:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+
+  parameters:
+    CloudShipKey:
+      in: header
+      name: x-cloudship-key
+      required: true
+      schema:
+        type: string
+      description: Store publicApiKey (cs_live_…). Alias x-api-key.
+    CloudShipSignature:
+      in: header
+      name: x-cloudship-signature
+      required: false
+      schema:
+        type: string
+      description: hex HMAC-SHA256 of the raw JSON body with webhookSecret.
+    CloudShipConnectionId:
+      in: header
+      name: x-cloudship-connection-id
+      required: false
+      schema:
+        type: string
+      description: Store connection Mongo id. Optional when x-cloudship-key is valid.
+    ConnectionIdQuery:
+      in: query
+      name: connectionId
+      required: false
+      schema:
+        type: string
+
   responses:
     DuplicateEmail:
       description: Email already taken
@@ -90,3 +357,8 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    cloudshipKey:
+      type: apiKey
+      in: header
+      name: x-cloudship-key
+      description: Store publicApiKey issued when a Lovable / universal connection is created.

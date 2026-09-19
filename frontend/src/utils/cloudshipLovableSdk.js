@@ -1,8 +1,8 @@
 /**
  * CloudShip SDK for Lovable & Universal Custom E-Commerce Applications
- * 
- * Enterprise-grade client SDK supporting dynamic environment resolution,
- * automatic retries, timeout handling, and input validation.
+ *
+ * Field contract: docs/partner-api.md
+ * Auth: x-cloudship-key = publicApiKey (cs_live_...). Never put webhookSecret in the browser.
  */
 
 const getEnvBaseUrl = () => {
