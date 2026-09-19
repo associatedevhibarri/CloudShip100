@@ -3,6 +3,7 @@ const { Booking } = require('../models');
 const { Parcel: WarehouseParcel } = require('../models/warehouse.model');
 const { TIMELINE_STAGE_ORDER } = require('./booking.service');
 const logger = require('../config/logger');
+const emailService = require('./email.service');
 
 // Driver Portal parcel status -> the furthest Booking timeline stage it implies.
 const STATUS_TO_STAGE = {
@@ -21,6 +22,19 @@ const STATUS_TO_BOOKING_STATUS = {
 
 const MARKETPLACE_SOURCES = ['woocommerce', 'shopify', 'wix', 'lovable'];
 
+const notifyBookingStatus = async (booking, status, detail) => {
+  if (!booking || !status || booking.lastNotifiedStatus === status) return;
+  let populated = booking;
+  if (!booking.company || !booking.company.email) {
+    populated = await Booking.findById(booking._id || booking.id).populate('company', 'email');
+  }
+  if (!populated) return;
+  const to = populated.buyerEmail || (populated.company && populated.company.email);
+  await emailService.sendShipmentStatusEmail({ booking: populated, to, status, detail });
+  populated.lastNotifiedStatus = status;
+  await populated.save();
+};
+
 /**
  * Propagate a driver/warehouse parcel status change back to the originating Booking
  * (found by matching the warehouse parcel's `orderId` / driver parcel's `clientOrderId`
@@ -28,13 +42,14 @@ const MARKETPLACE_SOURCES = ['woocommerce', 'shopify', 'wix', 'lovable'];
  * A silent no-op if no Booking matches (e.g. legacy seeded demo parcels).
  * @param {string} clientOrderId
  * @param {string} driverParcelStatus - assigned | picked_up | in_transit | delivered
+ * @param {{ detail?: string }} [extra]
  */
-const syncBookingFromParcelStatus = async (clientOrderId, driverParcelStatus) => {
+const syncBookingFromParcelStatus = async (clientOrderId, driverParcelStatus, extra = {}) => {
   if (!clientOrderId) return;
   const targetStage = STATUS_TO_STAGE[driverParcelStatus];
   if (!targetStage) return;
 
-  const booking = await Booking.findOne({ code: clientOrderId });
+  const booking = await Booking.findOne({ code: clientOrderId }).populate('company', 'email');
   if (!booking) return;
 
   const targetIndex = TIMELINE_STAGE_ORDER.indexOf(targetStage);
@@ -60,6 +75,8 @@ const syncBookingFromParcelStatus = async (clientOrderId, driverParcelStatus) =>
     await WarehouseParcel.findOneAndUpdate({ orderId: clientOrderId }, { status: warehouseStatus });
   }
 
+  await notifyBookingStatus(booking, driverParcelStatus, extra.detail);
+
   // Best-effort marketplace push — never fail the driver/warehouse flow
   if (MARKETPLACE_SOURCES.includes(String(booking.source || ''))) {
     try {
@@ -79,4 +96,5 @@ const syncBookingFromParcelStatus = async (clientOrderId, driverParcelStatus) =>
 
 module.exports = {
   syncBookingFromParcelStatus,
+  notifyBookingStatus,
 };

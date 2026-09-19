@@ -23,6 +23,7 @@ const tripsRoute = require('./trips.route');
 const expenseRoute = require('./expense.route');
 const fleetRoute = require('./fleet.route');
 const webhooksRoute = require('./webhooks.route');
+const weatherRoute = require('./weather.route');
 const config = require('../../config/config');
 
 const router = express.Router();
@@ -119,6 +120,10 @@ const defaultRoutes = [
   {
     path: '/webhooks',
     route: webhooksRoute,
+  },
+  {
+    path: '/weather',
+    route: weatherRoute,
   },
 ];
 

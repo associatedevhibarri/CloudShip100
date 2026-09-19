@@ -60,6 +60,7 @@ const shipmentQuoteSchema = mongoose.Schema(
     pickupName: { type: String, default: null, trim: true },
     expiresAt: { type: Date, required: true },
     consumedAt: { type: Date, default: null },
+    payload: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { timestamps: true }
 );

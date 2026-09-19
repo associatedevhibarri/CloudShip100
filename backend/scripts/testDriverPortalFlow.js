@@ -27,21 +27,29 @@ const stamp = Date.now();
 const password = 'Test1234';
 
 const main = async () => {
-  const operator = await request('POST', '/auth/ops/register', {
-    body: {
-      name: 'E2E Operator',
-      email: `e2e.ops.${stamp}@example.com`,
-      password,
-    },
+  const mongoose = require('mongoose');
+  const config = require('../src/config/config');
+  const { User } = require('../src/models');
+  const { tokenService } = require('../src/services');
+
+  await mongoose.connect(config.mongoose.url, config.mongoose.options);
+
+  const operatorUser = await User.create({
+    name: 'E2E Operator',
+    email: `e2e.ops.${stamp}@example.com`,
+    password,
+    role: 'operator',
+    isEmailVerified: true,
   });
-  const driver = await request('POST', '/auth/register', {
-    body: {
-      name: 'E2E Driver',
-      email: `e2e.drv.${stamp}@example.com`,
-      password,
-      role: 'driver',
-    },
+  const driverUser = await User.create({
+    name: 'E2E Driver',
+    email: `e2e.drv.${stamp}@example.com`,
+    password,
+    role: 'driver',
+    isEmailVerified: true,
   });
+  const operator = { tokens: await tokenService.generateAuthTokens(operatorUser) };
+  const driver = { tokens: await tokenService.generateAuthTokens(driverUser) };
 
   const opsToken = operator.tokens.access.token;
   const drvToken = driver.tokens.access.token;

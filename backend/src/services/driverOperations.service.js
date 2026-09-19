@@ -94,6 +94,7 @@ const formatParcel = (parcel, booking = null) => {
     clientOrderId: parcel.clientOrderId,
     barcode: parcel.barcode,
     instructions: parcel.instructions,
+    proofOfDelivery: parcel.proofOfDelivery || null,
   };
   return enrichParcelFromBooking(base, booking);
 };
@@ -144,7 +145,7 @@ const syncTripFromParcelStatus = async (parcel, status) => {
   if (!tripId) return;
 
   const trip = parcel.trip?.code ? parcel.trip : await Trip.findById(tripId);
-  if (!trip || trip.status === 'completed') return;
+  if (!trip || trip.status === 'completed' || trip.status === 'cancelled') return;
 
   if (status === 'delivered') {
     const remaining = await Parcel.countDocuments({
@@ -243,7 +244,7 @@ const getMyParcels = async (user, status) => {
   return Promise.all(parcels.map((parcel) => formatParcelWithBooking(parcel)));
 };
 
-const updateMyParcelStatus = async (user, parcelCode, status) => {
+const updateMyParcelStatus = async (user, parcelCode, status, proof = {}) => {
   const profile = await getDriverProfile(user);
   const parcel = await Parcel.findOne({ driverProfile: profile.id, code: parcelCode }).populate('trip');
 
@@ -256,10 +257,29 @@ const updateMyParcelStatus = async (user, parcelCode, status) => {
   const booking = await findBookingForDriverParcel(parcel);
   assertParcelNotStaleForDriver(booking, parcelCode);
 
+  if (status === 'delivered') {
+    if (!proof.recipientName || !proof.signatureName) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Proof of delivery requires recipient name and signature');
+    }
+    parcel.proofOfDelivery = {
+      recipientName: proof.recipientName,
+      signatureName: proof.signatureName,
+      notes: proof.notes || '',
+      lat: proof.lat,
+      lng: proof.lng,
+      capturedAt: new Date(),
+    };
+  }
+
   parcel.status = status;
   await parcel.save();
   await syncTripFromParcelStatus(parcel, status);
-  await bookingSyncService.syncBookingFromParcelStatus(parcel.clientOrderId, status);
+  await bookingSyncService.syncBookingFromParcelStatus(parcel.clientOrderId, status, {
+    detail:
+      status === 'delivered'
+        ? `Signed by ${proof.signatureName}`
+        : `Parcel ${parcel.code} is ${status.replaceAll('_', ' ')}`,
+  });
 
   return formatParcel(parcel.toJSON(), booking);
 };

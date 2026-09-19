@@ -3,33 +3,56 @@ import { api } from '../services/api'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Card } from '../components/ui/Card'
 import { ErrorState, LoadingState } from '../components/ui/LoadingState'
+import { useToast } from '../context/ToastContext'
 
 export default function NotificationsPage() {
+  const toast = useToast()
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [saving, setSaving] = useState('')
+
+  const load = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const rows = await api.getNotifications()
+      setNotifications(Array.isArray(rows) ? rows : [])
+    } catch (err) {
+      setError(err.message || 'Failed to load notifications')
+      setNotifications([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setError('')
-      try {
-        const rows = await api.getNotifications()
-        if (!cancelled) setNotifications(Array.isArray(rows) ? rows : [])
-      } catch (err) {
-        if (!cancelled) {
-          setError(err.message || 'Failed to load notifications')
-          setNotifications([])
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
+    load()
   }, [])
+
+  const markRead = async (id) => {
+    setSaving(id)
+    try {
+      await api.markNotificationRead(id)
+      setNotifications((rows) => rows.map((n) => (n.id === id ? { ...n, unread: false } : n)))
+    } catch (err) {
+      toast.error(err.message || 'Failed to mark as read')
+    } finally {
+      setSaving('')
+    }
+  }
+
+  const dismiss = async (id) => {
+    setSaving(id)
+    try {
+      await api.dismissNotification(id)
+      setNotifications((rows) => rows.filter((n) => n.id !== id))
+    } catch (err) {
+      toast.error(err.message || 'Failed to dismiss')
+    } finally {
+      setSaving('')
+    }
+  }
 
   if (loading) return <LoadingState label="Loading notifications..." />
 
@@ -48,10 +71,7 @@ export default function NotificationsPage() {
       ) : (
         <div className="space-y-3">
           {notifications.map((n) => (
-            <Card
-              key={n.id}
-              className={`p-4 ${n.unread ? 'border-brand/40 bg-brand-light/30' : ''}`}
-            >
+            <Card key={n.id} className={`p-4 ${n.unread ? 'border-brand/40 bg-brand-light/30' : ''}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-extrabold text-ink">{n.title}</p>
@@ -68,6 +88,26 @@ export default function NotificationsPage() {
                     </span>
                   ) : null}
                 </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {n.unread ? (
+                  <button
+                    type="button"
+                    disabled={saving === n.id}
+                    className="rounded-full border border-line px-3 py-1 text-xs font-bold disabled:opacity-50"
+                    onClick={() => markRead(n.id)}
+                  >
+                    Mark read
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={saving === n.id}
+                  className="rounded-full border border-line px-3 py-1 text-xs font-bold disabled:opacity-50"
+                  onClick={() => dismiss(n.id)}
+                >
+                  Dismiss
+                </button>
               </div>
             </Card>
           ))}

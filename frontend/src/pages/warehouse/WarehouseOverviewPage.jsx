@@ -53,9 +53,7 @@ export default function WarehouseOverviewPage() {
   const { data, loading, error } = useWarehouse()
   const kpis = data?.kpis
   const rice =
-    data?.parcels?.find((p) => p.id === 'PCL-1001') ||
-    data?.parcels?.find((p) => p.status === 'assigned' || p.status === 'dispatched') ||
-    data?.parcels?.[0]
+    data?.parcels?.find((p) => p.status === 'assigned' || p.status === 'dispatched') || data?.parcels?.[0]
 
   return (
     <div>

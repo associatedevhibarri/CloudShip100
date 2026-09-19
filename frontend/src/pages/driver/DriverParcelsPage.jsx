@@ -36,17 +36,37 @@ export default function DriverParcelsPage() {
   const [filter, setFilter] = useState('all')
   const [selected, setSelected] = useState(null)
   const [updating, setUpdating] = useState(false)
+  const [pod, setPod] = useState({ recipientName: '', signatureName: '', notes: '' })
+  const [showPod, setShowPod] = useState(false)
 
   const filtered = useMemo(() => {
     return filter === 'all' ? parcels : parcels.filter((p) => p.status === filter)
   }, [parcels, filter])
 
-  const updateStatus = async (id, status) => {
+  const captureGps = () =>
+    new Promise((resolve) => {
+      if (typeof navigator === 'undefined' || !navigator.geolocation) {
+        resolve({})
+        return
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) =>
+          resolve({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          }),
+        () => resolve({}),
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 15000 }
+      )
+    })
+
+  const updateStatus = async (id, status, extra = {}) => {
     if (!token) return
     setUpdating(true)
     try {
-      await driverService.updateParcelStatus(token, id, status)
+      await driverService.updateParcelStatus(token, id, status, extra)
       setSelected(null)
+      setShowPod(false)
       toast.success(`Parcel ${id} marked as ${status.replaceAll('_', ' ')}.`)
       await reload()
     } catch (err) {
@@ -54,6 +74,36 @@ export default function DriverParcelsPage() {
     } finally {
       setUpdating(false)
     }
+  }
+
+  const startNextAction = (parcel) => {
+    const next = NEXT_ACTION[parcel.status]
+    if (!next) return
+    if (next.status === 'delivered') {
+      setPod({
+        recipientName: parcel.recipientName || '',
+        signatureName: '',
+        notes: '',
+      })
+      setShowPod(true)
+      return
+    }
+    updateStatus(parcel.id, next.status)
+  }
+
+  const submitPod = async () => {
+    if (!selected) return
+    if (!pod.recipientName.trim() || !pod.signatureName.trim()) {
+      toast.error('Recipient name and signature are required.')
+      return
+    }
+    const gps = await captureGps()
+    await updateStatus(selected.id, 'delivered', {
+      recipientName: pod.recipientName.trim(),
+      signatureName: pod.signatureName.trim(),
+      notes: pod.notes.trim(),
+      ...gps,
+    })
   }
 
   if (loading) {
@@ -96,7 +146,10 @@ export default function DriverParcelsPage() {
               <Card
                 key={parcel.id}
                 className="cursor-pointer p-5 transition hover:border-brand/30"
-                onClick={() => setSelected(parcel)}
+                onClick={() => {
+                  setSelected(parcel)
+                  setShowPod(false)
+                }}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -159,7 +212,14 @@ export default function DriverParcelsPage() {
                   <p className="mt-1 text-sm font-semibold capitalize text-muted">{marketplaceLine(selected)}</p>
                 ) : null}
               </div>
-              <button type="button" className="text-sm font-semibold text-muted" onClick={() => setSelected(null)}>
+              <button
+                type="button"
+                className="text-sm font-semibold text-muted"
+                onClick={() => {
+                  setSelected(null)
+                  setShowPod(false)
+                }}
+              >
                 Close
               </button>
             </div>
@@ -219,6 +279,14 @@ export default function DriverParcelsPage() {
                 <dt className="text-xs text-muted">Instructions</dt>
                 <dd className="font-semibold">{selected.instructions}</dd>
               </div>
+              {selected.proofOfDelivery ? (
+                <div>
+                  <dt className="text-xs text-muted">Proof of delivery</dt>
+                  <dd className="font-semibold">
+                    Signed by {selected.proofOfDelivery.signatureName} for {selected.proofOfDelivery.recipientName}
+                  </dd>
+                </div>
+              ) : null}
             </dl>
 
             {selected.actionsBlocked ? (
@@ -227,18 +295,58 @@ export default function DriverParcelsPage() {
               </p>
             ) : null}
 
-            <div className="mt-6 flex flex-wrap gap-2">
-              {!selected.actionsBlocked && NEXT_ACTION[selected.status] ? (
+            {showPod && selected.status === 'in_transit' ? (
+              <div className="mt-5 space-y-3 rounded-xl border border-line p-4">
+                <p className="text-sm font-extrabold">Proof of delivery</p>
+                <label className="block text-xs font-semibold text-muted">
+                  Recipient name
+                  <input
+                    className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-semibold text-ink"
+                    value={pod.recipientName}
+                    onChange={(e) => setPod((p) => ({ ...p, recipientName: e.target.value }))}
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-muted">
+                  Signature name
+                  <input
+                    className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-semibold text-ink"
+                    value={pod.signatureName}
+                    onChange={(e) => setPod((p) => ({ ...p, signatureName: e.target.value }))}
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-muted">
+                  Notes
+                  <textarea
+                    className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm font-semibold text-ink"
+                    rows={2}
+                    value={pod.notes}
+                    onChange={(e) => setPod((p) => ({ ...p, notes: e.target.value }))}
+                  />
+                </label>
+                <p className="text-xs text-muted">GPS is captured from this phone when you confirm delivery.</p>
                 <button
                   type="button"
                   disabled={updating}
-                  className={NEXT_ACTION[selected.status].className}
-                  onClick={() => updateStatus(selected.id, NEXT_ACTION[selected.status].status)}
+                  className="rounded-full bg-brand-gradient px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                  onClick={submitPod}
                 >
-                  {NEXT_ACTION[selected.status].label}
+                  Confirm delivered
                 </button>
-              ) : null}
-            </div>
+              </div>
+            ) : (
+              <div className="mt-6 flex flex-wrap gap-2">
+                {!selected.actionsBlocked && NEXT_ACTION[selected.status] ? (
+                  <button
+                    type="button"
+                    disabled={updating}
+                    className={NEXT_ACTION[selected.status].className}
+                    onClick={() => startNextAction(selected)}
+                  >
+                    {NEXT_ACTION[selected.status].label}
+                  </button>
+                ) : null}
+              </div>
+            )}
           </Card>
         </div>
       ) : null}

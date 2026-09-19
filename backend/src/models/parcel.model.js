@@ -68,6 +68,14 @@ const parcelSchema = mongoose.Schema(
       type: String,
       trim: true,
     },
+    proofOfDelivery: {
+      recipientName: { type: String, trim: true },
+      signatureName: { type: String, trim: true },
+      notes: { type: String, trim: true },
+      lat: Number,
+      lng: Number,
+      capturedAt: Date,
+    },
   },
   { timestamps: true }
 );

@@ -3,6 +3,7 @@ const auth = require('../../middlewares/auth');
 const validate = require('../../middlewares/validate');
 const ecommerceValidation = require('../../validations/ecommerce.validation');
 const ecommerceController = require('../../controllers/ecommerce.controller');
+const { trackLimiter } = require('../../middlewares/rateLimiter');
 
 const router = express.Router();
 
@@ -53,6 +54,6 @@ router.post(
   ecommerceController.confirmPayment
 );
 
-router.get('/track/:code', ecommerceController.publicTrack);
+router.get('/track/:code', trackLimiter, ecommerceController.publicTrack);
 
 module.exports = router;

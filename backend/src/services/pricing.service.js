@@ -29,7 +29,6 @@ const ensureSeed = async () => {
  * @returns {Promise<Object[]>}
  */
 const getRates = async () => {
-  await ensureSeed();
   const rows = await PricingRate.find().sort('mode');
   return rows.map((r) => r.toJSON());
 };
@@ -40,7 +39,6 @@ const getRates = async () => {
  * @returns {Promise<{baseFee: number, perKm: number, perKg: number}>}
  */
 const getRatesForMode = async (mode) => {
-  await ensureSeed();
   const doc = await PricingRate.findOne({ mode, active: true });
   if (doc) {
     return { baseFee: doc.baseFee, perKm: doc.perKm, perKg: doc.perKg };
@@ -56,7 +54,6 @@ const getRatesForMode = async (mode) => {
  * @returns {Promise<Object[]>}
  */
 const upsertRates = async (rates, updatedBy = null) => {
-  await ensureSeed();
   await Promise.all(
     rates.map((row) =>
       PricingRate.findOneAndUpdate(
@@ -101,6 +98,7 @@ const getQuote = async ({ pickup, dropoff, weightKg, mode }) => {
 };
 
 module.exports = {
+  ensureSeed,
   getQuote,
   getRates,
   upsertRates,

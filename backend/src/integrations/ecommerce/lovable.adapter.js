@@ -12,27 +12,30 @@ const { buildNormalizedOrder, formatAddress } = require('./normalize');
 
 const verifyWebhook = (storeConnection, req) => {
   const apiKey = req.headers['x-cloudship-key'] || req.headers['x-api-key'];
+  const publicKeyOk = Boolean(storeConnection.publicApiKey && apiKey && apiKey === storeConnection.publicApiKey);
   if (storeConnection.publicApiKey && apiKey && apiKey !== storeConnection.publicApiKey) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid CloudShip API key');
   }
   const secret = storeConnection.webhookSecret;
-  if (!secret) return true;
   const signature = req.headers['x-cloudship-signature'];
-  if (!signature) {
-    if (config.env === 'development' || config.env === 'test') {
-      return true;
+  if (signature) {
+    if (!secret) {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Webhook secret is not configured');
     }
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Missing CloudShip signature');
-  }
-  const raw = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
-  const expected = hmacSha256Hex(secret, raw);
-  if (!safeEqualString(String(signature).toLowerCase(), expected.toLowerCase())) {
-    if (config.env === 'development' || config.env === 'test') {
-      return true;
+    const raw = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
+    const expected = hmacSha256Hex(secret, raw);
+    if (!safeEqualString(String(signature).toLowerCase(), expected.toLowerCase())) {
+      throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid CloudShip signature');
     }
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid CloudShip signature');
+    return true;
   }
-  return true;
+  if (publicKeyOk) {
+    return true;
+  }
+  if (config.env === 'development' || config.env === 'test') {
+    return true;
+  }
+  throw new ApiError(httpStatus.UNAUTHORIZED, 'Missing CloudShip API key or signature');
 };
 
 const normalizeOrder = (payload) => {

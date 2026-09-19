@@ -61,11 +61,11 @@ export const driverService = {
     return parseResponse(res)
   },
 
-  async updateParcelStatus(token, parcelCode, status) {
+  async updateParcelStatus(token, parcelCode, status, extra = {}) {
     const res = await fetch(`${API_BASE_URL}/drivers/me/parcels/${encodeURIComponent(parcelCode)}/status`, {
       method: 'PATCH',
       headers: authHeaders(token),
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, ...extra }),
     })
     return parseResponse(res)
   },
@@ -123,6 +123,15 @@ export const driverService = {
     const res = await fetch(`${API_BASE_URL}/drivers/me/documents/${documentId}`, {
       method: 'DELETE',
       headers: authHeaders(token),
+    })
+    return parseResponse(res)
+  },
+
+  async pingLocation(token, payload) {
+    const res = await fetch(`${API_BASE_URL}/drivers/me/location`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify(payload),
     })
     return parseResponse(res)
   },

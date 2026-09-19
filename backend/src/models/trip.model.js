@@ -35,7 +35,7 @@ const tripSchema = mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['starting_soon', 'in_progress', 'ending_soon', 'completed'],
+      enum: ['starting_soon', 'in_progress', 'ending_soon', 'completed', 'cancelled'],
       default: 'starting_soon',
     },
     distanceKm: {

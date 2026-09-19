@@ -37,7 +37,7 @@ const createBooking = {
       bagTon: Joi.number().positive().allow(null),
       vehicleType: Joi.string().allow(''),
     })
-    .or('weightKg', 'value', 'quoteId'),
+    .or('weightKg', 'quoteId'),
 };
 
 const listBookings = {

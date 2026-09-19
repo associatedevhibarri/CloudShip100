@@ -31,8 +31,26 @@ const listDrivers = catchAsync(async (req, res) => {
   res.send(drivers);
 });
 
+const listLiveLocations = catchAsync(async (req, res) => {
+  const locations = await driverProfileService.listLiveLocations();
+  res.send(locations);
+});
+
+const pingMyLocation = catchAsync(async (req, res) => {
+  const location = await driverProfileService.pingMyLocation(req.user, req.body);
+  res.send(location);
+});
+
+const setApprovalStatus = catchAsync(async (req, res) => {
+  const profile = await driverProfileService.setApprovalStatus(req.params.employeeId, req.body.approvalStatus);
+  res.send(profile);
+});
+
 module.exports = {
   listDrivers,
+  listLiveLocations,
+  pingMyLocation,
+  setApprovalStatus,
   getMyProfile,
   updateMyProfile,
   uploadDocument,

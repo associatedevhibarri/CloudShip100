@@ -37,7 +37,6 @@ const ensureSeed = async () => {
  * @returns {Promise<Geofence[]>}
  */
 const listGeofences = async () => {
-  await ensureSeed();
   const rows = await Geofence.find().sort('code');
   return rows.map((r) => r.toJSON());
 };
@@ -48,7 +47,6 @@ const listGeofences = async () => {
  * @returns {Promise<Object>}
  */
 const createGeofence = async (body) => {
-  await ensureSeed();
   const code = body.id || body.code || `GEO-${Date.now().toString(36).toUpperCase()}`;
   const existing = await Geofence.findOne({ code });
   if (existing) {
@@ -79,7 +77,6 @@ const createGeofence = async (body) => {
  * @returns {Promise<Object>}
  */
 const updateGeofence = async (geofenceId, body) => {
-  await ensureSeed();
   const doc = await Geofence.findOne({ code: geofenceId });
   if (!doc) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Geofence not found');
@@ -102,7 +99,6 @@ const updateGeofence = async (geofenceId, body) => {
  * @param {string} geofenceId
  */
 const deleteGeofence = async (geofenceId) => {
-  await ensureSeed();
   const result = await Geofence.deleteOne({ code: geofenceId });
   if (!result.deletedCount) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Geofence not found');
@@ -115,7 +111,6 @@ const deleteGeofence = async (geofenceId) => {
  * @returns {Promise<Object>}
  */
 const evaluatePoint = async ({ lat, lng }) => {
-  await ensureSeed();
   const rules = await Geofence.find({ active: true });
   const matches = [];
   const exclusions = new Set();
@@ -168,6 +163,7 @@ const evaluatePoint = async ({ lat, lng }) => {
 };
 
 module.exports = {
+  ensureSeed,
   listGeofences,
   createGeofence,
   updateGeofence,

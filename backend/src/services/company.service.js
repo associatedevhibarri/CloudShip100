@@ -69,7 +69,7 @@ const getOutstandingBalance = async (companyId) => {
  * @returns {Promise<Array>}
  */
 const queryCompaniesWithOutstanding = async () => {
-  const companies = await Company.find().sort('-createdAt');
+  const companies = await Company.find().populate('owner', 'name email isEmailVerified role').sort('-createdAt');
   const outstanding = await Invoice.aggregate([
     { $match: { status: 'Open' } },
     { $group: { _id: '$company', total: { $sum: '$amount' } } },
@@ -77,7 +77,14 @@ const queryCompaniesWithOutstanding = async () => {
   const byCompany = new Map(outstanding.map((row) => [String(row._id), row.total]));
   return companies.map((company) => {
     const json = company.toJSON();
-    return { ...json, outstanding: byCompany.get(json.id) || 0 };
+    const owner = json.owner && typeof json.owner === 'object' ? json.owner : null;
+    return {
+      ...json,
+      outstanding: byCompany.get(json.id) || 0,
+      ownerId: owner ? owner.id : json.owner || null,
+      ownerEmail: owner ? owner.email : json.email,
+      isEmailVerified: owner ? Boolean(owner.isEmailVerified) : false,
+    };
   });
 };
 

@@ -46,7 +46,7 @@ export default function GeoAnalyticsPage() {
     <div>
       <PageHeader
         title="GeoSpatial Analytics"
-        subtitle="Warehouse route optimisation. Weather needs an external weather API."
+        subtitle="Warehouse route optimisation and live Open-Meteo weather for saved yard coordinates."
         actions={
           <Link to="/app/warehouse/routes" className="text-sm font-bold text-brand hover:underline">
             Warehouse route optimisation →
@@ -86,7 +86,9 @@ export default function GeoAnalyticsPage() {
             <DemoDataNote>{DEMO_REASONS.weather}</DemoDataNote>
           </div>
           {weather.length === 0 ? (
-            <p className="text-sm text-muted">No weather feed connected yet. Live GPS and weather stay pending external APIs.</p>
+            <p className="text-sm text-muted">
+              No weather yet. Save a warehouse zone or geofence with latitude and longitude, then refresh.
+            </p>
           ) : (
           <ul className="space-y-3">
             {weather.map((w) => (

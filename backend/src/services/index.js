@@ -24,3 +24,4 @@ module.exports.warehouseService = require('./warehouse.service');
 module.exports.storeConnectionService = require('./storeConnection.service');
 module.exports.expenseService = require('./expense.service');
 module.exports.fleetService = require('./fleet.service');
+module.exports.weatherService = require('./weather.service');

@@ -145,6 +145,13 @@ const bookingSchema = mongoose.Schema(
       trim: true,
       default: null,
     },
+    trackingToken: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
     selectedPartner: {
       type: String,
       trim: true,
@@ -196,6 +203,7 @@ const bookingSchema = mongoose.Schema(
     trackingUrl: { type: String, default: null, trim: true },
     courierStatus: { type: String, default: null, trim: true },
     lastPushedCourierStatus: { type: String, default: null, trim: true },
+    lastNotifiedStatus: { type: String, default: null, trim: true },
     carrierShipmentId: { type: String, default: null, trim: true },
     labelUrl: { type: String, default: null, trim: true },
     serviceName: { type: String, default: null, trim: true },

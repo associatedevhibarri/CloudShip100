@@ -1,7 +1,9 @@
 const httpStatus = require('http-status');
-const { KycDocument, Notification } = require('../models');
+const { KycDocument, Notification, Company } = require('../models');
 const ApiError = require('../utils/ApiError');
 const cloudinaryService = require('./cloudinary.service');
+const emailService = require('./email.service');
+const logger = require('../config/logger');
 
 const RENEWAL_WINDOW_DAYS = 30;
 
@@ -23,12 +25,14 @@ const computeStatus = (expiresAt) => {
 };
 
 /**
- * Raise a renewal-reminder notification for a document that is expiring soon or has lapsed.
+ * Raise a renewal-reminder notification and email for a document that is expiring or lapsed.
  * @param {ObjectId} companyId
  * @param {KycDocument} doc
  * @param {'expiring'|'non_compliant'} status
  */
 const raiseRenewalNotification = async (companyId, doc, status) => {
+  if (doc.reminderStatus === status) return;
+
   await Notification.create({
     company: companyId,
     title: `${doc.type} needs renewal`,
@@ -39,6 +43,32 @@ const raiseRenewalNotification = async (companyId, doc, status) => {
     type: 'kyc_renewal',
     unread: true,
   });
+
+  const company = await Company.findById(companyId);
+  if (company && company.email) {
+    await emailService.sendKycReminderEmail({
+      to: company.email,
+      documentType: doc.type,
+      expiresOn: doc.expiresAt ? new Date(doc.expiresAt).toISOString().slice(0, 10) : null,
+    });
+  }
+
+  doc.reminderStatus = status;
+  await doc.save();
+};
+
+const applyFreshStatus = async (doc) => {
+  const freshStatus = computeStatus(doc.expiresAt);
+  const worsened =
+    freshStatus === 'non_compliant' || (freshStatus === 'expiring' && doc.status === 'compliant');
+  if (freshStatus !== doc.status) {
+    doc.status = freshStatus;
+    await doc.save();
+  }
+  if (worsened) {
+    await raiseRenewalNotification(doc.company, doc, freshStatus);
+  }
+  return doc;
 };
 
 /**
@@ -50,23 +80,26 @@ const raiseRenewalNotification = async (companyId, doc, status) => {
  */
 const queryDocumentsByCompany = async (companyId) => {
   const documents = await KycDocument.find({ company: companyId }).sort('-uploadedAt');
+  await Promise.all(documents.map((doc) => applyFreshStatus(doc)));
+  return documents;
+};
 
+/**
+ * Scan every KYC document with an expiry date and email companies whose files just entered
+ * the renewal window or have lapsed. Safe to run on a timer.
+ */
+const scanExpiringDocuments = async () => {
+  const documents = await KycDocument.find({ expiresAt: { $ne: null } });
   await Promise.all(
     documents.map(async (doc) => {
-      const freshStatus = computeStatus(doc.expiresAt);
-      if (freshStatus === doc.status) return;
-
-      const worsened = freshStatus === 'non_compliant' || (freshStatus === 'expiring' && doc.status === 'compliant');
-      doc.status = freshStatus;
-      await doc.save();
-
-      if (worsened) {
-        await raiseRenewalNotification(companyId, doc, freshStatus);
+      try {
+        await applyFreshStatus(doc);
+      } catch (err) {
+        logger.warn(`KYC expiry scan failed for ${doc.id}: ${err.message}`);
       }
     })
   );
-
-  return documents;
+  return documents.length;
 };
 
 /**
@@ -109,4 +142,5 @@ const createDocument = async (companyId, body, file) => {
 module.exports = {
   queryDocumentsByCompany,
   createDocument,
+  scanExpiringDocuments,
 };

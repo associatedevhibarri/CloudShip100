@@ -100,6 +100,19 @@ const driverProfileSchema = mongoose.Schema(
       enum: ['Pending', 'Verified', 'Expiring'],
       default: 'Pending',
     },
+    lastKnownLocation: {
+      lat: Number,
+      lng: Number,
+      heading: Number,
+      speed: Number,
+      accuracy: Number,
+      at: Date,
+    },
+    approvalStatus: {
+      type: String,
+      enum: ['pending', 'active', 'rejected'],
+      default: 'pending',
+    },
   },
   {
     timestamps: true,

@@ -16,6 +16,9 @@ const loginUserWithEmailAndPassword = async (email, password) => {
   if (!user || !(await user.isPasswordMatch(password))) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect email or password');
   }
+  if (!user.isEmailVerified) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'Please verify your email before signing in');
+  }
   return user;
 };
 
@@ -64,7 +67,7 @@ const resetPassword = async (resetPasswordToken, newPassword) => {
     if (!user) {
       throw new Error();
     }
-    await userService.updateUserById(user.id, { password: newPassword });
+    await userService.updateUserById(user.id, { password: newPassword, isEmailVerified: true });
     await Token.deleteMany({ user: user.id, type: tokenTypes.RESET_PASSWORD });
   } catch (error) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Password reset failed');

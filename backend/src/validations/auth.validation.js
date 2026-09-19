@@ -1,5 +1,5 @@
 const Joi = require('joi');
-const { password } = require('./custom.validation');
+const { password, objectId } = require('./custom.validation');
 
 const register = {
   body: Joi.object().keys({
@@ -19,6 +19,13 @@ const registerOperator = {
   body: Joi.object().keys({
     email: Joi.string().required().email(),
     password: Joi.string().required().custom(password),
+    name: Joi.string().required(),
+  }),
+};
+
+const inviteOperator = {
+  body: Joi.object().keys({
+    email: Joi.string().required().email(),
     name: Joi.string().required(),
   }),
 };
@@ -63,13 +70,28 @@ const verifyEmail = {
   }),
 };
 
+const resendVerificationEmail = {
+  body: Joi.object().keys({
+    email: Joi.string().email().required(),
+  }),
+};
+
+const operatorUserId = {
+  params: Joi.object().keys({
+    userId: Joi.string().custom(objectId),
+  }),
+};
+
 module.exports = {
   register,
   registerOperator,
+  inviteOperator,
+  operatorUserId,
   login,
   logout,
   refreshTokens,
   forgotPassword,
   resetPassword,
   verifyEmail,
+  resendVerificationEmail,
 };

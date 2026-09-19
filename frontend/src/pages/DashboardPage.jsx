@@ -53,8 +53,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      setLoading(true)
+    const load = async () => {
       setError('')
       try {
         const [summary, leadRows, mapRows] = await Promise.all([
@@ -79,9 +78,12 @@ export default function DashboardPage() {
       } finally {
         if (!cancelled) setLoading(false)
       }
-    })()
+    }
+    load()
+    const timer = window.setInterval(load, 15000)
     return () => {
       cancelled = true
+      window.clearInterval(timer)
     }
   }, [])
 
@@ -198,7 +200,7 @@ export default function DashboardPage() {
         <div className="relative">
           <LogisticsMap assets={mapAssets} height="360px" />
           <div className="pointer-events-none absolute left-4 top-4 z-[500]">
-            <DemoDataNote>{DEMO_REASONS.mapGps}</DemoDataNote>
+            {mapAssets.some((a) => a.fresh) ? null : <DemoDataNote>{DEMO_REASONS.mapGps}</DemoDataNote>}
           </div>
           <p className="pointer-events-none absolute bottom-5 left-1/2 z-[500] -translate-x-1/2 text-sm font-extrabold tracking-wide text-ink drop-shadow">
             Road Cargo

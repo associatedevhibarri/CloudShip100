@@ -96,9 +96,11 @@ const publicTrack = catchAsync(async (req, res) => {
   const { Booking } = require('../models');
   const code = String(req.params.code || '').trim();
   if (!code) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Booking code required');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Tracking token required');
   }
-  const booking = await Booking.findOne({ code });
+  const booking = await Booking.findOne({
+    $or: [{ trackingToken: code }, { code }],
+  });
   if (!booking) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Tracking not found');
   }
@@ -107,15 +109,11 @@ const publicTrack = catchAsync(async (req, res) => {
   res.send({
     code: booking.code,
     status,
-    courierStatus: booking.courierStatus || null,
     statusLabel: displayShipmentLabel(booking),
-    paymentStatus: booking.paymentStatus,
     pickup: booking.pickup,
     dropoff: booking.dropoff,
     trackingNumber: booking.trackingNumber,
     trackingUrl: booking.trackingUrl || null,
-    logisticsBookingRef: booking.logisticsBookingRef,
-    source: booking.source,
     timeline: progressTimeline(booking.timeline, status),
     updatedAt: booking.updatedAt,
   });

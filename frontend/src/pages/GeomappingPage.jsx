@@ -25,8 +25,8 @@ export default function GeomappingPage() {
   const [error, setError] = useState('')
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
-  const [checkLat, setCheckLat] = useState('-29.8587')
-  const [checkLng, setCheckLng] = useState('31.0218')
+  const [checkLat, setCheckLat] = useState('')
+  const [checkLng, setCheckLng] = useState('')
   const [checkResult, setCheckResult] = useState(null)
   const [checking, setChecking] = useState(false)
 

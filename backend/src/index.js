@@ -12,6 +12,14 @@ mongoose.connect(config.mongoose.url, config.mongoose.options).then(() => {
     if (config.env !== 'test') {
       const { startTrackingPoller } = require('./integrations/bridge/carrierTracking.service');
       startTrackingPoller();
+      const { kycDocumentService } = require('./services');
+      const scanKyc = () => {
+        kycDocumentService.scanExpiringDocuments().catch((err) => {
+          logger.warn(`KYC expiry scan failed: ${err.message}`);
+        });
+      };
+      scanKyc();
+      setInterval(scanKyc, 6 * 60 * 60 * 1000);
     }
   });
 });

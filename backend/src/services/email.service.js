@@ -3,24 +3,101 @@ const config = require('../config/config');
 const logger = require('../config/logger');
 
 const transport = nodemailer.createTransport(config.email.smtp);
+
+const isSmtpConfigured = () => Boolean(config.email.smtp && config.email.smtp.host && config.email.from);
+
+const assertProductionSmtp = () => {
+  if (config.env === 'production' && !isSmtpConfigured()) {
+    throw new Error('SMTP_HOST and EMAIL_FROM are required in production');
+  }
+};
+
+assertProductionSmtp();
+
 /* istanbul ignore next */
-if (config.env !== 'test') {
+if (config.env === 'production') {
+  transport
+    .verify()
+    .then(() => logger.info('Connected to email server'))
+    .catch((err) => {
+      logger.error(`Unable to connect to email server: ${err.message}`);
+      process.exit(1);
+    });
+} else if (config.env !== 'test') {
   transport
     .verify()
     .then(() => logger.info('Connected to email server'))
     .catch(() => logger.warn('Unable to connect to email server. Make sure you have configured the SMTP options in .env'));
 }
 
+const escapeHtml = (value) =>
+  String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+const brandedHtml = (heading, paragraphs, cta) => {
+  const body = (paragraphs || [])
+    .map((p) => `<p style="margin:0 0 12px;color:#334155;font-size:15px;line-height:1.55">${escapeHtml(p).replace(/\n/g, '<br/>')}</p>`)
+    .join('');
+  const button = cta
+    ? `<p style="margin:24px 0 8px"><a href="${escapeHtml(cta.href)}" style="display:inline-block;background:#007bff;color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700">${escapeHtml(
+        cta.label
+      )}</a></p>`
+    : '';
+  return `<!DOCTYPE html>
+<html>
+  <body style="margin:0;background:#f4f6fb;padding:24px;font-family:Arial,Helvetica,sans-serif">
+    <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;padding:28px">
+      <p style="margin:0 0 8px;color:#007bff;font-weight:800;letter-spacing:0.22em;font-size:11px">CLOUDSHIP</p>
+      <h1 style="margin:0 0 16px;font-size:22px;color:#0f172a">${escapeHtml(heading)}</h1>
+      ${body}
+      ${button}
+      <p style="margin:28px 0 0;color:#64748b;font-size:12px;line-height:1.5">CloudShip logistics · <a href="${escapeHtml(
+        config.frontendUrl
+      )}">${escapeHtml(config.frontendUrl)}</a></p>
+    </div>
+  </body>
+</html>`;
+};
+
 /**
  * Send an email
  * @param {string} to
  * @param {string} subject
  * @param {string} text
+ * @param {string} [html]
  * @returns {Promise}
  */
-const sendEmail = async (to, subject, text) => {
+const sendEmail = async (to, subject, text, html) => {
   const msg = { from: config.email.from, to, subject, text };
+  if (html) msg.html = html;
   await transport.sendMail(msg);
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const sendTemplatedEmail = async (to, subject, heading, paragraphs, cta) => {
+  const textParts = [heading, '', ...(paragraphs || [])];
+  if (cta && cta.href) textParts.push('', cta.label, cta.href);
+  textParts.push('', `CloudShip · ${config.frontendUrl}`);
+  const html = brandedHtml(heading, paragraphs, cta);
+  const text = textParts.join('\n');
+  const attempts = config.env === 'test' ? 1 : 3;
+  let lastErr;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      await sendEmail(to, subject, text, html);
+      return;
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) {
+        await sleep(400 * (i + 1));
+      }
+    }
+  }
+  throw lastErr;
 };
 
 /**
@@ -30,13 +107,14 @@ const sendEmail = async (to, subject, text) => {
  * @returns {Promise}
  */
 const sendResetPasswordEmail = async (to, token) => {
-  const subject = 'Reset password';
-  // replace this url with the link to the reset password page of your front-end app
-  const resetPasswordUrl = `http://link-to-app/reset-password?token=${token}`;
-  const text = `Dear user,
-To reset your password, click on this link: ${resetPasswordUrl}
-If you did not request any password resets, then ignore this email.`;
-  await sendEmail(to, subject, text);
+  const resetPasswordUrl = `${config.frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
+  await sendTemplatedEmail(
+    to,
+    'Reset your CloudShip password',
+    'Reset password',
+    ['Use the button below to choose a new password. If you did not request this, you can ignore this email.'],
+    { href: resetPasswordUrl, label: 'Reset password' }
+  );
 };
 
 /**
@@ -46,52 +124,140 @@ If you did not request any password resets, then ignore this email.`;
  * @returns {Promise}
  */
 const sendVerificationEmail = async (to, token) => {
-  const subject = 'Email Verification';
-  // replace this url with the link to the email verification page of your front-end app
-  const verificationEmailUrl = `http://link-to-app/verify-email?token=${token}`;
-  const text = `Dear user,
-To verify your email, click on this link: ${verificationEmailUrl}
-If you did not create an account, then ignore this email.`;
-  await sendEmail(to, subject, text);
+  const verificationEmailUrl = `${config.frontendUrl}/verify-email?token=${encodeURIComponent(token)}`;
+  await sendTemplatedEmail(
+    to,
+    'Verify your CloudShip email',
+    'Verify your email',
+    ['Confirm this address to finish creating your CloudShip account.'],
+    { href: verificationEmailUrl, label: 'Verify email' }
+  );
 };
 
-const sendEmailSafe = async (to, subject, text) => {
+const sendOperatorInviteEmail = async (to, name, token) => {
+  const inviteUrl = `${config.frontendUrl}/reset-password?token=${encodeURIComponent(token)}&next=ops`;
+  await sendTemplatedEmail(
+    to,
+    'You are invited to CloudShip operations',
+    'Operator invite',
+    [`Hi ${name || 'there'},`, 'An administrator invited you to CloudShip operations. Set your password to activate the account.'],
+    { href: inviteUrl, label: 'Set password' }
+  );
+};
+
+const sendEmailSafe = async (to, subject, heading, paragraphs, cta) => {
   if (!to) return;
   try {
-    await sendEmail(to, subject, text);
+    await sendTemplatedEmail(to, subject, heading, paragraphs, cta);
   } catch (err) {
-    logger.warn(`Email to ${to} failed: ${err.message}`);
+    logger.error(`Email to ${to} failed after retries: ${err.message}`);
   }
+};
+
+const trackingUrlFor = (booking) => {
+  const token = booking.trackingToken || booking.code;
+  const param = booking.trackingToken ? 'token' : 'code';
+  return `${config.frontendUrl}/embed/track?${param}=${encodeURIComponent(token)}`;
 };
 
 const sendShipmentBookedEmails = async ({ booking, shopEmail, shopName }) => {
   const track = booking.trackingNumber || booking.logisticsBookingRef || booking.code;
-  const widget = `${config.frontendUrl}/embed/track?code=${encodeURIComponent(booking.code)}`;
-  const buyerText = `Your delivery is booked.
+  const widget = trackingUrlFor(booking);
+  await sendEmailSafe(
+    booking.buyerEmail,
+    `Your delivery ${booking.code} is booked`,
+    'Your delivery is booked',
+    [
+      `Booking: ${booking.code}`,
+      `From: ${booking.pickup}`,
+      `To: ${booking.dropoff}`,
+      `Courier: ${booking.partnerName || booking.selectedPartner || 'CloudShip'}`,
+      `Tracking number: ${track}`,
+      booking.trackingUrl ? `Courier tracking: ${booking.trackingUrl}` : '',
+      `Thank you for shopping with ${shopName || 'us'}.`,
+    ].filter(Boolean),
+    { href: widget, label: 'Track shipment' }
+  );
+  await sendEmailSafe(
+    shopEmail,
+    `CloudShip booked ${booking.code}`,
+    'A shopper paid for delivery',
+    [
+      `Booking: ${booking.code}`,
+      `Shop order: ${booking.externalOrderId || '-'}`,
+      `Customer pays: ${booking.quotedPrice} ${booking.currency || ''}`,
+      `Courier cost: ${booking.carrierCost != null ? booking.carrierCost : '-'}`,
+      `From: ${booking.pickup}`,
+      `To: ${booking.dropoff}`,
+      `Tracking: ${track}`,
+    ],
+    { href: widget, label: 'Open tracking' }
+  );
+};
 
-Booking: ${booking.code}
-From: ${booking.pickup}
-To: ${booking.dropoff}
-Courier: ${booking.partnerName || booking.selectedPartner || 'CloudShip'}
-Tracking number: ${track}
-Track here: ${widget}
-${booking.trackingUrl ? `Courier tracking: ${booking.trackingUrl}` : ''}
+const sendBookingConfirmationEmail = async ({ booking, to }) => {
+  await sendEmailSafe(
+    to || booking.buyerEmail || booking.customerEmail,
+    `Booking ${booking.code} confirmed`,
+    'Booking confirmed',
+    [
+      `Booking: ${booking.code}`,
+      `From: ${booking.pickup}`,
+      `To: ${booking.dropoff}`,
+      `Status: ${booking.status || 'booked'}`,
+    ],
+    { href: trackingUrlFor(booking), label: 'Track shipment' }
+  );
+};
 
-Thank you for shopping with ${shopName || 'us'}.`;
+const sendShipmentStatusEmail = async ({ booking, to, status, detail }) => {
+  await sendEmailSafe(
+    to || booking.buyerEmail || booking.customerEmail,
+    `Shipment ${booking.code} is ${status}`,
+    `Shipment ${status}`,
+    [`Booking: ${booking.code}`, detail, `From: ${booking.pickup}`, `To: ${booking.dropoff}`].filter(Boolean),
+    { href: trackingUrlFor(booking), label: 'Track shipment' }
+  );
+};
 
-  const shopText = `A shopper paid for delivery. The courier is booked.
+const sendDriverAssignedEmail = async ({ booking, to, driverName }) => {
+  await sendEmailSafe(
+    to,
+    `You were assigned booking ${booking.code}`,
+    'New assignment',
+    [
+      `Booking: ${booking.code}`,
+      driverName ? `Driver: ${driverName}` : '',
+      `From: ${booking.pickup}`,
+      `To: ${booking.dropoff}`,
+    ].filter(Boolean)
+  );
+};
 
-Booking: ${booking.code}
-Shop order: ${booking.externalOrderId || '-'}
-Customer pays: ${booking.quotedPrice} ${booking.currency || ''}
-Courier cost: ${booking.carrierCost != null ? booking.carrierCost : '-'}
-From: ${booking.pickup}
-To: ${booking.dropoff}
-Tracking: ${track}
-Track: ${widget}`;
+const sendKycReminderEmail = async ({ to, documentType, expiresOn }) => {
+  await sendEmailSafe(
+    to,
+    'CloudShip document reminder',
+    'A compliance document needs attention',
+    [`Document: ${documentType || 'KYC document'}`, expiresOn ? `Expires: ${expiresOn}` : 'Please review this document in your portal.'],
+    { href: `${config.frontendUrl}/customer/documents`, label: 'Open documents' }
+  );
+};
 
-  await sendEmailSafe(booking.buyerEmail, `Your delivery ${booking.code} is booked`, buyerText);
-  await sendEmailSafe(shopEmail, `CloudShip booked ${booking.code}`, shopText);
+const sendDriverApprovalEmail = async ({ to, driverName, approvalStatus }) => {
+  const approved = approvalStatus === 'active';
+  await sendEmailSafe(
+    to,
+    approved ? 'You are approved to drive for CloudShip' : 'CloudShip driver application update',
+    approved ? 'Driver account approved' : 'Driver application update',
+    [
+      `Hi ${driverName || 'there'},`,
+      approved
+        ? 'An operator approved your driver account. You can now receive parcel assignments.'
+        : `Your driver account is now ${approvalStatus}. Contact operations if you need help.`,
+    ],
+    { href: `${config.frontendUrl}/driver`, label: 'Open driver portal' }
+  );
 };
 
 module.exports = {
@@ -99,5 +265,14 @@ module.exports = {
   sendEmail,
   sendResetPasswordEmail,
   sendVerificationEmail,
+  sendOperatorInviteEmail,
   sendShipmentBookedEmails,
+  sendBookingConfirmationEmail,
+  sendShipmentStatusEmail,
+  sendDriverAssignedEmail,
+  sendKycReminderEmail,
+  sendDriverApprovalEmail,
+  sendEmailSafe,
+  assertProductionSmtp,
+  isSmtpConfigured,
 };

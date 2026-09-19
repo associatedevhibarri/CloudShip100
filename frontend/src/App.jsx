@@ -11,6 +11,10 @@ import HomePage from './pages/HomePage'
 import BlogPage from './pages/blog/BlogPage'
 import BlogPostPage from './pages/blog/BlogPostPage'
 import LoginPage from './pages/LoginPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
+import CheckEmailPage from './pages/CheckEmailPage'
 import OpsLoginPage from './pages/ops/OpsLoginPage'
 import OpsRegisterPage from './pages/ops/OpsRegisterPage'
 import DashboardPage from './pages/DashboardPage'
@@ -71,6 +75,7 @@ import WarehouseZonesPage from './pages/warehouse/WarehouseZonesPage'
 import DispatchPage from './pages/warehouse/DispatchPage'
 import WarehouseRoutesPage from './pages/warehouse/WarehouseRoutesPage'
 import WarehouseDriversPage from './pages/warehouse/WarehouseDriversPage'
+import OperatorsPage from './pages/OperatorsPage'
 
 export default function App() {
   return (
@@ -82,6 +87,10 @@ export default function App() {
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/check-email" element={<CheckEmailPage />} />
           <Route path="/ops" element={<Navigate to="/ops/login" replace />} />
           <Route path="/ops/login" element={<OpsLoginPage />} />
           <Route path="/ops/register" element={<OpsRegisterPage />} />
@@ -108,6 +117,7 @@ export default function App() {
             <Route path="warehouse/routes" element={<WarehouseRoutesPage />} />
             <Route path="warehouse/drivers" element={<WarehouseDriversPage />} />
             <Route path="drivers" element={<DriversPage />} />
+            <Route path="operators" element={<OperatorsPage />} />
             <Route path="assets" element={<AssetsOverviewPage />} />
             <Route path="assets/yards" element={<YardsPage />} />
             <Route path="assets/vehicles" element={<VehiclesPage />} />

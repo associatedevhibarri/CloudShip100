@@ -7,9 +7,9 @@ export const DEMO_REASONS = {
   airportFees:
     'Pending an airport-fee expense model. Customer invoices are not landing or handling charges.',
   salaries: 'Pending a payroll model. Driver and crew profiles do not store salary.',
-  weather: 'Pending a weather API. No weather data is stored yet.',
+  weather: 'Weather is empty until a yard or geofence has saved coordinates. Open-Meteo then fills live conditions.',
   mapGps:
-    'Warehouse dispatch pins only — not live GPS. Pending vehicle telemetry or lat/lng on bookings.',
+    'No live GPS ping yet. Drivers share location from the driver portal (phone GPS). The map stays empty until a ping exists.',
 }
 
 export function DemoDataNote({ children = 'Sample figures, not live.' }) {
