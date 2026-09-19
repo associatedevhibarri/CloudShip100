@@ -96,3 +96,42 @@ select {
 .toast-enter {
   animation: toast-in 180ms ease-out;
 }
+
+@keyframes partner-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.partner-marquee-viewport {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+.partner-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: partner-marquee 36s linear infinite;
+}
+
+.partner-marquee-track:hover {
+  animation-play-state: paused;
+}
+
+.partner-marquee-static {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .partner-marquee-viewport {
+    display: none;
+  }
+
+  .partner-marquee-static {
+    display: flex;
+    flex-wrap: wrap;
+  }
+}
