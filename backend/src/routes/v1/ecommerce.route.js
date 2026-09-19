@@ -7,6 +7,13 @@ const { trackLimiter } = require('../../middlewares/rateLimiter');
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * tags:
+ *   name: Ecommerce
+ *   description: Authenticated store connections (JWT). Public track is documented under Partner.
+ */
+
 router
   .route('/stores')
   .get(auth('viewOwnEcommerce'), ecommerceController.listStores)

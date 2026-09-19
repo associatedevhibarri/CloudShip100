@@ -1,0 +1,158 @@
+tags:
+  - name: Partner
+    description: Universal store API for Lovable and custom checkouts. Other projects implement this contract.
+  - name: Pricing
+    description: Public live quote used by the CloudShip homepage widget.
+
+paths:
+  /webhooks/lovable/rates:
+    post:
+      tags: [Partner]
+      summary: Checkout shipping rates
+      description: |
+        Called by another project's checkout when the buyer has a delivery address.
+        Identify the store with `x-cloudship-key` (publicApiKey from connect).
+        Show `options[].quotedPrice` to the buyer. Do not display carrierCost.
+      parameters:
+        - $ref: '#/components/parameters/CloudShipKey'
+        - $ref: '#/components/parameters/CloudShipSignature'
+        - $ref: '#/components/parameters/CloudShipConnectionId'
+        - $ref: '#/components/parameters/ConnectionIdQuery'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerRateRequest'
+            example:
+              pickup: '12 Rivonia Road, Sandton, 2196, South Africa'
+              dropoff: '1 Long Street, Cape Town, 8001, South Africa'
+              weightKg: 2
+              currency: ZAR
+      responses:
+        '200':
+          description: Quote. quoteId is null when no carrier returned a price.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerQuoteResponse'
+        '400':
+          description: dropoff missing or weightKg invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: 400
+                message: destination address required for rates
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /webhooks/lovable/orders:
+    post:
+      tags: [Partner]
+      summary: Ingest a shop order
+      description: |
+        Called when the other project has a placed (usually paid) order.
+        Idempotent on externalOrderId for this store. Retry safely.
+        Pass quoteId from the rates call to lock the quoted price.
+      parameters:
+        - $ref: '#/components/parameters/CloudShipKey'
+        - $ref: '#/components/parameters/CloudShipSignature'
+        - $ref: '#/components/parameters/CloudShipConnectionId'
+        - $ref: '#/components/parameters/ConnectionIdQuery'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerOrderRequest'
+            example:
+              externalOrderId: LOV-1001
+              buyerEmail: buyer@example.com
+              buyerPhone: '+27821234567'
+              pickup: '12 Rivonia Road, Sandton, 2196, South Africa'
+              dropoff: '1 Long Street, Cape Town, 8001, South Africa'
+              weightKg: 2
+              cargo: Cotton tee x 2
+              currency: ZAR
+              quoteId: qt_example
+              lineItems:
+                - name: Cotton tee
+                  quantity: 2
+                  total: 500
+              orderTotal: 689.5
+      responses:
+        '201':
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerOrderResponse'
+        '200':
+          description: Duplicate externalOrderId — existing booking returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerOrderResponse'
+        '400':
+          description: externalOrderId / pickup / dropoff missing, or ingest failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /ecommerce/track/{code}:
+    get:
+      tags: [Partner]
+      summary: Public shipment tracking
+      description: No auth. code is bookingCode or trackingToken. Rate limited.
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+          example: BKG-MKT-24001
+      responses:
+        '200':
+          description: Non-sensitive tracking payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicTrack'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          description: Rate limited
+
+  /pricing/quote:
+    post:
+      tags: [Pricing]
+      summary: Public live quote (CloudShip homepage)
+      description: |
+        Anonymous widget. Store integrations should use POST /webhooks/lovable/rates
+        so pickup warehouses and shop margin apply.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicQuoteRequest'
+            example:
+              pickup: '12 Rivonia Road, Sandton, 2196, South Africa'
+              dropoff: '1 Long Street, Cape Town, 8001, South Africa'
+              weightKg: 2
+              mode: Road
+              cargo: test
+              lengthCm: 30
+              widthCm: 20
+              heightCm: 15
+              declaredValue: 500
+      responses:
+        '200':
+          description: Carrier comparison
+        '400':
+          description: Validation failed (pickup, dropoff, weightKg required)

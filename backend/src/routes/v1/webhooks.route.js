@@ -6,6 +6,14 @@ const router = express.Router();
 /**
  * Public webhook / rate endpoints.
  * Always pass ?connectionId=... or X-CloudShip-Connection-Id until OAuth shop mapping is hardened.
+ * Lovable / custom stores: x-cloudship-key. Contract: docs/partner-api.md
+ */
+
+/**
+ * @swagger
+ * tags:
+ *   name: Webhooks
+ *   description: Platform-native inbound webhooks (Woo, Shopify, Wix, Stripe). Custom apps use Partner.
  */
 
 router.post('/woocommerce/orders', webhookController.wooOrder);
