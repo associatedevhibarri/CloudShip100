@@ -2,7 +2,7 @@
  * One-time / ops cleanup for stale own-fleet parcels left before paid-only warehouse ingest.
  *
  * Marks open warehouse + driver parcels as cancelled when their Booking is:
- *   - marketplace (woocommerce|shopify|wix|lovable) AND paymentStatus !== 'paid', OR
+ *   - marketplace (woocommerce|shopify|wix|lovable|bigcommerce) AND paymentStatus !== 'paid', OR
  *   - has logisticsBookingRef (external courier already booked)
  *
  * Does NOT delete history rows. Does NOT touch delivered parcels.
@@ -17,7 +17,7 @@ const config = require('../src/config/config');
 const { Booking, Parcel: DriverParcel } = require('../src/models');
 const { Parcel: WarehouseParcel, WarehouseDriver } = require('../src/models/warehouse.model');
 
-const MARKETPLACE_SOURCES = ['woocommerce', 'shopify', 'wix', 'lovable'];
+const MARKETPLACE_SOURCES = ['woocommerce', 'shopify', 'wix', 'lovable', 'bigcommerce'];
 const OPEN_DRIVER_STATUSES = ['assigned', 'picked_up', 'in_transit'];
 const TERMINAL_WAREHOUSE = new Set(['delivered', 'cancelled']);
 

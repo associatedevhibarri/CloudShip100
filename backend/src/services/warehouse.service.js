@@ -151,7 +151,7 @@ const markBookingStage = async (parcel, stage, extra = {}) => {
   );
 };
 
-const MARKETPLACE_SOURCES = ['woocommerce', 'shopify', 'wix', 'lovable'];
+const MARKETPLACE_SOURCES = ['woocommerce', 'shopify', 'wix', 'lovable', 'bigcommerce'];
 
 const isMarketplaceSource = (source) => MARKETPLACE_SOURCES.includes(String(source || ''));
 

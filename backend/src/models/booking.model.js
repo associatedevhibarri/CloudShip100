@@ -81,7 +81,7 @@ const bookingSchema = mongoose.Schema(
     // Marketplace / e-commerce bridge fields (Pratik Stage 1)
     source: {
       type: String,
-      enum: ['portal', 'woocommerce', 'shopify', 'wix', 'lovable', 'api'],
+      enum: ['portal', 'woocommerce', 'shopify', 'wix', 'lovable', 'bigcommerce', 'api'],
       default: 'portal',
     },
     storeConnection: {

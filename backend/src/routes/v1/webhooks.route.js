@@ -26,6 +26,11 @@ router.post('/wix/rates/:connectionId', webhookController.wixRates);
 router.post('/lovable/orders', webhookController.lovableOrder);
 router.post('/lovable/rates', webhookController.lovableRates);
 
+router.post('/bigcommerce/orders', webhookController.bigcommerceOrder);
+router.post('/bigcommerce/orders/:connectionId', webhookController.bigcommerceOrder);
+router.post('/bigcommerce/rates', webhookController.bigcommerceRates);
+router.post('/bigcommerce/rates/:connectionId', webhookController.bigcommerceRates);
+
 router.post('/stripe', webhookController.stripeWebhook);
 
 module.exports = router;

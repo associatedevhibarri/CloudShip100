@@ -1,6 +1,6 @@
 # CloudShip E-Commerce Integrations Guide
 
-This comprehensive guide explains how to connect, configure, and test external e-commerce platforms (**WooCommerce**, **Shopify**, **Wix**, and **Lovable / Custom Web Apps**) to flow seamlessly into CloudShip for automatic shipping rate calculations and order ingestion.
+This comprehensive guide explains how to connect, configure, and test external e-commerce platforms (**WooCommerce**, **Shopify**, **Wix**, **BigCommerce**, and **Lovable / Custom Web Apps**) to flow seamlessly into CloudShip for automatic shipping rate calculations and order ingestion.
 
 ---
 
@@ -117,9 +117,43 @@ const booking = await cloudship.createOrder({
 
 ---
 
+## 5. 🏬 BigCommerce Integration (custom API — no App Marketplace listing)
+
+Partner sandbox / trial stores are **free**. This pass is a merchant-wired connection (store hash + access token), same idea as a Shopify custom app. Live checkout rates need a draft shipping-provider app later; the callback itself ships now.
+
+### A. Create a sandbox store and API account
+1. Sign up at [BigCommerce Partners](https://partners.bigcommerce.com) and create a trial store.
+2. In the store: **Settings** ➔ **API** ➔ **Store-level API accounts** ➔ **Create API account**.
+3. Grant **Orders** (read) and **Information & settings** as needed.
+4. Copy the **store hash** and **access token**. Optionally copy the client/webhook secret for HMAC.
+
+### B. Connect in CloudShip
+1. CloudShip Dashboard ➔ **E-Commerce Integrations** ➔ **BigCommerce**.
+2. Paste **Store hash** + **Access token** (optional client secret) ➔ **Connect**.
+3. Set pickup warehouses under **Checkout rules**. Copy the **Connection ID**.
+
+### C. Order webhook (ngrok or production URL)
+1. Expose the CloudShip backend (`ngrok http 3000` while developing).
+2. BigCommerce ➔ **Settings** ➔ **Webhooks** (or create via API) for `store/order/created`:
+   ```text
+   https://<YOUR_NGROK_OR_PROD_DOMAIN>/v1/webhooks/bigcommerce/orders?connectionId=<YOUR_CONNECTION_ID>
+   ```
+3. Place a test order. Confirm it in CloudShip ➔ E-commerce ➔ Shop orders.
+
+### D. Shipping rates callback
+`POST` a Shipping Provider payload to:
+
+```text
+https://<YOUR_NGROK_OR_PROD_DOMAIN>/v1/webhooks/bigcommerce/rates?connectionId=<YOUR_CONNECTION_ID>
+```
+
+Expect `carrier_quotes` with priced CloudShip services. Checkout live rates only appear after a draft shipping-provider app points at that URL — that is config, not extra CloudShip code. A public App Marketplace listing is **not** part of this pass.
+
+---
+
 ## 💡 Troubleshooting & Senior Notes
 
-- **HMAC Signatures in Dev Mode**: HMAC signature checks for WooCommerce, Shopify, Wix, and Lovable log warnings in `NODE_ENV=development` or `NODE_ENV=test` to allow effortless Ngrok test pings during setup.
+- **HMAC Signatures in Dev Mode**: HMAC signature checks for WooCommerce, Shopify, Wix, BigCommerce, and Lovable log warnings in `NODE_ENV=development` or `NODE_ENV=test` to allow effortless Ngrok test pings during setup.
 - **Ngrok Host Updates**: When Ngrok restarts, update your `.env` or webhook URLs with the new active forwarding domain (inspect requests via `http://127.0.0.1:4040`).
 - **Production Checklist**: When deploying to production:
   - Enforce `https://` on all webhook endpoints.

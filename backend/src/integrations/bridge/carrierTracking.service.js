@@ -91,7 +91,7 @@ const refreshMany = async (bookings, { limit = 8 } = {}) => {
 const pollActiveMarketplaceShipments = async () => {
   const { Booking } = require('../../models');
   const rows = await Booking.find({
-    source: { $in: ['woocommerce', 'shopify', 'wix', 'lovable'] },
+    source: { $in: ['woocommerce', 'shopify', 'wix', 'lovable', 'bigcommerce'] },
     status: { $in: ['pending', 'in_transit'] },
     $or: [
       { trackingNumber: { $nin: [null, ''] } },

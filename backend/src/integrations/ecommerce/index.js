@@ -2,12 +2,14 @@ const woocommerce = require('./woocommerce.adapter');
 const shopify = require('./shopify.adapter');
 const wix = require('./wix.adapter');
 const lovable = require('./lovable.adapter');
+const bigcommerce = require('./bigcommerce.adapter');
 
 const adapters = {
   woocommerce,
   shopify,
   wix,
   lovable,
+  bigcommerce,
 };
 
 /**

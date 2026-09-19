@@ -3,7 +3,7 @@ const { objectId } = require('./custom.validation');
 
 const connectStore = {
   body: Joi.object().keys({
-    platform: Joi.string().valid('woocommerce', 'shopify', 'wix', 'lovable').required(),
+    platform: Joi.string().valid('woocommerce', 'shopify', 'wix', 'lovable', 'bigcommerce').required(),
     storeName: Joi.string().required(),
     storeUrl: Joi.string().allow('').optional(),
     credentials: Joi.object().required(),

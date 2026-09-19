@@ -153,6 +153,43 @@ describe('E-commerce Stage 1 (Pratik)', () => {
       expect(normalized.dropoff).toContain('Durban');
     });
 
+    test('bigcommerce adapter exists and maps shipping_addresses', async () => {
+      const adapter = getAdapter('bigcommerce');
+      expect(adapter.platform).toBe('bigcommerce');
+      const conn = {
+        ...fakeConn,
+        platform: 'bigcommerce',
+        storeUrl: 'abc123',
+        settings: { pickupAddress: 'Cape Town Warehouse' },
+        credentialsEncrypted: encryptCredentials({
+          storeHash: 'abc123',
+          accessToken: 'bc_token',
+          pickupAddress: 'Cape Town Warehouse',
+        }),
+      };
+      const normalized = await adapter.normalizeOrder(
+        {
+          id: 4401,
+          currency_code: 'ZAR',
+          total_inc_tax: '220.00',
+          subtotal_inc_tax: '180.00',
+          shipping_cost_inc_tax: '40.00',
+          billing_address: { email: 'bc@test.com', phone: '082' },
+          shipping_addresses: [
+            { street_1: '10 Loop', city: 'Cape Town', zip: '8001', country_iso2: 'ZA', state: 'WC' },
+          ],
+          products: [{ name: 'Mug', quantity: 2, weight: 0.4 }],
+        },
+        conn
+      );
+      expect(normalized.externalOrderId).toBe('4401');
+      expect(normalized.pickup).toContain('Cape Town');
+      expect(normalized.dropoff).toContain('Cape Town');
+      expect(normalized.weightKg).toBe(0.8);
+      expect(normalized.buyerEmail).toBe('bc@test.com');
+      expect(normalized.orderTotal).toBe(220);
+    });
+
     test('lovable accepts CloudShip-shaped payload', () => {
       const adapter = getAdapter('lovable');
       const normalized = adapter.normalizeOrder({
@@ -361,6 +398,121 @@ describe('E-commerce Stage 1 (Pratik)', () => {
       expect(Array.isArray(res.body.rates)).toBe(true);
       expect(res.body.rates[0].service_name).toMatch(/CloudShip/);
       expect(res.body.rates[0].total_price).toMatch(/^\d+$/);
+    });
+
+    test('BigCommerce rates callback returns Shipping Provider quotes', async () => {
+      const conn = await StoreConnection.create({
+        company: company._id,
+        platform: 'bigcommerce',
+        storeName: 'BC Sandbox',
+        storeUrl: 'abc123xyz',
+        credentialsEncrypted: encryptCredentials({
+          storeHash: 'abc123xyz',
+          accessToken: 'bc_token',
+          pickupAddress: 'Cape Town',
+        }),
+        webhookSecret: '',
+        status: 'active',
+        settings: { pickupAddress: 'Cape Town', currency: 'ZAR', defaultMode: 'Road' },
+      });
+
+      const res = await request(app)
+        .post(`/v1/webhooks/bigcommerce/rates/${conn._id}`)
+        .send({
+          base_options: {
+            origin: { street_1: '1 Warehouse', city: 'Cape Town', country_iso2: 'ZA', zip: '8000' },
+            destination: { street_1: '2 Home', city: 'Durban', country_iso2: 'ZA', zip: '4000', state: 'KZN' },
+            items: [{ name: 'Item', quantity: 1, weight: { value: 1, units: 'kg' } }],
+            customer: { currency: 'ZAR' },
+          },
+        })
+        .expect(httpStatus.OK);
+
+      expect(res.body.quote_id).toBeTruthy();
+      expect(Array.isArray(res.body.carrier_quotes)).toBe(true);
+      const quotes = res.body.carrier_quotes[0].quotes;
+      expect(quotes.length).toBeGreaterThan(0);
+      expect(quotes[0].display_name).toMatch(/CloudShip/);
+      expect(typeof quotes[0].cost.amount).toBe('number');
+      expect(quotes[0].transit_time).toEqual(expect.objectContaining({ units: 'hours' }));
+    });
+
+    test('BigCommerce order webhook creates booking awaiting payment', async () => {
+      const webhookSecret = 'bc_wh_secret';
+      const conn = await StoreConnection.create({
+        company: company._id,
+        platform: 'bigcommerce',
+        storeName: 'BC Orders',
+        storeUrl: 'abc123xyz',
+        credentialsEncrypted: encryptCredentials({
+          storeHash: 'abc123xyz',
+          accessToken: 'bc_token',
+          clientSecret: webhookSecret,
+          pickupAddress: 'Cape Town',
+        }),
+        webhookSecret,
+        status: 'active',
+        settings: { pickupAddress: 'Cape Town', currency: 'ZAR', defaultMode: 'Road' },
+      });
+
+      const payload = {
+        scope: 'store/order/created',
+        data: {
+          id: 8801,
+          currency_code: 'ZAR',
+          total_inc_tax: '175.00',
+          subtotal_inc_tax: '150.00',
+          shipping_cost_inc_tax: '25.00',
+          billing_address: { email: 'buyer@bc.test', phone: '0830000000' },
+          shipping_addresses: [
+            { street_1: '5 Long Street', city: 'Cape Town', zip: '8001', country_iso2: 'ZA', state: 'WC' },
+          ],
+          products: [{ name: 'Candle', quantity: 1, weight: 1.2 }],
+        },
+      };
+      const raw = JSON.stringify(payload);
+      const signature = hmacSha256Hex(webhookSecret, raw);
+
+      const res = await request(app)
+        .post(`/v1/webhooks/bigcommerce/orders/${conn._id}`)
+        .set('Content-Type', 'application/json')
+        .set('X-Signature', signature)
+        .send(payload)
+        .expect(httpStatus.CREATED);
+
+      expect(res.body.bookingCode).toMatch(/^BKG-MKT-/);
+      expect(res.body.paymentStatus).toBe('awaiting');
+
+      const booking = await Booking.findById(res.body.bookingId);
+      expect(booking.source).toBe('bigcommerce');
+      expect(booking.externalOrderId).toBe('8801');
+      expect(booking.logisticsBookingRef).toBeFalsy();
+    });
+
+    test('rejects invalid BigCommerce HMAC', async () => {
+      const conn = await StoreConnection.create({
+        company: company._id,
+        platform: 'bigcommerce',
+        storeName: 'BC HMAC',
+        storeUrl: 'abc123xyz',
+        credentialsEncrypted: encryptCredentials({
+          storeHash: 'abc123xyz',
+          accessToken: 'bc_token',
+          clientSecret: 'real_secret',
+        }),
+        webhookSecret: 'real_secret',
+        status: 'active',
+      });
+
+      await request(app)
+        .post(`/v1/webhooks/bigcommerce/orders/${conn._id}`)
+        .set('X-Signature', 'not-valid')
+        .send({
+          id: 1,
+          shipping_addresses: [{ city: 'X', street_1: '1 St' }],
+          products: [{ name: 'X', quantity: 1, weight: 1 }],
+        })
+        .expect(httpStatus.UNAUTHORIZED);
     });
 
     test('Lovable rates + order via API key', async () => {

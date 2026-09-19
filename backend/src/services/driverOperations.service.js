@@ -4,7 +4,7 @@ const ApiError = require('../utils/ApiError');
 const driverProfileService = require('./driverProfile.service');
 const bookingSyncService = require('./bookingSync.service');
 
-const MARKETPLACE_SOURCES = ['woocommerce', 'shopify', 'wix', 'lovable'];
+const MARKETPLACE_SOURCES = ['woocommerce', 'shopify', 'wix', 'lovable', 'bigcommerce'];
 
 const ALLOWED_NEXT_STATUS = {
   assigned: ['picked_up'],
