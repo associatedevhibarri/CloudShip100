@@ -106,6 +106,7 @@ const handleOrderWebhook = (platform) =>
     const topic = String(
       req.headers['x-wc-webhook-topic'] ||
         req.headers['x-shopify-topic'] ||
+        body.scope ||
         body.eventType ||
         body.event ||
         (body.rawData && body.rawData.slug) ||
@@ -115,7 +116,7 @@ const handleOrderWebhook = (platform) =>
       return res.status(httpStatus.OK).send({ ignored: true, reason: topic });
     }
 
-    const normalized = adapter.normalizeOrder(body, conn);
+    const normalized = await adapter.normalizeOrder(body, conn);
     if (!normalized || !normalized.externalOrderId) {
       return res.status(httpStatus.OK).send({ ok: true, message: 'CloudShip webhook listener active' });
     }
@@ -168,6 +169,9 @@ const handleRates = (platform) =>
     if (platform === 'wix' && typeof adapter.formatWixRates === 'function') {
       return res.send(adapter.formatWixRates(quote));
     }
+    if (platform === 'bigcommerce' && typeof adapter.formatBigCommerceRates === 'function') {
+      return res.send(adapter.formatBigCommerceRates(quote));
+    }
     return res.send(quote);
   });
 
@@ -200,5 +204,7 @@ module.exports = {
   wixRates: handleRates('wix'),
   lovableOrder: handleOrderWebhook('lovable'),
   lovableRates: handleRates('lovable'),
+  bigcommerceOrder: handleOrderWebhook('bigcommerce'),
+  bigcommerceRates: handleRates('bigcommerce'),
   stripeWebhook,
 };

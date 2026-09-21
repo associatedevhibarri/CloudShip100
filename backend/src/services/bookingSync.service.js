@@ -20,7 +20,7 @@ const STATUS_TO_BOOKING_STATUS = {
   delivered: 'completed',
 };
 
-const MARKETPLACE_SOURCES = ['woocommerce', 'shopify', 'wix', 'lovable'];
+const MARKETPLACE_SOURCES = ['woocommerce', 'shopify', 'wix', 'lovable', 'bigcommerce'];
 
 const notifyBookingStatus = async (booking, status, detail) => {
   if (!booking || !status || booking.lastNotifiedStatus === status) return;

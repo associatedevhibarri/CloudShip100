@@ -311,7 +311,7 @@ const applyShopTotals = (booking, totals) => {
 const hydrateShopOrderTotals = async (bookings) => {
   const missing = (bookings || []).filter(
     (booking) =>
-      ['woocommerce', 'shopify', 'wix', 'lovable'].includes(booking.source) &&
+      ['woocommerce', 'shopify', 'wix', 'lovable', 'bigcommerce'].includes(booking.source) &&
       (booking.orderTotal == null || !booking.lineItems || !booking.lineItems.length)
   );
   if (!missing.length) return bookings;

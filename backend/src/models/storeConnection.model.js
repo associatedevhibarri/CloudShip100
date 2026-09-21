@@ -11,7 +11,7 @@ const storeConnectionSchema = mongoose.Schema(
     },
     platform: {
       type: String,
-      enum: ['woocommerce', 'shopify', 'wix', 'lovable'],
+      enum: ['woocommerce', 'shopify', 'wix', 'lovable', 'bigcommerce'],
       required: true,
     },
     storeName: {

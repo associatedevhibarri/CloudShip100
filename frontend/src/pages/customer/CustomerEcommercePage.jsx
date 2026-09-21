@@ -88,6 +88,23 @@ const PLATFORMS = [
     ],
     fieldsNeeded: 'Store name only'
   },
+  {
+    id: 'bigcommerce',
+    label: 'BigCommerce',
+    hint: 'Custom API connection: store hash + access token. No App Marketplace listing required.',
+    docsUrl: 'https://partners.bigcommerce.com',
+    steps: [
+      'Sign up at BigCommerce Partners and create a trial / sandbox store (free).',
+      'Store API accounts → Create API account. Scopes: Orders (read), Information & settings as needed.',
+      'Copy the store hash and access token, then paste them below and click Connect.',
+      'Optional: paste the webhook / client secret so CloudShip can verify HMAC on live stores.',
+      'After connect, copy Connection ID from Connected stores.',
+      'Settings → Webhooks (or API): store/order/created → https://<NGROK_OR_DOMAIN>/v1/webhooks/bigcommerce/orders?connectionId=<CONNECTION_ID>',
+      'Place a test order. Confirm it under E-commerce → Shop orders.',
+      'Rates callback (optional): POST Shipping Provider JSON to https://<NGROK_OR_DOMAIN>/v1/webhooks/bigcommerce/rates?connectionId=<CONNECTION_ID>. Checkout live rates need a draft shipping-provider app pointed at that URL.',
+    ],
+    fieldsNeeded: 'Store hash + Access token (optional client secret for HMAC)',
+  },
 ]
 
 const TAB_IDS = ['connect', 'stores', 'rules', 'quotes', 'orders', 'tracking']
@@ -96,7 +113,7 @@ const NAV_GROUPS = [
   {
     group: 'Integrations',
     items: [
-      { id: 'connect', label: 'Connect a store', icon: Plug, hint: 'Woo, Shopify, Wix, Lovable' },
+      { id: 'connect', label: 'Connect a store', icon: Plug, hint: 'Woo, Shopify, Wix, BigCommerce, Lovable' },
       { id: 'stores', label: 'Connected stores', icon: ShoppingBag, hint: 'Keys and connection IDs' },
       { id: 'rules', label: 'Checkout rules', icon: MapPin, hint: 'Pickup, margin, table rates' },
       { id: 'quotes', label: 'Test rates', icon: Calculator, hint: 'Try a quote before go-live' },
@@ -150,7 +167,7 @@ function PlatformKeyGuide({ platform, apiOrigin, onCopy, copiedKey }) {
         <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Your CloudShip backend URL</p>
         <p className="mt-1 break-all font-mono text-xs font-semibold text-ink">{base || '—'}</p>
         <p className="mt-1 text-[11px] text-muted">
-          Put this in Woo / Shopify / Wix / Lovable where it asks for CloudShip API or webhook host.
+          Put this in Woo / Shopify / Wix / BigCommerce / Lovable where it asks for CloudShip API or webhook host.
           {isLocal
             ? ' Local only — for real shops use your deployed URL (or ngrok while testing).'
             : ' This is your live/staging API — customers use this, not localhost.'}
@@ -213,6 +230,13 @@ function buildCredentials(form) {
   if (form.platform === 'wix') {
     return {
       accessToken: form.accessToken.trim(),
+    }
+  }
+  if (form.platform === 'bigcommerce') {
+    return {
+      storeHash: form.shopDomain.trim() || form.storeUrl.trim(),
+      accessToken: form.accessToken.trim(),
+      clientSecret: form.consumerSecret.trim() || undefined,
     }
   }
   return {}
@@ -303,7 +327,9 @@ export default function CustomerEcommercePage() {
   }, [stores, lastConnected])
   const marketplaceBookings = useMemo(
     () =>
-      (bookings || []).filter((b) => ['woocommerce', 'shopify', 'wix', 'lovable'].includes(b.source)),
+      (bookings || []).filter((b) =>
+        ['woocommerce', 'shopify', 'wix', 'lovable', 'bigcommerce'].includes(b.source)
+      ),
     [bookings]
   )
 
@@ -328,7 +354,9 @@ export default function CustomerEcommercePage() {
         platform: form.platform,
         storeName: form.storeName.trim(),
         storeUrl:
-          form.platform === 'shopify' ? form.shopDomain.trim() || form.storeUrl.trim() : form.storeUrl.trim(),
+          form.platform === 'shopify' || form.platform === 'bigcommerce'
+            ? form.shopDomain.trim() || form.storeUrl.trim()
+            : form.storeUrl.trim(),
         credentials: buildCredentials(form),
         settings: {
           currency: form.currency.trim() || 'ZAR',
@@ -611,20 +639,33 @@ export default function CustomerEcommercePage() {
                 {form.platform !== 'lovable' ? (
                   <FormField
                     id="storeUrl"
-                    label={form.platform === 'shopify' ? 'Shop domain / URL' : 'Store URL'}
+                    label={
+                      form.platform === 'shopify'
+                        ? 'Shop domain / URL'
+                        : form.platform === 'bigcommerce'
+                          ? 'Store hash'
+                          : 'Store URL'
+                    }
                     hint={
                       form.platform === 'woocommerce'
                         ? 'e.g. http://cloudship-logistics.local'
-                        : 'e.g. mystore.myshopify.com'
+                        : form.platform === 'bigcommerce'
+                          ? 'From Store API account — e.g. abc123xyz'
+                          : 'e.g. mystore.myshopify.com'
                     }
                   >
                     <input
                       id="storeUrl"
                       className={formInputClass()}
-                      value={form.platform === 'shopify' ? form.shopDomain || form.storeUrl : form.storeUrl}
+                      value={
+                        form.platform === 'shopify' || form.platform === 'bigcommerce'
+                          ? form.shopDomain || form.storeUrl
+                          : form.storeUrl
+                      }
                       onChange={(e) => {
-                        if (form.platform === 'shopify') setField('shopDomain', e.target.value)
-                        else setField('storeUrl', e.target.value)
+                        if (form.platform === 'shopify' || form.platform === 'bigcommerce') {
+                          setField('shopDomain', e.target.value)
+                        } else setField('storeUrl', e.target.value)
                       }}
                     />
                   </FormField>
@@ -654,15 +695,23 @@ export default function CustomerEcommercePage() {
                   </>
                 ) : null}
 
-                {form.platform === 'shopify' || form.platform === 'wix' ? (
+                {form.platform === 'shopify' || form.platform === 'wix' || form.platform === 'bigcommerce' ? (
                   <FormField
                     id="accessToken"
-                    label={form.platform === 'shopify' ? 'Admin API access token (shpat_…)' : 'Wix access token'}
+                    label={
+                      form.platform === 'shopify'
+                        ? 'Admin API access token (shpat_…)'
+                        : form.platform === 'bigcommerce'
+                          ? 'Store API access token'
+                          : 'Wix access token'
+                    }
                     required
                     hint={
                       form.platform === 'shopify'
                         ? 'From Develop apps → API credentials → Reveal token'
-                        : 'From Wix Dev Center app credentials'
+                        : form.platform === 'bigcommerce'
+                          ? 'From Settings → API accounts → Create API account'
+                          : 'From Wix Dev Center app credentials'
                     }
                   >
                     <input
@@ -673,6 +722,23 @@ export default function CustomerEcommercePage() {
                       onChange={(e) => setField('accessToken', e.target.value)}
                       autoComplete="off"
                       placeholder={form.platform === 'shopify' ? 'shpat_…' : 'Access token'}
+                    />
+                  </FormField>
+                ) : null}
+
+                {form.platform === 'bigcommerce' ? (
+                  <FormField
+                    id="clientSecret"
+                    label="Client / webhook secret (optional)"
+                    hint="Used to verify X-Signature HMAC. Leave blank while testing with ngrok."
+                  >
+                    <input
+                      id="clientSecret"
+                      type="password"
+                      className={formInputClass()}
+                      value={form.consumerSecret}
+                      onChange={(e) => setField('consumerSecret', e.target.value)}
+                      autoComplete="off"
                     />
                   </FormField>
                 ) : null}
@@ -750,7 +816,7 @@ export default function CustomerEcommercePage() {
               {storeList.filter((s) => s.status === 'active').length > 0 ? (
                 <div className="mt-4 space-y-3">
                   <p className="text-xs font-bold uppercase tracking-wide text-muted">
-                    Webhook URLs for your shops (copy into Shopify / Wix / Lovable)
+                    Webhook URLs for your shops (copy into Shopify / Wix / BigCommerce / Lovable)
                   </p>
                   {storeList
                     .filter((s) => s.status === 'active')
