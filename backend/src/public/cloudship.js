@@ -1,5 +1,5 @@
 /**
- * CloudShip universal embed for Lovable / custom stores.
+ * Field contract: docs/partner-api.md
  * Browser usage must only use the public API key — never a webhook signing secret.
  *
  * Usage:

@@ -1,6 +1,8 @@
 # CloudShip E-Commerce Integrations Guide
 
-This comprehensive guide explains how to connect, configure, and test external e-commerce platforms (**WooCommerce**, **Shopify**, **Wix**, **BigCommerce**, and **Lovable / Custom Web Apps**) to flow seamlessly into CloudShip for automatic shipping rate calculations and order ingestion.
+**Building a custom store / Lovable app?** Send CloudShip the fields in **[docs/partner-api.md](docs/partner-api.md)**. **All backend routes:** **[docs/api.md](docs/api.md)**. Engineers: **[backend/README.md](backend/README.md)**. Local Swagger: `http://localhost:3000/v1/docs`.
+
+This guide explains how to connect, configure, and test external e-commerce platforms (**WooCommerce**, **Shopify**, **Wix**, **BigCommerce**, and **Lovable / Custom Web Apps**) to flow seamlessly into CloudShip for automatic shipping rate calculations and order ingestion.
 
 ---
 
@@ -81,39 +83,24 @@ Pickup defaults to WooCommerce ➔ Settings ➔ General. Edit warehouses later i
 
 ## 4. 🤖 Lovable / Custom Web Apps Integration
 
+This is the path for **developers on other projects**. Full field list, HMAC, errors, and curl: **[docs/partner-api.md](docs/partner-api.md)**.
+
 ### A. Connecting in CloudShip
 1. Go to CloudShip Dashboard ➔ **E-Commerce Integrations** ➔ **Lovable / Universal**.
 2. Enter your **Store Name** and **Pickup Address** ➔ Click **Connect**.
 3. Save your generated credentials (shown once):
    - `publicApiKey`: `cs_live_...`
-   - `webhookSecret`: `...`
+   - `webhookSecret`: `...` (server-side only)
 
-### B. Using the Senior SDK (`src/utils/cloudshipLovableSdk.js`)
-Copy [**`cloudshipLovableSdk.js`**](file:///d:/Hibarri/CloudShip100/frontend/src/utils/cloudshipLovableSdk.js) into your Lovable app project.
+### B. What to send
+CloudShip needs **dropoff**, **weightKg** (kg, not grams), and for orders **externalOrderId**. Send **pickup**, **buyerEmail**, **currency**, and **lineItems** if you have them. Endpoints:
 
-```javascript
-import { CloudShip } from './utils/cloudshipLovableSdk';
+- `POST /v1/webhooks/lovable/rates` — checkout prices (`x-cloudship-key`)
+- `POST /v1/webhooks/lovable/orders` — create shipment (idempotent on `externalOrderId`)
+- `GET /v1/ecommerce/track/:code` — public tracking
 
-// Automatically uses VITE_CLOUDSHIP_API_KEY & VITE_CLOUDSHIP_API_URL from .env
-const cloudship = new CloudShip();
-
-// 1. Fetch live rates at checkout
-const rates = await cloudship.getShippingRates({
-  pickup: 'Cape Town Warehouse',
-  dropoff: customerAddress,
-  weightKg: 2.0,
-});
-
-// 2. Submit order upon purchase
-const booking = await cloudship.createOrder({
-  externalOrderId: 'LOV-1001',
-  buyerEmail: customerEmail,
-  pickup: 'Cape Town Warehouse',
-  dropoff: customerAddress,
-  weightKg: 2.0,
-  cargo: 'Lovable Store Product',
-});
-```
+### C. SDK (`frontend/src/utils/cloudshipLovableSdk.js`)
+Copy [`cloudshipLovableSdk.js`](frontend/src/utils/cloudshipLovableSdk.js) into the other repo, or load `/v1/public/cloudship.js` in the browser (public key only).
 
 ---
 
