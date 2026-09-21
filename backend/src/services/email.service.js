@@ -1,6 +1,8 @@
 const nodemailer = require('nodemailer');
+const httpStatus = require('http-status');
 const config = require('../config/config');
 const logger = require('../config/logger');
+const ApiError = require('../utils/ApiError');
 
 const transport = nodemailer.createTransport(config.email.smtp);
 
@@ -15,19 +17,13 @@ const assertProductionSmtp = () => {
 assertProductionSmtp();
 
 /* istanbul ignore next */
-if (config.env === 'production') {
+if (config.env !== 'test') {
   transport
     .verify()
     .then(() => logger.info('Connected to email server'))
     .catch((err) => {
       logger.error(`Unable to connect to email server: ${err.message}`);
-      process.exit(1);
     });
-} else if (config.env !== 'test') {
-  transport
-    .verify()
-    .then(() => logger.info('Connected to email server'))
-    .catch(() => logger.warn('Unable to connect to email server. Make sure you have configured the SMTP options in .env'));
 }
 
 const escapeHtml = (value) =>
@@ -78,13 +74,19 @@ const sendEmail = async (to, subject, text, html) => {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const toEmailSendError = (err) => {
+  const detail = (err && err.message) || 'unknown SMTP error';
+  const code = err && err.code ? ` [${err.code}]` : '';
+  return new ApiError(httpStatus.BAD_GATEWAY, `Unable to send email: ${detail}${code}`);
+};
+
 const sendTemplatedEmail = async (to, subject, heading, paragraphs, cta) => {
   const textParts = [heading, '', ...(paragraphs || [])];
   if (cta && cta.href) textParts.push('', cta.label, cta.href);
   textParts.push('', `CloudShip · ${config.frontendUrl}`);
   const html = brandedHtml(heading, paragraphs, cta);
   const text = textParts.join('\n');
-  const attempts = config.env === 'test' ? 1 : 3;
+  const attempts = config.env === 'production' ? 1 : config.env === 'test' ? 1 : 3;
   let lastErr;
   for (let i = 0; i < attempts; i += 1) {
     try {
@@ -97,7 +99,7 @@ const sendTemplatedEmail = async (to, subject, heading, paragraphs, cta) => {
       }
     }
   }
-  throw lastErr;
+  throw toEmailSendError(lastErr);
 };
 
 /**

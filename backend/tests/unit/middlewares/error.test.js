@@ -130,7 +130,7 @@ describe('Error middlewares', () => {
       config.env = process.env.NODE_ENV;
     });
 
-    test('should send internal server error status and message if in production mode and error is not operational', () => {
+    test('should send the real error status and message in production so clients can debug failures', () => {
       config.env = 'production';
       const error = new ApiError(httpStatus.BAD_REQUEST, 'Any error', false);
       const res = httpMocks.createResponse();
@@ -140,8 +140,8 @@ describe('Error middlewares', () => {
 
       expect(sendSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          code: httpStatus.INTERNAL_SERVER_ERROR,
-          message: httpStatus[httpStatus.INTERNAL_SERVER_ERROR],
+          code: error.statusCode,
+          message: error.message,
         })
       );
       expect(res.locals.errorMessage).toBe(error.message);
