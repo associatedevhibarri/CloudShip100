@@ -98,6 +98,9 @@ module.exports = {
       host: envVars.SMTP_HOST,
       port: envVars.SMTP_PORT,
       secure: Boolean(envVars.SMTP_SECURE) || Number(envVars.SMTP_PORT) === 465,
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 10000,
       auth: {
         user: envVars.SMTP_USERNAME,
         pass: envVars.SMTP_PASSWORD,
