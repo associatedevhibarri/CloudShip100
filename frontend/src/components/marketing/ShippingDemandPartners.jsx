@@ -44,30 +44,34 @@ const PARTNERS = [
 
 function PartnerMark({ name, viewBox, path, wide = false }) {
   return (
-    <li className="flex shrink-0 items-center gap-2.5 px-6 text-slate-500">
+    <div
+      title={name}
+      className="group flex shrink-0 items-center justify-center px-8 py-2 text-slate-400 transition-all duration-300 hover:text-brand hover:scale-110 cursor-pointer"
+    >
       <svg
         viewBox={viewBox}
-        className={`shrink-0 fill-current ${wide ? 'h-6 w-24' : 'h-7 w-7'}`}
+        className={`shrink-0 fill-current opacity-70 transition-all duration-300 group-hover:opacity-100 group-hover:drop-shadow-[0_2px_8px_rgba(0,123,255,0.25)] ${
+          wide ? 'h-6 w-24 sm:h-7 sm:w-28' : 'h-7 w-7 sm:h-8 sm:w-8'
+        }`}
         aria-hidden="true"
         focusable="false"
       >
         <path d={path} />
       </svg>
-      <span className="text-sm font-bold tracking-tight text-slate-500">{name}</span>
-    </li>
+    </div>
   )
 }
 
-function PartnerRow({ ariaHidden = false }) {
+function PartnerList({ ariaHidden = false }) {
   return (
-    <ul
-      className="flex min-w-max items-center"
+    <div
+      className="flex shrink-0 items-center justify-around gap-4 min-w-max"
       aria-hidden={ariaHidden ? 'true' : undefined}
     >
-      {PARTNERS.map((partner) => (
-        <PartnerMark key={partner.name} {...partner} />
+      {PARTNERS.map((partner, idx) => (
+        <PartnerMark key={`${partner.name}-${idx}`} {...partner} />
       ))}
-    </ul>
+    </div>
   )
 }
 
@@ -75,27 +79,39 @@ export function ShippingDemandPartners() {
   return (
     <section
       aria-label="Shipping Demand Partners"
-      className="border-t border-line/70 bg-white py-8 sm:py-10"
+      className="border-t border-line/70 bg-white py-9 sm:py-12 overflow-hidden"
     >
-      <div className="mx-auto max-w-6xl px-5 sm:px-6">
-        <p className="text-center text-[11px] font-extrabold uppercase tracking-[0.28em] text-brand">
+      <style>{`
+        @keyframes marqueeContinuous {
+          0% { transform: translateX(0%); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-marquee-continuous {
+          display: flex;
+          width: max-content;
+          animation: marqueeContinuous 30s linear infinite;
+        }
+        .animate-marquee-continuous:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+
+      <div className="mx-auto max-w-6xl px-5 sm:px-6 text-center">
+        <p className="text-[11px] font-extrabold uppercase tracking-[0.28em] text-brand">
           Shipping Demand Partners
         </p>
-        <p className="mx-auto mt-2 max-w-xl text-center text-sm text-muted">
-          Connect the commerce platforms that create shipping demand.
+        <p className="mx-auto mt-2 max-w-xl text-center text-sm font-medium text-muted">
+          Integrate effortlessly with leading commerce platforms creating global shipping demand.
         </p>
       </div>
 
-      <div className="partner-marquee-static mt-6 items-center justify-center gap-y-3 px-5 sm:px-6">
-        <PartnerRow />
-      </div>
-
-      <div className="partner-marquee-viewport mt-6">
-        <div className="partner-marquee-track">
-          <PartnerRow />
-          <PartnerRow ariaHidden />
+      <div className="relative mt-8 w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
+        <div className="animate-marquee-continuous">
+          <PartnerList />
+          <PartnerList ariaHidden />
         </div>
       </div>
     </section>
   )
 }
+
