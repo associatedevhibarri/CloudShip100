@@ -104,7 +104,7 @@ module.exports = {
     },
     from: 'ship@cloudship100.com',
   },
-  frontendUrl: (envVars.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, ''),
+  frontendUrl: (envVars.FRONTEND_URL || 'https://www.cloudship100.com').replace(/\/$/, ''),
   googleMaps: {
     apiKey: envVars.GOOGLE_MAPS_API_KEY || '',
   },
