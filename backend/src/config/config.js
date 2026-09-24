@@ -92,8 +92,8 @@ module.exports = {
   email: {
     smtp: {
       host: 'smtpout.secureserver.net',
-      port: 465,
-      secure: true,
+      port: 587,
+      secure: false,
       connectionTimeout: 8000,
       greetingTimeout: 8000,
       socketTimeout: 10000,
