@@ -146,4 +146,17 @@ if (config.env === 'development') {
   });
 }
 
+router.get('/test-env', (req, res) => {
+  res.send({
+    message: 'Testing Environment Variables',
+    processEnv: {
+      SMTP_HOST: process.env.SMTP_HOST || 'NOT_FOUND',
+      SMTP_PORT: process.env.SMTP_PORT || 'NOT_FOUND',
+      NODE_ENV: process.env.NODE_ENV || 'NOT_FOUND',
+      PWD: process.env.PWD || 'NOT_FOUND', // To see where node thinks it's running
+    },
+    configEmail: config.email,
+  });
+});
+
 module.exports = router;
