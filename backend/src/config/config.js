@@ -91,20 +91,20 @@ module.exports = {
   },
   email: {
     smtp: {
-      host: envVars.SMTP_HOST,
-      port: envVars.SMTP_PORT,
-      secure: envVars.SMTP_SECURE !== undefined ? Boolean(envVars.SMTP_SECURE) : Number(envVars.SMTP_PORT) === 465,
+      host: 'smtpout.secureserver.net',
+      port: 465,
+      secure: true,
       connectionTimeout: 8000,
       greetingTimeout: 8000,
       socketTimeout: 10000,
       auth: {
-        user: envVars.SMTP_USERNAME,
-        pass: envVars.SMTP_PASSWORD,
+        user: 'ship@cloudship100.com',
+        pass: 'CloudShip@2026',
       },
     },
-    from: envVars.EMAIL_FROM,
+    from: 'ship@cloudship100.com',
   },
-  frontendUrl: (envVars.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, ''),
+  frontendUrl: (envVars.FRONTEND_URL || 'https://www.cloudship100.com').replace(/\/$/, ''),
   googleMaps: {
     apiKey: envVars.GOOGLE_MAPS_API_KEY || '',
   },
