@@ -18,16 +18,12 @@ const envVarsSchema = Joi.object()
     JWT_VERIFY_EMAIL_EXPIRATION_MINUTES: Joi.number()
       .default(10)
       .description('minutes after which verify email token expires'),
-    SMTP_HOST: Joi.string()
-      .description('server that will send the emails')
-      .when('NODE_ENV', { is: 'production', then: Joi.required(), otherwise: Joi.optional() }),
+    SMTP_HOST: Joi.string().description('server that will send the emails'),
     SMTP_PORT: Joi.number().description('port to connect to the email server'),
     SMTP_SECURE: Joi.boolean().truthy('true').falsy('false').default(false),
     SMTP_USERNAME: Joi.string().description('username for email server'),
     SMTP_PASSWORD: Joi.string().description('password for email server'),
-    EMAIL_FROM: Joi.string()
-      .description('the from field in the emails sent by the app')
-      .when('NODE_ENV', { is: 'production', then: Joi.required(), otherwise: Joi.optional() }),
+    EMAIL_FROM: Joi.string().description('the from field in the emails sent by the app'),
     FRONTEND_URL: Joi.string().allow('').default('http://localhost:5173'),
     GOOGLE_MAPS_API_KEY: Joi.string().allow('').description('Google Maps Platform API key (Directions + Places)'),
     CLOUDINARY_CLOUD_NAME: Joi.string().allow('').description('Cloudinary cloud name'),

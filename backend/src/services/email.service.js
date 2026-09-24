@@ -8,13 +8,7 @@ const transport = nodemailer.createTransport(config.email.smtp);
 
 const isSmtpConfigured = () => Boolean(config.email.smtp && config.email.smtp.host && config.email.from);
 
-const assertProductionSmtp = () => {
-  if (config.env === 'production' && !isSmtpConfigured()) {
-    throw new Error('SMTP_HOST and EMAIL_FROM are required in production');
-  }
-};
 
-assertProductionSmtp();
 
 /* istanbul ignore next */
 if (config.env !== 'test') {
@@ -86,7 +80,7 @@ const sendTemplatedEmail = async (to, subject, heading, paragraphs, cta) => {
   textParts.push('', `CloudShip · ${config.frontendUrl}`);
   const html = brandedHtml(heading, paragraphs, cta);
   const text = textParts.join('\n');
-  const attempts = config.env === 'production' ? 1 : config.env === 'test' ? 1 : 3;
+  const attempts = 3;
   let lastErr;
   for (let i = 0; i < attempts; i += 1) {
     try {
@@ -275,6 +269,5 @@ module.exports = {
   sendKycReminderEmail,
   sendDriverApprovalEmail,
   sendEmailSafe,
-  assertProductionSmtp,
   isSmtpConfigured,
 };
