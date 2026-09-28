@@ -144,7 +144,7 @@ Copy `.env.example`. Minimum to boot:
 - `MONGODB_URL`
 - `JWT_SECRET`
 
-Production also requires `SMTP_HOST` and `EMAIL_FROM`.
+Email is sent through Brevo's transactional email API by default. Set `USE_BREVO=false` to use SMTP instead. Configure `BREVO_API_KEY` (or the legacy `Brevo_Api_key`) and `EMAIL_FROM` for Brevo; SMTP mode requires `SMTP_HOST` and `EMAIL_FROM`.
 
 Carrier keys (`COURIER_GUY_*`, `UBER_DIRECT_*`, `FEDEX_*`, `DHL_*`, `DSV_*`) are optional; missing keys skip that carrier on quotes (`skipped` on the quote payload). `LOGISTICS_API_URL` empty uses the in-process carrier clients.
 

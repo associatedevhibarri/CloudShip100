@@ -24,6 +24,10 @@ const envVarsSchema = Joi.object()
     SMTP_USERNAME: Joi.string().description('username for email server'),
     SMTP_PASSWORD: Joi.string().description('password for email server'),
     EMAIL_FROM: Joi.string().description('the from field in the emails sent by the app'),
+    EMAIL_FROM_NAME: Joi.string().allow('').default('CloudShip'),
+    BREVO_API_KEY: Joi.string().allow('').default(''),
+    Brevo_Api_key: Joi.string().allow('').default(''),
+    USE_BREVO: Joi.boolean().truthy('true').falsy('false').default(true),
     FRONTEND_URL: Joi.string().allow('').default('http://localhost:5173'),
     GOOGLE_MAPS_API_KEY: Joi.string().allow('').description('Google Maps Platform API key (Directions + Places)'),
     CLOUDINARY_CLOUD_NAME: Joi.string().allow('').description('Cloudinary cloud name'),
@@ -90,6 +94,9 @@ module.exports = {
     verifyEmailExpirationMinutes: envVars.JWT_VERIFY_EMAIL_EXPIRATION_MINUTES,
   },
   email: {
+    useBrevo: envVars.USE_BREVO !== false,
+    brevoApiKey: envVars.BREVO_API_KEY || envVars.Brevo_Api_key || '',
+    fromName: envVars.EMAIL_FROM_NAME || 'CloudShip',
     smtp: {
       host: envVars.SMTP_HOST,
       port: envVars.SMTP_PORT,
