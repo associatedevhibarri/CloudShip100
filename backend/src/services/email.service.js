@@ -1,17 +1,19 @@
 const nodemailer = require('nodemailer');
+const { BrevoClient } = require('@getbrevo/brevo');
 const httpStatus = require('http-status');
 const config = require('../config/config');
 const logger = require('../config/logger');
 const ApiError = require('../utils/ApiError');
 
 const transport = nodemailer.createTransport(config.email.smtp);
+const brevoApi = new BrevoClient({ apiKey: config.email.brevoApiKey });
 
 const isSmtpConfigured = () => Boolean(config.email.smtp && config.email.smtp.host && config.email.from);
 
 
 
 /* istanbul ignore next */
-if (config.env !== 'test') {
+if (config.env !== 'test' && !config.email.useBrevo) {
   transport
     .verify()
     .then(() => logger.info('Connected to email server'))
@@ -61,6 +63,21 @@ const brandedHtml = (heading, paragraphs, cta) => {
  * @returns {Promise}
  */
 const sendEmail = async (to, subject, text, html) => {
+  if (config.email.useBrevo) {
+    if (!config.email.brevoApiKey) {
+      throw new Error('Brevo API key is not configured');
+    }
+    const email = {
+      sender: { name: config.email.fromName, email: config.email.from },
+      to: [{ email: to }],
+      subject,
+      textContent: text,
+    };
+    if (html) email.htmlContent = html;
+    await brevoApi.transactionalEmails.sendTransacEmail(email);
+    return;
+  }
+
   const msg = { from: config.email.from, to, subject, text };
   if (html) msg.html = html;
   await transport.sendMail(msg);
@@ -69,7 +86,7 @@ const sendEmail = async (to, subject, text, html) => {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const toEmailSendError = (err) => {
-  const detail = (err && err.message) || 'unknown SMTP error';
+  const detail = (err && err.message) || 'unknown email provider error';
   const code = err && err.code ? ` [${err.code}]` : '';
   return new ApiError(httpStatus.BAD_GATEWAY, `Unable to send email: ${detail}${code}`);
 };
