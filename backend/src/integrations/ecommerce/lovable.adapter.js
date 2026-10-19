@@ -84,19 +84,41 @@ const pushStatus = async (storeConnection, booking, statusPayload) => {
   if (!creds.statusWebhookUrl) {
     return { skipped: true };
   }
+  let callbackPayload = {
+    externalOrderId: booking.externalOrderId,
+    bookingCode: booking.code,
+    status: statusPayload.status || booking.status,
+    courierStatus: statusPayload.courierStatus || booking.courierStatus || null,
+    trackingNumber: booking.trackingNumber,
+    trackingUrl: booking.trackingUrl || null,
+    logisticsBookingRef: booking.logisticsBookingRef,
+  };
+  // Marketplace bundles contain multiple carrier parcels but update one storefront shipment.
+  if (/:parcel:\d+$/.test(booking.externalOrderId || '')) {
+    const mongoose = require('mongoose');
+    const Dispatch = mongoose.models.MarketplaceDispatch;
+    const externalOrderId = booking.externalOrderId.replace(/:parcel:\d+$/, '');
+    const dispatch = Dispatch && await Dispatch.findOne({ connection: storeConnection._id, externalOrderId });
+    if (!dispatch || dispatch.state !== 'booked') return { skipped: true };
+    const { Booking } = require('../../models');
+    const { displayShipmentStatus } = require('../utils/shipmentProgress');
+    const parcels = await Booking.find({ _id: { $in: dispatch.parcels.map(parcel => parcel.bookingId).filter(Boolean) } });
+    const statuses = parcels.map(displayShipmentStatus);
+    const all = parcels.length === dispatch.parcels.length;
+    callbackPayload = { externalOrderId, bookingCode: String(dispatch._id),
+      status: all && statuses.every(status => status === 'delivered') ? 'delivered' : statuses.some(status => ['warehouse', 'in_transit', 'out_for_delivery', 'delivered'].includes(status)) ? 'in_transit' : 'pending',
+      collected: all && statuses.every(status => ['warehouse', 'in_transit', 'out_for_delivery', 'delivered'].includes(status)),
+      parcels: parcels.map(parcel => ({ bookingCode: parcel.code, status: displayShipmentStatus(parcel), trackingUrl: parcel.trackingUrl })),
+    };
+  }
+  const rawBody = JSON.stringify(callbackPayload);
+  const timestamp = String(Date.now());
+  const signed = storeConnection.webhookSecret
+    ? { 'x-cloudship-timestamp': timestamp, 'x-cloudship-signature': hmacSha256Hex(storeConnection.webhookSecret, `${timestamp}.${rawBody}`) } : {};
   const res = await fetch(creds.statusWebhookUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      externalOrderId: booking.externalOrderId,
-      bookingCode: booking.code,
-      status: statusPayload.status || booking.status,
-      courierStatus: statusPayload.courierStatus || booking.courierStatus || null,
-      label: statusPayload.label || null,
-      trackingNumber: booking.trackingNumber,
-      trackingUrl: booking.trackingUrl || null,
-      logisticsBookingRef: booking.logisticsBookingRef,
-    }),
+    headers: { 'Content-Type': 'application/json', ...signed },
+    body: rawBody,
   });
   if (!res.ok) {
     throw new Error(`Lovable status webhook failed: ${res.status}`);

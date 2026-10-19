@@ -27,6 +27,7 @@ const weatherRoute = require('./weather.route');
 const config = require('../../config/config');
 
 const router = express.Router();
+router.use('/marketplace', require('./marketplace.route'));
 
 const defaultRoutes = [
   {
